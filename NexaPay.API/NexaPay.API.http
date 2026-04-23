@@ -1,0 +1,6 @@
+@NexaPay.API_HostAddress = http://localhost:5190
+
+GET {{NexaPay.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

@@ -1,0 +1,39 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AutoMapper" Version="16.1.1" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
+    <PackageReference Include="MediatR" Version="12.4.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\NexaPay.Domain\NexaPay.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Common\Behaviors\" />
+    <Folder Include="Common\Exceptions\" />
+    <Folder Include="Common\Models\" />
+    <Folder Include="DTOs\" />
+    <Folder Include="Features\Accounts\Commands\CreateAccount\" />
+    <Folder Include="Features\Accounts\Commands\DeleteAccount\" />
+    <Folder Include="Features\Accounts\Queries\GetAllAccounts\" />
+    <Folder Include="Features\Accounts\Queries\GetAccountById\" />
+    <Folder Include="Features\Cards\Commands\CreateCard\" />
+    <Folder Include="Features\Cards\Commands\BlockCard\" />
+    <Folder Include="Features\Cards\Queries\GetCardsByAccount\" />
+    <Folder Include="Features\Transactions\Commands\Deposit\" />
+    <Folder Include="Features\Transactions\Commands\Transfer\" />
+    <Folder Include="Features\Transactions\Commands\Withdraw\" />
+    <Folder Include="Features\Transactions\Queries\GetTransactionsByAccount\" />
+    <Folder Include="Mappings\" />
+  </ItemGroup>
+
+</Project>
