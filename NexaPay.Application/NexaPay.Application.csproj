@@ -18,14 +18,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Common\Behaviors\" />
-    <Folder Include="Common\Exceptions\" />
-    <Folder Include="Common\Models\" />
-    <Folder Include="DTOs\" />
-    <Folder Include="Features\Accounts\Commands\CreateAccount\" />
-    <Folder Include="Features\Accounts\Commands\DeleteAccount\" />
-    <Folder Include="Features\Accounts\Queries\GetAllAccounts\" />
-    <Folder Include="Features\Accounts\Queries\GetAccountById\" />
     <Folder Include="Features\Cards\Commands\CreateCard\" />
     <Folder Include="Features\Cards\Commands\BlockCard\" />
     <Folder Include="Features\Cards\Queries\GetCardsByAccount\" />
@@ -33,7 +25,6 @@
     <Folder Include="Features\Transactions\Commands\Transfer\" />
     <Folder Include="Features\Transactions\Commands\Withdraw\" />
     <Folder Include="Features\Transactions\Queries\GetTransactionsByAccount\" />
-    <Folder Include="Mappings\" />
   </ItemGroup>
 
 </Project>
