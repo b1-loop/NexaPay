@@ -17,14 +17,4 @@
     <ProjectReference Include="..\NexaPay.Domain\NexaPay.Domain.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Features\Cards\Commands\CreateCard\" />
-    <Folder Include="Features\Cards\Commands\BlockCard\" />
-    <Folder Include="Features\Cards\Queries\GetCardsByAccount\" />
-    <Folder Include="Features\Transactions\Commands\Deposit\" />
-    <Folder Include="Features\Transactions\Commands\Transfer\" />
-    <Folder Include="Features\Transactions\Commands\Withdraw\" />
-    <Folder Include="Features\Transactions\Queries\GetTransactionsByAccount\" />
-  </ItemGroup>
-
 </Project>
