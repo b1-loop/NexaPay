@@ -1,35 +1,60 @@
+// ============================================================
+// Program.cs – NexaPay.API
+// ============================================================
+// Startpunkten för NexaPay API.
+// Ren och minimal – allt ansvar är utbrutit till
+// ServiceExtensions.cs och DatabaseExtensions.cs
+// ============================================================
+
+using NexaPay.Application;
+using NexaPay.Infrastructure;
+using NexaPay.API;
 
 namespace NexaPay.API
 {
     public class Program
     {
-        public static void Main(string[] args)
+        public static async Task Main(string[] args)
         {
+            // ============================================================
+            // Bygg applikationen
+            // ============================================================
             var builder = WebApplication.CreateBuilder(args);
 
-            // Add services to the container.
+            // --------------------------------------------------------
+            // Registrera tjänster – varje rad har ett tydligt ansvar
+            // --------------------------------------------------------
 
-            builder.Services.AddControllers();
-            // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
-            builder.Services.AddEndpointsApiExplorer();
-            builder.Services.AddSwaggerGen();
+            // Application-lagret: MediatR, AutoMapper, FluentValidation
+            builder.Services.AddApplication();
 
+            // Infrastructure-lagret: EF Core, Repositories, JWT
+            builder.Services.AddInfrastructure(builder.Configuration);
+
+            // Identity: Användare, lösenord och roller
+            builder.Services.AddIdentityServices();
+
+            // API: Controllers, Swagger, CORS
+            builder.Services.AddApiServices();
+
+            // ============================================================
+            // Bygg applikationen
+            // ============================================================
             var app = builder.Build();
 
-            // Configure the HTTP request pipeline.
-            if (app.Environment.IsDevelopment())
-            {
-                app.UseSwagger();
-                app.UseSwaggerUI();
-            }
+            // --------------------------------------------------------
+            // Initalisera databas – migrationer och seed-data
+            // --------------------------------------------------------
+            await app.InitialiseDatabaseAsync();
 
-            app.UseHttpsRedirection();
+            // --------------------------------------------------------
+            // Konfigurera middleware-pipeline
+            // --------------------------------------------------------
+            app.UseApiMiddleware();
 
-            app.UseAuthorization();
-
-
-            app.MapControllers();
-
+            // ============================================================
+            // Starta applikationen
+            // ============================================================
             app.Run();
         }
     }
