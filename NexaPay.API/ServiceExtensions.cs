@@ -4,6 +4,7 @@
 
 using Microsoft.AspNetCore.Identity;
 using Microsoft.OpenApi;
+using Microsoft.OpenApi.Models;
 using NexaPay.API.Middleware;
 using NexaPay.Infrastructure.Persistence;
 
