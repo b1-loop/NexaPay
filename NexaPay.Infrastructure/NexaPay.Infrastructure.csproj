@@ -24,10 +24,4 @@
     <ProjectReference Include="..\NexaPay.Domain\NexaPay.Domain.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Identity\" />
-    <Folder Include="Persistence\Configuratioms\" />
-    <Folder Include="Persistence\Repositories\" />
-  </ItemGroup>
-
 </Project>
