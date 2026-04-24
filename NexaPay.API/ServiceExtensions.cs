@@ -3,7 +3,7 @@
 // ============================================================
 
 using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi;
 using NexaPay.API.Middleware;
 using NexaPay.Infrastructure.Persistence;
 
@@ -49,11 +49,28 @@ namespace NexaPay.API
             // Controllers
             services.AddControllers();
 
-            // Swagger – enkel konfiguration utan JWT
+            // --------------------------------------------------------
+            // Swagger
+            // --------------------------------------------------------
             services.AddEndpointsApiExplorer();
-            services.AddSwaggerGen();
+            services.AddSwaggerGen(options =>
+            {
+                options.SwaggerDoc("v1", new OpenApiInfo
+                {
+                    Title = "NexaPay API",
+                    Version = "v1",
+                    Description = "Ett modernt bank-API byggt med Clean Architecture"
+                });
 
+                // Löser konflikter när flera klasser har samma namn
+                // T.ex. CreateCardRequest och CreateAccountRequest
+                // skulle krocka i Swagger utan detta
+                options.CustomSchemaIds(type => type.FullName);
+            });
+
+            // --------------------------------------------------------
             // CORS
+            // --------------------------------------------------------
             services.AddCors(options =>
             {
                 options.AddPolicy("AllowAll", policy =>
@@ -78,7 +95,13 @@ namespace NexaPay.API
             {
                 // Swagger UI – nås på /swagger
                 app.UseSwagger();
-                app.UseSwaggerUI();
+                app.UseSwaggerUI(options =>
+                {
+                    options.SwaggerEndpoint(
+                        "/swagger/v1/swagger.json",
+                        "NexaPay API v1");
+                    options.RoutePrefix = "swagger";
+                });
             }
 
             // 1. Global felhantering – alltid först
