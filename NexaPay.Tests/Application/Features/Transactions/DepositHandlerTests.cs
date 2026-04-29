@@ -11,10 +11,11 @@
 //   4. Inaktivt konto – returnerar Failure
 //   5. Transaktionspost skapas med rätt värden
 //
-// Varför mockar vi IUnitOfWork?
-// Vi vill inte prata med en riktig databas i unit-tester.
-// Mocken låter oss kontrollera exakt vad som returneras
-// och verifiera att rätt metoder anropades.
+// Varför MockReset i SetUp?
+// Utan reset kan state från ett test läcka in i nästa test.
+// T.ex. kan SaveChangesAsync-räknaren från test 1
+// påverka verifieringen i test 3.
+// Reset + Setup garanterar att varje test börjar rent.
 // ============================================================
 
 using FluentAssertions;
@@ -27,13 +28,51 @@ namespace NexaPay.Tests.Application.Features.Transactions
     [TestFixture]
     public class DepositHandlerTests : TestBase
     {
-        // Handleren vi testar
         private DepositHandler _handler = null!;
 
-        // [SetUp] körs innan VARJE test
+        // --------------------------------------------------------
+        // Setup – körs innan VARJE test
+        // --------------------------------------------------------
         [SetUp]
         public void Setup()
         {
+            // ------------------------------------------------
+            // Återställ alla mocks innan varje test
+            // ------------------------------------------------
+            // Reset() nollställer alla Setup() och Verify()-räknare
+            // Utan detta kan anrop från tidigare tester påverka
+            // verifieringen i efterföljande tester
+            MockUnitOfWork.Reset();
+            MockAccountRepository.Reset();
+            MockCardRepository.Reset();
+            MockTransactionRepository.Reset();
+
+            // ------------------------------------------------
+            // Sätt upp mocks på nytt efter reset
+            // ------------------------------------------------
+            // Vi måste göra detta igen efter Reset()
+            // eftersom Reset() tar bort alla Setup()-konfigurationer
+
+            // Koppla repositories till UnitOfWork
+            MockUnitOfWork
+                .Setup(u => u.Accounts)
+                .Returns(MockAccountRepository.Object);
+
+            MockUnitOfWork
+                .Setup(u => u.Cards)
+                .Returns(MockCardRepository.Object);
+
+            MockUnitOfWork
+                .Setup(u => u.Transactions)
+                .Returns(MockTransactionRepository.Object);
+
+            // SaveChangesAsync returnerar 1 (en rad påverkad)
+            MockUnitOfWork
+                .Setup(u => u.SaveChangesAsync(
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(1);
+
+            // Skapa en ny handler för varje test
             _handler = new DepositHandler(
                 MockUnitOfWork.Object,
                 Mapper);
@@ -49,23 +88,21 @@ namespace NexaPay.Tests.Application.Features.Transactions
             var userId = "user-123";
             var account = CreateTestAccount(
                 ownerId: userId,
-                balance: 1000); // Börjar med 1000 kr
+                balance: 1000);
 
             var command = new DepositCommand
             {
                 AccountId = account.Id,
-                Amount = 500, // Sätter in 500 kr
+                Amount = 500,
                 Description = "Testinsättning",
                 UserId = userId
             };
 
-            // Konfigurera mocken att returnera vårt testkonto
-            // när GetByIdAsync anropas med rätt ID
             MockAccountRepository
                 .Setup(r => r.GetByIdAsync(account.Id))
                 .ReturnsAsync(account);
 
-            // Act – kör handleren
+            // Act
             var result = await _handler.Handle(
                 command,
                 CancellationToken.None);
@@ -74,17 +111,12 @@ namespace NexaPay.Tests.Application.Features.Transactions
             result.IsSuccess.Should().BeTrue(
                 "en giltig insättning ska lyckas");
 
-            result.Value.Should().NotBeNull(
-                "ett lyckat resultat ska innehålla en TransactionDto");
-
             result.Value!.Amount.Should().Be(500,
                 "transaktionsbeloppet ska matcha insättningen");
 
             result.Value.BalanceAfterTransaction.Should().Be(1500,
                 "saldot ska vara 1000 + 500 = 1500 efter insättningen");
 
-            // Verifiera att SaveChangesAsync anropades
-            // Om detta inte anropades sparades ingenting i databasen!
             MockUnitOfWork.Verify(
                 u => u.SaveChangesAsync(It.IsAny<CancellationToken>()),
                 Times.Once,
@@ -100,17 +132,17 @@ namespace NexaPay.Tests.Application.Features.Transactions
             // Arrange
             var command = new DepositCommand
             {
-                AccountId = Guid.NewGuid(), // Slumpmässigt ID som inte finns
+                AccountId = Guid.NewGuid(),
                 Amount = 500,
                 Description = "Testinsättning",
                 UserId = "user-123"
             };
 
-            // Konfigurera mocken att returnera null
-            // = kontot finns inte i databasen
+            // Mocken returnerar null = kontot finns inte
             MockAccountRepository
                 .Setup(r => r.GetByIdAsync(It.IsAny<Guid>()))
-                .ReturnsAsync((NexaPay.Domain.Entities.Account?)null);
+                .ReturnsAsync(
+                    (NexaPay.Domain.Entities.Account?)null);
 
             // Act
             var result = await _handler.Handle(
@@ -124,8 +156,6 @@ namespace NexaPay.Tests.Application.Features.Transactions
             result.Error.Should().NotBeEmpty(
                 "ett felmeddelande ska finnas");
 
-            // Verifiera att SaveChangesAsync INTE anropades
-            // Inget ska sparas om kontot inte hittades
             MockUnitOfWork.Verify(
                 u => u.SaveChangesAsync(It.IsAny<CancellationToken>()),
                 Times.Never,
@@ -179,7 +209,7 @@ namespace NexaPay.Tests.Application.Features.Transactions
             var userId = "user-123";
             var account = CreateTestAccount(
                 ownerId: userId,
-                isActive: false); // Inaktivt konto!
+                isActive: false);
 
             var command = new DepositCommand
             {
@@ -201,6 +231,11 @@ namespace NexaPay.Tests.Application.Features.Transactions
             // Assert
             result.IsFailure.Should().BeTrue(
                 "man ska inte kunna sätta in pengar på ett stängt konto");
+
+            MockUnitOfWork.Verify(
+                u => u.SaveChangesAsync(It.IsAny<CancellationToken>()),
+                Times.Never,
+                "inget ska sparas för ett inaktivt konto");
         }
 
         // --------------------------------------------------------
@@ -233,7 +268,6 @@ namespace NexaPay.Tests.Application.Features.Transactions
             // Assert
             result.IsSuccess.Should().BeTrue();
 
-            // TransactionType mappas till sträng i DTO
             result.Value!.Type.Should().Be("Deposit",
                 "transaktionstypen ska vara Deposit för insättningar");
 

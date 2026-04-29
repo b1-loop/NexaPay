@@ -10,9 +10,13 @@
 //   3. Exakt saldo – ta ut hela beloppet
 //   4. Fel ägare – returnerar Failure
 //   5. Inaktivt konto – returnerar Failure
+//   6. Konto finns inte – returnerar Failure
 //
-// Overdraft-skyddet är den VIKTIGASTE affärsregeln
-// i hela NexaPay – det är kritiskt att det testas noggrant!
+// Varför MockReset i SetUp?
+// Reset() nollställer alla Setup() och Verify()-räknare
+// så att varje test börjar med en ren slate.
+// Utan detta kan anrop från tidigare tester påverka
+// verifieringen i efterföljande tester.
 // ============================================================
 
 using FluentAssertions;
@@ -27,9 +31,46 @@ namespace NexaPay.Tests.Application.Features.Transactions
     {
         private WithdrawHandler _handler = null!;
 
+        // --------------------------------------------------------
+        // Setup – körs innan VARJE test
+        // --------------------------------------------------------
         [SetUp]
         public void Setup()
         {
+            // ------------------------------------------------
+            // Återställ alla mocks innan varje test
+            // ------------------------------------------------
+            // Reset() nollställer alla Setup() och Verify()-räknare
+            // Utan detta kan anrop från tidigare tester påverka
+            // verifieringen i efterföljande tester
+            MockUnitOfWork.Reset();
+            MockAccountRepository.Reset();
+            MockCardRepository.Reset();
+            MockTransactionRepository.Reset();
+
+            // ------------------------------------------------
+            // Sätt upp mocks på nytt efter reset
+            // ------------------------------------------------
+            // Koppla repositories till UnitOfWork
+            MockUnitOfWork
+                .Setup(u => u.Accounts)
+                .Returns(MockAccountRepository.Object);
+
+            MockUnitOfWork
+                .Setup(u => u.Cards)
+                .Returns(MockCardRepository.Object);
+
+            MockUnitOfWork
+                .Setup(u => u.Transactions)
+                .Returns(MockTransactionRepository.Object);
+
+            // SaveChangesAsync returnerar 1 (en rad påverkad)
+            MockUnitOfWork
+                .Setup(u => u.SaveChangesAsync(
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(1);
+
+            // Skapa en ny handler för varje test
             _handler = new WithdrawHandler(
                 MockUnitOfWork.Object,
                 Mapper);
@@ -77,7 +118,6 @@ namespace NexaPay.Tests.Application.Features.Transactions
             result.Value.Type.Should().Be("Withdrawal",
                 "transaktionstypen ska vara Withdrawal för uttag");
 
-            // Verifiera att ändringar sparades
             MockUnitOfWork.Verify(
                 u => u.SaveChangesAsync(It.IsAny<CancellationToken>()),
                 Times.Once,
@@ -119,16 +159,13 @@ namespace NexaPay.Tests.Application.Features.Transactions
                 "– overdraft-skyddet är en kritisk affärsregel!");
 
             result.Error.Should().Contain("saldo",
-                "felmeddelandet ska nämna saldot så " +
-                "användaren förstår varför det misslyckades");
+                "felmeddelandet ska nämna saldot");
 
-            // KRITISKT: Verifiera att INGET sparades
-            // Saldot ska INTE ha ändrats om uttaget misslyckades
+            // KRITISKT: Inget ska sparas när saldot inte räcker
             MockUnitOfWork.Verify(
                 u => u.SaveChangesAsync(It.IsAny<CancellationToken>()),
                 Times.Never,
-                "inget ska sparas när saldot inte räcker – " +
-                "annars kan pengar försvinna!");
+                "inget ska sparas när saldot inte räcker!");
         }
 
         // --------------------------------------------------------
@@ -237,6 +274,11 @@ namespace NexaPay.Tests.Application.Features.Transactions
             // Assert
             result.IsFailure.Should().BeTrue(
                 "man ska inte kunna ta ut pengar från ett stängt konto");
+
+            MockUnitOfWork.Verify(
+                u => u.SaveChangesAsync(It.IsAny<CancellationToken>()),
+                Times.Never,
+                "inget ska sparas för ett inaktivt konto");
         }
 
         // --------------------------------------------------------
@@ -271,7 +313,8 @@ namespace NexaPay.Tests.Application.Features.Transactions
 
             MockUnitOfWork.Verify(
                 u => u.SaveChangesAsync(It.IsAny<CancellationToken>()),
-                Times.Never);
+                Times.Never,
+                "inget ska sparas om kontot inte hittades");
         }
     }
 }
