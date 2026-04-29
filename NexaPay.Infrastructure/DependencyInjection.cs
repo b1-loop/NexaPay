@@ -9,6 +9,7 @@
 //   - Entity Framework Core med SQL Server
 //   - UnitOfWork och alla Repositories
 //   - JwtService
+//   - AuthService (NY – implementerar IAuthService)
 //   - JWT-autentisering
 // ============================================================
 
@@ -17,6 +18,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
+using NexaPay.Application.Common.Interfaces;
 using NexaPay.Domain.Interfaces;
 using NexaPay.Infrastructure.Identity;
 using NexaPay.Infrastructure.Persistence;
@@ -69,6 +71,21 @@ namespace NexaPay.Infrastructure
             // --------------------------------------------------------
             // Scoped – en ny instans per request
             services.AddScoped<IJwtService, JwtService>();
+
+            // --------------------------------------------------------
+            // Auth Service
+            // --------------------------------------------------------
+            // Implementerar IAuthService från Application-lagret
+            // Hanterar all Identity-logik (registrering, inloggning)
+            //
+            // Varför här och inte i Application?
+            // AuthService använder UserManager och RoleManager
+            // som är Identity-specifika klasser som bara
+            // Infrastructure ska känna till.
+            //
+            // Application känner bara till IAuthService-interfacet
+            // – aldrig den konkreta implementationen
+            services.AddScoped<IAuthService, AuthService>();
 
             // --------------------------------------------------------
             // JWT-autentisering
