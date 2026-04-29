@@ -3,14 +3,6 @@
 // NexaPay.Tests/Application/Features/Transactions
 // ============================================================
 // Testar WithdrawHandler med fokus på overdraft-skyddet.
-//
-// Vi testar:
-//   1. Lyckad uttag – saldot minskar korrekt
-//   2. Overdraft-skydd – saldot räcker inte
-//   3. Exakt saldo – ta ut hela beloppet
-//   4. Fel ägare – returnerar Failure
-//   5. Inaktivt konto – returnerar Failure
-//   6. Konto finns inte – returnerar Failure
 // ============================================================
 
 using FluentAssertions;
@@ -21,6 +13,9 @@ using NUnit.Framework;
 namespace NexaPay.Tests.Application.Features.Transactions
 {
     [TestFixture]
+    [Category("Application")]
+    [Category("Transactions")]
+    [Category("Withdraw")]
     public class WithdrawHandlerTests : TestBase
     {
         private WithdrawHandler _handler = null!;
@@ -28,13 +23,11 @@ namespace NexaPay.Tests.Application.Features.Transactions
         [SetUp]
         public void Setup()
         {
-            // Återställ alla mocks innan varje test
             MockUnitOfWork.Reset();
             MockAccountRepository.Reset();
             MockCardRepository.Reset();
             MockTransactionRepository.Reset();
 
-            // Sätt upp mocks på nytt efter reset
             MockUnitOfWork
                 .Setup(u => u.Accounts)
                 .Returns(MockAccountRepository.Object);
@@ -61,9 +54,9 @@ namespace NexaPay.Tests.Application.Features.Transactions
         // Test 1: Lyckad uttag
         // --------------------------------------------------------
         [Test]
+        [Category("HappyPath")]
         [Description(
-            "Verifierar att ett giltigt uttag minskar saldot korrekt " +
-            "och att TransactionDto returneras med rätt värden. " +
+            "Verifierar att ett giltigt uttag minskar saldot korrekt. " +
             "T.ex. saldo 1000 - uttag 300 = 700 kvar på kontot.")]
         public async Task Handle_WhenValidWithdrawal_ShouldDecreaseBalance()
         {
@@ -113,11 +106,12 @@ namespace NexaPay.Tests.Application.Features.Transactions
         // Test 2: Overdraft-skydd
         // --------------------------------------------------------
         [Test]
+        [Category("BusinessRule")]
+        [Category("Overdraft")]
         [Description(
             "Verifierar det kritiska overdraft-skyddet – " +
             "man ska INTE kunna ta ut mer pengar än vad som finns. " +
-            "Saldot ska förbli oförändrat och SaveChangesAsync " +
-            "ska ALDRIG anropas när saldot inte räcker.")]
+            "SaveChangesAsync ska ALDRIG anropas i detta fall.")]
         public async Task Handle_WhenInsufficientBalance_ShouldReturnFailure()
         {
             // Arrange
@@ -160,10 +154,12 @@ namespace NexaPay.Tests.Application.Features.Transactions
         // Test 3: Exakt saldo
         // --------------------------------------------------------
         [Test]
+        [Category("BusinessRule")]
+        [Category("EdgeCase")]
         [Description(
-            "Verifierar att man kan ta ut exakt hela saldot " +
-            "och att saldot blir 0 efter uttaget. " +
-            "Gränsfallet där Amount == Balance ska tillåtas.")]
+            "Verifierar gränsfallet där Amount == Balance. " +
+            "Man ska kunna ta ut exakt hela saldot " +
+            "och saldot ska bli 0 efter uttaget.")]
         public async Task Handle_WhenWithdrawingExactBalance_ShouldSucceed()
         {
             // Arrange
@@ -201,11 +197,11 @@ namespace NexaPay.Tests.Application.Features.Transactions
         // Test 4: Fel ägare
         // --------------------------------------------------------
         [Test]
+        [Category("Security")]
         [Description(
             "Verifierar att en användare INTE kan ta ut pengar " +
             "från ett konto som tillhör någon annan. " +
-            "OwnerId måste matcha inloggad UserId – " +
-            "annars returneras Failure utan att något sparas.")]
+            "OwnerId måste matcha inloggad UserId.")]
         public async Task Handle_WhenWrongOwner_ShouldReturnFailure()
         {
             // Arrange
@@ -243,11 +239,10 @@ namespace NexaPay.Tests.Application.Features.Transactions
         // Test 5: Inaktivt konto
         // --------------------------------------------------------
         [Test]
+        [Category("BusinessRule")]
         [Description(
             "Verifierar att uttag nekas på ett inaktivt konto. " +
-            "Ett stängt konto (IsActive = false) ska inte " +
-            "kunna användas för uttag – detta förhindrar " +
-            "transaktioner på avslutade konton.")]
+            "Ett stängt konto ska inte kunna användas för uttag.")]
         public async Task Handle_WhenAccountInactive_ShouldReturnFailure()
         {
             // Arrange
@@ -287,11 +282,11 @@ namespace NexaPay.Tests.Application.Features.Transactions
         // Test 6: Konto finns inte
         // --------------------------------------------------------
         [Test]
+        [Category("NotFound")]
         [Description(
-            "Verifierar att uttag misslyckas med ett tydligt " +
-            "felmeddelande när kontot inte existerar i databasen. " +
-            "GetByIdAsync returnerar null och handleren " +
-            "ska returnera Result.Failure utan att spara något.")]
+            "Verifierar att uttag misslyckas när kontot inte " +
+            "existerar i databasen. GetByIdAsync returnerar null " +
+            "och handleren ska returnera Result.Failure.")]
         public async Task Handle_WhenAccountNotFound_ShouldReturnFailure()
         {
             // Arrange

@@ -2,16 +2,6 @@
 // AccountTests.cs – NexaPay.Tests/Domain/Entities
 // ============================================================
 // Testar Account-entitetens egenskaper och standardvärden.
-//
-// Vad testar vi här?
-// Domain-lagret innehåller inga komplexa metoder men vi
-// verifierar att entiteterna initieras korrekt och att
-// våra standardvärden är rätt.
-//
-// Teststruktur – AAA-mönstret:
-//   Arrange  = förbered testdata
-//   Act      = utför operationen
-//   Assert   = verifiera resultatet
 // ============================================================
 
 using FluentAssertions;
@@ -22,16 +12,18 @@ using NUnit.Framework;
 namespace NexaPay.Tests.Domain.Entities
 {
     [TestFixture]
+    [Category("Domain")]
+    // [Category] på klassnivå = gäller alla tester i klassen
+    // Alla tester i denna klass kategoriseras som "Domain"
     public class AccountTests
     {
-        // --------------------------------------------------------
-        // Test 1: Nytt konto ska ha korrekta standardvärden
-        // --------------------------------------------------------
         [Test]
+        [Category("Account")]
+        [Category("DefaultValues")]
         [Description(
             "Verifierar att ett nytt Account-objekt har korrekta " +
             "standardvärden – saldo 0, aktivt, inga transaktioner " +
-            "och inga kort. Detta är grundläggande domänregler.")]
+            "och inga kort.")]
         public void Account_WhenCreated_ShouldHaveCorrectDefaultValues()
         {
             // Arrange
@@ -64,15 +56,12 @@ namespace NexaPay.Tests.Domain.Entities
                 "ett nytt konto ska inte ha några kort");
         }
 
-        // --------------------------------------------------------
-        // Test 2: Entiteten tillåter negativt saldo
-        // --------------------------------------------------------
         [Test]
+        [Category("Account")]
+        [Category("Balance")]
         [Description(
-            "Verifierar att Account-entiteten i sig INTE skyddar " +
-            "mot negativt saldo – det ansvaret ligger i " +
-            "WithdrawHandler (Application-lagret). " +
-            "Separation of concerns är en Clean Architecture-princip.")]
+            "Verifierar att Account-entiteten INTE skyddar mot " +
+            "negativt saldo – det ansvaret ligger i WithdrawHandler.")]
         public void Account_WithNegativeBalance_ShouldBeAllowedByEntity()
         {
             // Arrange
@@ -84,18 +73,15 @@ namespace NexaPay.Tests.Domain.Entities
 
             // Assert
             account.Balance.Should().Be(-100,
-                "entiteten har inget skydd mot negativt saldo – " +
-                "det hanteras av affärslogiken i Application-lagret");
+                "entiteten har inget skydd mot negativt saldo");
         }
 
-        // --------------------------------------------------------
-        // Test 3: Stänga ett konto (soft delete)
-        // --------------------------------------------------------
         [Test]
+        [Category("Account")]
+        [Category("SoftDelete")]
         [Description(
             "Verifierar att ett konto kan markeras som inaktivt " +
-            "(soft delete) och att UpdatedAt sätts korrekt. " +
-            "Vi tar aldrig bort konton fysiskt av revisionsskäl.")]
+            "och att UpdatedAt sätts korrekt vid soft delete.")]
         public void Account_WhenDeactivated_IsActiveShouldBeFalse()
         {
             // Arrange
@@ -117,14 +103,12 @@ namespace NexaPay.Tests.Domain.Entities
                 "UpdatedAt ska sättas när kontot stängs");
         }
 
-        // --------------------------------------------------------
-        // Test 4: Konto med transaktioner
-        // --------------------------------------------------------
         [Test]
+        [Category("Account")]
+        [Category("Relations")]
         [Description(
             "Verifierar att transaktioner kan kopplas till ett konto " +
-            "och att navigationsegenskapen fungerar korrekt. " +
-            "Används av EF Core för att ladda relaterad data.")]
+            "och att navigationsegenskapen fungerar korrekt.")]
         public void Account_WithTransactions_ShouldContainThem()
         {
             // Arrange
@@ -156,14 +140,12 @@ namespace NexaPay.Tests.Domain.Entities
                 "transaktionsbeloppet ska vara 500");
         }
 
-        // --------------------------------------------------------
-        // Test 5: Konto med kort
-        // --------------------------------------------------------
         [Test]
+        [Category("Account")]
+        [Category("Relations")]
         [Description(
             "Verifierar att kort kan kopplas till ett konto " +
-            "och att navigationsegenskapen fungerar korrekt. " +
-            "Ett konto kan ha flera kort kopplade till sig.")]
+            "och att navigationsegenskapen fungerar korrekt.")]
         public void Account_WithCards_ShouldContainThem()
         {
             // Arrange

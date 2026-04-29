@@ -3,12 +3,6 @@
 // NexaPay.Tests/Application/Features/Accounts
 // ============================================================
 // Testar CreateAccountHandler med olika scenarier.
-//
-// Vi testar:
-//   1. Lyckad kontoskapelse – konto skapas med rätt värden
-//   2. Nytt konto börjar alltid med 0 i saldo
-//   3. SaveChangesAsync och AddAsync anropas korrekt
-//   4. Olika kontotyper mappas korrekt till DTO
 // ============================================================
 
 using FluentAssertions;
@@ -20,6 +14,8 @@ using NUnit.Framework;
 namespace NexaPay.Tests.Application.Features.Accounts
 {
     [TestFixture]
+    [Category("Application")]
+    [Category("Accounts")]
     public class CreateAccountHandlerTests : TestBase
     {
         private CreateAccountHandler _handler = null!;
@@ -27,13 +23,11 @@ namespace NexaPay.Tests.Application.Features.Accounts
         [SetUp]
         public void Setup()
         {
-            // Återställ alla mocks innan varje test
             MockUnitOfWork.Reset();
             MockAccountRepository.Reset();
             MockCardRepository.Reset();
             MockTransactionRepository.Reset();
 
-            // Sätt upp mocks på nytt efter reset
             MockUnitOfWork
                 .Setup(u => u.Accounts)
                 .Returns(MockAccountRepository.Object);
@@ -60,11 +54,11 @@ namespace NexaPay.Tests.Application.Features.Accounts
         // Test 1: Lyckad kontoskapelse
         // --------------------------------------------------------
         [Test]
+        [Category("HappyPath")]
         [Description(
             "Verifierar att ett giltigt CreateAccountCommand " +
             "skapar ett konto med rätt namn, kontotyp och " +
-            "att kontot är aktivt från start. " +
-            "Testar hela flödet från Command till AccountDto.")]
+            "att kontot är aktivt från start.")]
         public async Task Handle_WhenValidCommand_ShouldCreateAccount()
         {
             // Arrange
@@ -89,9 +83,6 @@ namespace NexaPay.Tests.Application.Features.Accounts
             result.IsSuccess.Should().BeTrue(
                 "ett giltigt command ska skapa ett konto framgångsrikt");
 
-            result.Value.Should().NotBeNull(
-                "ett lyckat resultat ska innehålla en AccountDto");
-
             result.Value!.AccountName.Should().Be("Mitt sparkonto",
                 "kontonamnet ska matcha det vi angav i command");
 
@@ -111,11 +102,11 @@ namespace NexaPay.Tests.Application.Features.Accounts
         // Test 2: Nytt konto börjar alltid med 0 i saldo
         // --------------------------------------------------------
         [Test]
+        [Category("BusinessRule")]
         [Description(
             "Verifierar den kritiska affärsregeln att ett nytt " +
             "bankkonto ALLTID skapas med 0 kr i saldo. " +
-            "Kunden måste göra en insättning separat. " +
-            "Detta är en grundläggande bankregel.")]
+            "Kunden måste göra en insättning separat.")]
         public async Task Handle_WhenAccountCreated_BalanceShouldBeZero()
         {
             // Arrange
@@ -147,11 +138,11 @@ namespace NexaPay.Tests.Application.Features.Accounts
         // Test 3: SaveChangesAsync och AddAsync anropas
         // --------------------------------------------------------
         [Test]
+        [Category("Database")]
         [Description(
             "Verifierar att handleren faktiskt sparar kontot " +
             "till databasen via UnitOfWork.SaveChangesAsync " +
-            "och att AddAsync anropas för att lägga till kontot. " +
-            "Om dessa inte anropas sparas ingenting!")]
+            "och att AddAsync anropas för att lägga till kontot.")]
         public async Task Handle_WhenAccountCreated_ShouldSaveChanges()
         {
             // Arrange
@@ -189,9 +180,10 @@ namespace NexaPay.Tests.Application.Features.Accounts
         [TestCase(AccountType.Checking, "Checking")]
         [TestCase(AccountType.Savings, "Savings")]
         [TestCase(AccountType.ISK, "ISK")]
+        [Category("Mapping")]
         [Description(
-            "Verifierar att alla kontotyper (Checking, Savings, ISK) " +
-            "mappas korrekt från enum till sträng i AccountDto. " +
+            "Verifierar att alla kontotyper mappas korrekt " +
+            "från enum till sträng i AccountDto. " +
             "Klienten ska se 'Savings' inte '1' i API-svaret.")]
         public async Task Handle_WithDifferentAccountTypes_ShouldMapCorrectly(
             AccountType accountType,
