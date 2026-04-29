@@ -3,10 +3,12 @@
 // ============================================================
 // Hanterar registrering och inloggning.
 //
-// EFTER refaktorering:
+// EFTER refaktorering för Clean Architecture:
 // Controllern känner bara till MediatR och Commands.
 // Den vet INGENTING om Identity, UserManager eller databaser.
-// Det är precis vad Clean Architecture kräver!
+//
+// Flödet:
+//   Controller → MediatR → Handler → IAuthService → AuthService
 //
 // Endpoints:
 //   POST /api/auth/register  ← Registrera ny användare
@@ -22,10 +24,13 @@ namespace NexaPay.API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    // Ingen [Authorize] här – dessa endpoints är publika
+    // Användaren är inte inloggad när de registrerar/loggar in
     public class AuthController : ControllerBase
     {
         // Bara IMediator – ingenting annat!
         // Controllern delegerar allt till MediatR
+        // som hittar rätt Handler automatiskt
         private readonly IMediator _mediator;
 
         public AuthController(IMediator mediator)
@@ -36,67 +41,87 @@ namespace NexaPay.API.Controllers
         // --------------------------------------------------------
         // POST api/auth/register
         // --------------------------------------------------------
+        // Registrerar en ny användare och returnerar en JWT-token
+        // Klienten är direkt inloggad efter registrering
         [HttpPost("register")]
         public async Task<IActionResult> Register(
             [FromBody] RegisterRequest request)
         {
-            // Skapa ett Command och skicka via MediatR
+            // Skapa Command från request-body
             // MediatR hittar RegisterHandler automatiskt
-            var command = new RegisterCommand
-            {
-                Email = request.Email,
-                Password = request.Password,
-                IsAdmin = request.IsAdmin
-            };
-
-            var result = await _mediator.Send(command);
-
-            if (result.IsSuccess)
-                return Ok(new
+            var result = await _mediator.Send(
+                new RegisterCommand
                 {
-                    message = "Användaren registrerades framgångsrikt",
-                    data = result.Value
+                    Email = request.Email,
+                    Password = request.Password,
+                    IsAdmin = request.IsAdmin
                 });
 
-            return BadRequest(new { message = result.Error });
+            if (result.IsSuccess)
+                // 200 OK med token och användarinfo
+                return Ok(ApiResponse.Ok(
+                    result.Value,
+                    "Användaren registrerades framgångsrikt"));
+
+            // 400 Bad Request om registreringen misslyckades
+            // T.ex. om e-posten redan används
+            return BadRequest(ApiResponse.Fail(result.Error));
         }
 
         // --------------------------------------------------------
         // POST api/auth/login
         // --------------------------------------------------------
+        // Loggar in en befintlig användare och returnerar JWT-token
         [HttpPost("login")]
         public async Task<IActionResult> Login(
             [FromBody] LoginRequest request)
         {
-            var command = new LoginCommand
-            {
-                Email = request.Email,
-                Password = request.Password
-            };
-
-            var result = await _mediator.Send(command);
+            var result = await _mediator.Send(
+                new LoginCommand
+                {
+                    Email = request.Email,
+                    Password = request.Password
+                });
 
             if (result.IsSuccess)
-                return Ok(result.Value);
+                // 200 OK med token och användarinfo
+                return Ok(ApiResponse.Ok(
+                    result.Value,
+                    "Inloggning lyckades"));
 
-            // 401 Unauthorized vid felaktig inloggning
-            return Unauthorized(new { message = result.Error });
+            // 401 Unauthorized vid fel lösenord eller e-post
+            // Vi använder samma felmeddelande för båda fallen
+            // av säkerhetsskäl – avslöjar inte om e-posten finns
+            return Unauthorized(ApiResponse.Fail(result.Error));
         }
     }
 
     // --------------------------------------------------------
-    // Request-modeller – enkla och rena
+    // Request-modeller
     // --------------------------------------------------------
+
+    // Request-modell för POST /api/auth/register
     public record RegisterRequest
     {
+        // E-postadressen för den nya användaren
         public string Email { get; init; } = string.Empty;
+
+        // Lösenordet – valideras av RegisterValidator
+        // Hashas av Identity i AuthService
         public string Password { get; init; } = string.Empty;
+
+        // Om true skapas användaren med Admin-rollen
+        // Standard är false – vanlig User
         public bool IsAdmin { get; init; } = false;
     }
 
+    // Request-modell för POST /api/auth/login
     public record LoginRequest
     {
+        // E-postadressen för användaren som loggar in
         public string Email { get; init; } = string.Empty;
+
+        // Lösenordet som kontrolleras mot det hashade värdet
         public string Password { get; init; } = string.Empty;
     }
 }
