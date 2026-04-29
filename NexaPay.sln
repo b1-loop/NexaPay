@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
-VisualStudioVersion = 17.14.36811.4 d17.14
+VisualStudioVersion = 17.14.36811.4
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NexaPay.Domain", "NexaPay.Domain\NexaPay.Domain.csproj", "{D4E60247-48B9-41B0-AC25-AD1BC2E0304F}"
 EndProject
@@ -10,6 +10,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NexaPay.Infrastructure", "NexaPay.Infrastructure\NexaPay.Infrastructure.csproj", "{E793043B-FC11-468D-A839-38711C484FB4}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NexaPay.API", "NexaPay.API\NexaPay.API.csproj", "{257C67C3-D894-4AA1-99B1-8535A179C8F8}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NexaPay.Tests", "NexaPay.Tests\NexaPay.Tests.csproj", "{4EA7AECA-154A-4A29-AF74-A9259B537D61}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -33,6 +35,10 @@ Global
 		{257C67C3-D894-4AA1-99B1-8535A179C8F8}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{257C67C3-D894-4AA1-99B1-8535A179C8F8}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{257C67C3-D894-4AA1-99B1-8535A179C8F8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4EA7AECA-154A-4A29-AF74-A9259B537D61}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4EA7AECA-154A-4A29-AF74-A9259B537D61}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4EA7AECA-154A-4A29-AF74-A9259B537D61}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4EA7AECA-154A-4A29-AF74-A9259B537D61}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
