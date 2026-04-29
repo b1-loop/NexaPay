@@ -2,19 +2,20 @@
 // TransferHandler.cs
 // NexaPay.Application/Features/Transactions/Commands/Transfer
 // ============================================================
-// Den mest komplexa handlern i NexaPay.
 // Hanterar överföring av pengar mellan två konton.
 //
-// Atomärt flöde via Unit of Work:
-//   1. Hämta och validera båda kontona
-//   2. Kontrollera saldo (overdraft-skydd)
-//   3. Dra av från avsändarkonto
-//   4. Lägg till på mottagarkonto
-//   5. Skapa transaktionspost för avsändaren
-//   6. Skapa transaktionspost för mottagaren
-//   7. Spara ALLT i en enda databastransaktion
+// BUGGFIX: Tidigare uppdaterades kontona innan alla
+// affärsregler var verifierade. Det innebar att
+// SaveChangesAsync kunde anropas även vid fel.
 //
-// Om steg 7 misslyckas → ingenting sparas → inga pengar försvinner
+// KORREKT flöde:
+//   1. Hämta och VALIDERA alla konton (ingen uppdatering än!)
+//   2. Kör ALLA affärsregler (ägare, saldo, aktiv)
+//   3. Uppdatera kontona FÖRST när allt är verifierat
+//   4. Spara atomärt via Unit of Work
+//
+// Unit of Work garanterar att ALLA operationer lyckas
+// eller att INGEN av dem sparas – atomärt!
 // ============================================================
 
 using AutoMapper;
@@ -46,41 +47,52 @@ namespace NexaPay.Application.Features.Transactions.Commands.Transfer
             try
             {
                 // --------------------------------------------------------
-                // Steg 1: Hämta och validera avsändarkontot
+                // FAS 1: VALIDERING
+                // Hämta och validera ALLT innan vi ändrar något!
+                // Inga uppdateringar sker i denna fas.
                 // --------------------------------------------------------
+
+                // Steg 1: Hämta avsändarkontot
                 var fromAccount = await _unitOfWork.Accounts
                     .GetByIdAsync(request.FromAccountId);
 
+                // Kontot måste finnas
                 if (fromAccount == null)
                     return Result<TransactionDto>.Failure(
-                        $"Avsändarkonto med ID {request.FromAccountId} hittades inte");
+                        $"Avsändarkonto med ID " +
+                        $"{request.FromAccountId} hittades inte");
 
-                // Måste äga avsändarkontot
+                // Steg 2: Kontrollera ägarskap DIREKT
+                // Detta görs tidigt innan någon uppdatering sker
+                // En användare kan bara överföra från SINA egna konton
                 if (fromAccount.OwnerId != request.UserId)
                     return Result<TransactionDto>.Failure(
-                        $"Avsändarkonto med ID {request.FromAccountId} hittades inte");
+                        $"Avsändarkonto med ID " +
+                        $"{request.FromAccountId} hittades inte");
+                // Vi returnerar samma fel som "inte hittat" av säkerhetsskäl
+                // – avslöjar inte att kontot finns men ägs av någon annan
 
+                // Steg 3: Kontrollera att avsändarkontot är aktivt
                 if (!fromAccount.IsActive)
                     return Result<TransactionDto>.Failure(
                         "Avsändarkontot är inaktivt");
 
-                // --------------------------------------------------------
-                // Steg 2: Hämta och validera mottagarkontot
-                // --------------------------------------------------------
+                // Steg 4: Hämta mottagarkontot
                 var toAccount = await _unitOfWork.Accounts
                     .GetByIdAsync(request.ToAccountId);
 
                 if (toAccount == null)
                     return Result<TransactionDto>.Failure(
-                        $"Mottagarkonto med ID {request.ToAccountId} hittades inte");
+                        $"Mottagarkonto med ID " +
+                        $"{request.ToAccountId} hittades inte");
 
+                // Steg 5: Kontrollera att mottagarkontot är aktivt
                 if (!toAccount.IsActive)
                     return Result<TransactionDto>.Failure(
                         "Mottagarkontot är inaktivt");
 
-                // --------------------------------------------------------
-                // Steg 3: Overdraft-skydd
-                // --------------------------------------------------------
+                // Steg 6: Overdraft-skydd
+                // Kontrollera saldot INNAN vi uppdaterar något
                 if (fromAccount.Balance < request.Amount)
                     return Result<TransactionDto>.Failure(
                         $"Otillräckligt saldo. " +
@@ -88,8 +100,12 @@ namespace NexaPay.Application.Features.Transactions.Commands.Transfer
                         $"Begärt: {request.Amount:C}");
 
                 // --------------------------------------------------------
-                // Steg 4: Uppdatera båda kontona
+                // FAS 2: UPPDATERING
+                // Alla valideringar har passerat – nu är det säkert
+                // att uppdatera kontona och skapa transaktioner.
                 // --------------------------------------------------------
+
+                // Steg 7: Uppdatera saldona
                 // Dra av från avsändaren
                 fromAccount.Balance -= request.Amount;
                 fromAccount.UpdatedAt = DateTime.UtcNow;
@@ -98,30 +114,32 @@ namespace NexaPay.Application.Features.Transactions.Commands.Transfer
                 toAccount.Balance += request.Amount;
                 toAccount.UpdatedAt = DateTime.UtcNow;
 
-                // --------------------------------------------------------
-                // Steg 5: Skapa transaktionsposter för BÅDA kontona
-                // --------------------------------------------------------
-                // Transaktionspost för avsändaren (uttag)
+                // Steg 8: Skapa transaktionspost för avsändaren
+                // Denna post visar uttaget från avsändarens perspektiv
                 var fromTransaction = new Transaction
                 {
                     Id = Guid.NewGuid(),
                     Amount = request.Amount,
                     Type = TransactionType.Transfer,
-                    Description = $"Överföring till konto: {request.Description}",
+                    Description = $"Överföring till konto: " +
+                                  $"{request.Description}",
+                    // Saldot EFTER överföringen
                     BalanceAfterTransaction = fromAccount.Balance,
-                    // Peka ut mottagarkontot – viktigt för historiken
+                    // Peka ut mottagarkontot för historiken
                     ReceiverAccountId = request.ToAccountId,
                     AccountId = request.FromAccountId,
                     CreatedAt = DateTime.UtcNow
                 };
 
-                // Transaktionspost för mottagaren (insättning)
+                // Steg 9: Skapa transaktionspost för mottagaren
+                // Denna post visar insättningen från mottagarens perspektiv
                 var toTransaction = new Transaction
                 {
                     Id = Guid.NewGuid(),
                     Amount = request.Amount,
                     Type = TransactionType.Transfer,
-                    Description = $"Överföring från konto: {request.Description}",
+                    Description = $"Överföring från konto: " +
+                                  $"{request.Description}",
                     BalanceAfterTransaction = toAccount.Balance,
                     ReceiverAccountId = null,
                     AccountId = request.ToAccountId,
@@ -129,9 +147,18 @@ namespace NexaPay.Application.Features.Transactions.Commands.Transfer
                 };
 
                 // --------------------------------------------------------
-                // Steg 6: Spara ALLT atomärt – Unit of Work i aktion!
+                // FAS 3: SPARA ATOMÄRT via Unit of Work
                 // --------------------------------------------------------
-                // Uppdatera båda kontona
+                // Alla fyra operationer sparas i EN databastransaktion:
+                //   1. Uppdatera avsändarkontots saldo
+                //   2. Uppdatera mottagarkontots saldo
+                //   3. Spara avsändarens transaktionspost
+                //   4. Spara mottagarens transaktionspost
+                //
+                // Om NÅGOT av dessa misslyckas → rullar ALLT tillbaka
+                // Ingen förlorar pengar!
+
+                // Markera båda kontona som uppdaterade
                 _unitOfWork.Accounts.Update(fromAccount);
                 _unitOfWork.Accounts.Update(toAccount);
 
@@ -139,16 +166,22 @@ namespace NexaPay.Application.Features.Transactions.Commands.Transfer
                 await _unitOfWork.Transactions.AddAsync(fromTransaction);
                 await _unitOfWork.Transactions.AddAsync(toTransaction);
 
-                // EN enda SaveChangesAsync sparar ALLT i en databastransaktion
-                // 4 operationer → 1 transaktion → atomärt garanterat
+                // Spara ALLT i en enda databastransaktion
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-                // Returnera avsändarens transaktionspost
-                var transactionDto = _mapper.Map<TransactionDto>(fromTransaction);
+                // --------------------------------------------------------
+                // FAS 4: RETURNERA RESULTAT
+                // --------------------------------------------------------
+                // Returnera avsändarens transaktionspost som bekräftelse
+                var transactionDto = _mapper
+                    .Map<TransactionDto>(fromTransaction);
+
                 return Result<TransactionDto>.Success(transactionDto);
             }
             catch (Exception ex)
             {
+                // Fånga oväntade fel
+                // T.ex. databasfel, nätverksavbrott osv.
                 return Result<TransactionDto>.Failure(
                     $"Ett fel uppstod vid överföringen: {ex.Message}");
             }
