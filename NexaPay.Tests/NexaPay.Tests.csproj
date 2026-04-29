@@ -31,4 +31,13 @@
     <Using Include="NUnit.Framework" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Application\Features\Accounts\" />
+    <Folder Include="Application\Features\Cards\" />
+    <Folder Include="Application\Features\Transactions\" />
+    <Folder Include="Application\Validators\" />
+    <Folder Include="Domain\Entities\" />
+    <Folder Include="Infrastructure\Identity\" />
+  </ItemGroup>
+
 </Project>
