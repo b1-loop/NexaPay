@@ -9,13 +9,7 @@
 //   2. Konto finns inte – returnerar Failure
 //   3. Fel ägare – returnerar Failure
 //   4. Inaktivt konto – returnerar Failure
-//   5. Transaktionspost skapas med rätt värden
-//
-// Varför MockReset i SetUp?
-// Utan reset kan state från ett test läcka in i nästa test.
-// T.ex. kan SaveChangesAsync-räknaren från test 1
-// påverka verifieringen i test 3.
-// Reset + Setup garanterar att varje test börjar rent.
+//   5. Transaktionspost skapas med rätt typ
 // ============================================================
 
 using FluentAssertions;
@@ -30,30 +24,16 @@ namespace NexaPay.Tests.Application.Features.Transactions
     {
         private DepositHandler _handler = null!;
 
-        // --------------------------------------------------------
-        // Setup – körs innan VARJE test
-        // --------------------------------------------------------
         [SetUp]
         public void Setup()
         {
-            // ------------------------------------------------
             // Återställ alla mocks innan varje test
-            // ------------------------------------------------
-            // Reset() nollställer alla Setup() och Verify()-räknare
-            // Utan detta kan anrop från tidigare tester påverka
-            // verifieringen i efterföljande tester
             MockUnitOfWork.Reset();
             MockAccountRepository.Reset();
             MockCardRepository.Reset();
             MockTransactionRepository.Reset();
 
-            // ------------------------------------------------
             // Sätt upp mocks på nytt efter reset
-            // ------------------------------------------------
-            // Vi måste göra detta igen efter Reset()
-            // eftersom Reset() tar bort alla Setup()-konfigurationer
-
-            // Koppla repositories till UnitOfWork
             MockUnitOfWork
                 .Setup(u => u.Accounts)
                 .Returns(MockAccountRepository.Object);
@@ -66,13 +46,11 @@ namespace NexaPay.Tests.Application.Features.Transactions
                 .Setup(u => u.Transactions)
                 .Returns(MockTransactionRepository.Object);
 
-            // SaveChangesAsync returnerar 1 (en rad påverkad)
             MockUnitOfWork
                 .Setup(u => u.SaveChangesAsync(
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(1);
 
-            // Skapa en ny handler för varje test
             _handler = new DepositHandler(
                 MockUnitOfWork.Object,
                 Mapper);
@@ -82,6 +60,11 @@ namespace NexaPay.Tests.Application.Features.Transactions
         // Test 1: Lyckad insättning
         // --------------------------------------------------------
         [Test]
+        [Description(
+            "Verifierar att en giltig insättning ökar kontosaldot " +
+            "med rätt belopp och att en TransactionDto returneras " +
+            "med korrekt BalanceAfterTransaction. " +
+            "T.ex. saldo 1000 + insättning 500 = 1500.")]
         public async Task Handle_WhenValidDeposit_ShouldIncreaseBalance()
         {
             // Arrange
@@ -127,6 +110,11 @@ namespace NexaPay.Tests.Application.Features.Transactions
         // Test 2: Konto finns inte
         // --------------------------------------------------------
         [Test]
+        [Description(
+            "Verifierar att en insättning misslyckas med ett " +
+            "tydligt felmeddelande när kontot inte existerar. " +
+            "SaveChangesAsync ska INTE anropas i detta fall " +
+            "– inget ska sparas om kontot inte hittades.")]
         public async Task Handle_WhenAccountNotFound_ShouldReturnFailure()
         {
             // Arrange
@@ -138,7 +126,6 @@ namespace NexaPay.Tests.Application.Features.Transactions
                 UserId = "user-123"
             };
 
-            // Mocken returnerar null = kontot finns inte
             MockAccountRepository
                 .Setup(r => r.GetByIdAsync(It.IsAny<Guid>()))
                 .ReturnsAsync(
@@ -166,6 +153,11 @@ namespace NexaPay.Tests.Application.Features.Transactions
         // Test 3: Fel ägare
         // --------------------------------------------------------
         [Test]
+        [Description(
+            "Verifierar att en användare INTE kan sätta in pengar " +
+            "på ett konto som tillhör en annan användare. " +
+            "Detta är ett kritiskt säkerhetskrav – " +
+            "kontots OwnerId måste matcha inloggad UserId.")]
         public async Task Handle_WhenWrongOwner_ShouldReturnFailure()
         {
             // Arrange
@@ -176,7 +168,7 @@ namespace NexaPay.Tests.Application.Features.Transactions
                 AccountId = account.Id,
                 Amount = 500,
                 Description = "Testinsättning",
-                UserId = "hacker-456" // Fel användare!
+                UserId = "hacker-456"
             };
 
             MockAccountRepository
@@ -203,6 +195,11 @@ namespace NexaPay.Tests.Application.Features.Transactions
         // Test 4: Inaktivt konto
         // --------------------------------------------------------
         [Test]
+        [Description(
+            "Verifierar att insättning nekas på ett inaktivt konto. " +
+            "Ett stängt konto (IsActive = false) ska inte " +
+            "kunna ta emot pengar – detta förhindrar " +
+            "transaktioner på avslutade konton.")]
         public async Task Handle_WhenAccountInactive_ShouldReturnFailure()
         {
             // Arrange
@@ -242,6 +239,11 @@ namespace NexaPay.Tests.Application.Features.Transactions
         // Test 5: Transaktionspost skapas med rätt typ
         // --------------------------------------------------------
         [Test]
+        [Description(
+            "Verifierar att transaktionsposten som skapas vid " +
+            "insättning har rätt TransactionType (Deposit) och " +
+            "att beskrivningen mappas korrekt till TransactionDto. " +
+            "Transaktioner är oföränderliga revisionsposter.")]
         public async Task Handle_WhenValidDeposit_TransactionTypeShouldBeDeposit()
         {
             // Arrange

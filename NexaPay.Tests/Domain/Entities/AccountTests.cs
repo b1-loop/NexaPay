@@ -12,9 +12,6 @@
 //   Arrange  = förbered testdata
 //   Act      = utför operationen
 //   Assert   = verifiera resultatet
-//
-// [TestFixture] = NUnit-attribut som markerar en testklass
-// [Test]        = NUnit-attribut som markerar en testmetod
 // ============================================================
 
 using FluentAssertions;
@@ -31,9 +28,13 @@ namespace NexaPay.Tests.Domain.Entities
         // Test 1: Nytt konto ska ha korrekta standardvärden
         // --------------------------------------------------------
         [Test]
+        [Description(
+            "Verifierar att ett nytt Account-objekt har korrekta " +
+            "standardvärden – saldo 0, aktivt, inga transaktioner " +
+            "och inga kort. Detta är grundläggande domänregler.")]
         public void Account_WhenCreated_ShouldHaveCorrectDefaultValues()
         {
-            // Arrange – skapa ett konto precis som CreateAccountHandler gör
+            // Arrange
             var account = new Account
             {
                 Id = Guid.NewGuid(),
@@ -46,10 +47,7 @@ namespace NexaPay.Tests.Domain.Entities
                 CreatedAt = DateTime.UtcNow
             };
 
-            // Act – inget att göra, vi testar bara egenskaperna
-
-            // Assert – verifiera att allt är rätt
-            // FluentAssertions gör assertions läsbara som vanlig text
+            // Assert
             account.Balance.Should().Be(0,
                 "ett nytt konto ska alltid börja med 0 i saldo");
 
@@ -70,14 +68,13 @@ namespace NexaPay.Tests.Domain.Entities
         // Test 2: Entiteten tillåter negativt saldo
         // --------------------------------------------------------
         [Test]
+        [Description(
+            "Verifierar att Account-entiteten i sig INTE skyddar " +
+            "mot negativt saldo – det ansvaret ligger i " +
+            "WithdrawHandler (Application-lagret). " +
+            "Separation of concerns är en Clean Architecture-princip.")]
         public void Account_WithNegativeBalance_ShouldBeAllowedByEntity()
         {
-            // Notering: Entiteten i sig tillåter negativt saldo
-            // Men affärsregeln i WithdrawHandler förhindrar det
-            // Det är viktigt att separera dessa ansvar:
-            //   - Entiteten = datamodell (ingen affärslogik)
-            //   - Handler   = affärslogik (overdraft-skydd)
-
             // Arrange
             var account = new Account
             {
@@ -95,6 +92,10 @@ namespace NexaPay.Tests.Domain.Entities
         // Test 3: Stänga ett konto (soft delete)
         // --------------------------------------------------------
         [Test]
+        [Description(
+            "Verifierar att ett konto kan markeras som inaktivt " +
+            "(soft delete) och att UpdatedAt sätts korrekt. " +
+            "Vi tar aldrig bort konton fysiskt av revisionsskäl.")]
         public void Account_WhenDeactivated_IsActiveShouldBeFalse()
         {
             // Arrange
@@ -104,7 +105,7 @@ namespace NexaPay.Tests.Domain.Entities
                 IsActive = true
             };
 
-            // Act – simulera soft delete precis som DeleteAccountHandler gör
+            // Act
             account.IsActive = false;
             account.UpdatedAt = DateTime.UtcNow;
 
@@ -120,6 +121,10 @@ namespace NexaPay.Tests.Domain.Entities
         // Test 4: Konto med transaktioner
         // --------------------------------------------------------
         [Test]
+        [Description(
+            "Verifierar att transaktioner kan kopplas till ett konto " +
+            "och att navigationsegenskapen fungerar korrekt. " +
+            "Används av EF Core för att ladda relaterad data.")]
         public void Account_WithTransactions_ShouldContainThem()
         {
             // Arrange
@@ -140,7 +145,7 @@ namespace NexaPay.Tests.Domain.Entities
                 CreatedAt = DateTime.UtcNow
             };
 
-            // Act – lägg till transaktionen på kontot
+            // Act
             account.Transactions.Add(transaction);
 
             // Assert
@@ -155,6 +160,10 @@ namespace NexaPay.Tests.Domain.Entities
         // Test 5: Konto med kort
         // --------------------------------------------------------
         [Test]
+        [Description(
+            "Verifierar att kort kan kopplas till ett konto " +
+            "och att navigationsegenskapen fungerar korrekt. " +
+            "Ett konto kan ha flera kort kopplade till sig.")]
         public void Account_WithCards_ShouldContainThem()
         {
             // Arrange

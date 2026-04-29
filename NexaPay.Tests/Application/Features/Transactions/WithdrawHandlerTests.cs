@@ -11,12 +11,6 @@
 //   4. Fel ägare – returnerar Failure
 //   5. Inaktivt konto – returnerar Failure
 //   6. Konto finns inte – returnerar Failure
-//
-// Varför MockReset i SetUp?
-// Reset() nollställer alla Setup() och Verify()-räknare
-// så att varje test börjar med en ren slate.
-// Utan detta kan anrop från tidigare tester påverka
-// verifieringen i efterföljande tester.
 // ============================================================
 
 using FluentAssertions;
@@ -31,27 +25,16 @@ namespace NexaPay.Tests.Application.Features.Transactions
     {
         private WithdrawHandler _handler = null!;
 
-        // --------------------------------------------------------
-        // Setup – körs innan VARJE test
-        // --------------------------------------------------------
         [SetUp]
         public void Setup()
         {
-            // ------------------------------------------------
             // Återställ alla mocks innan varje test
-            // ------------------------------------------------
-            // Reset() nollställer alla Setup() och Verify()-räknare
-            // Utan detta kan anrop från tidigare tester påverka
-            // verifieringen i efterföljande tester
             MockUnitOfWork.Reset();
             MockAccountRepository.Reset();
             MockCardRepository.Reset();
             MockTransactionRepository.Reset();
 
-            // ------------------------------------------------
             // Sätt upp mocks på nytt efter reset
-            // ------------------------------------------------
-            // Koppla repositories till UnitOfWork
             MockUnitOfWork
                 .Setup(u => u.Accounts)
                 .Returns(MockAccountRepository.Object);
@@ -64,13 +47,11 @@ namespace NexaPay.Tests.Application.Features.Transactions
                 .Setup(u => u.Transactions)
                 .Returns(MockTransactionRepository.Object);
 
-            // SaveChangesAsync returnerar 1 (en rad påverkad)
             MockUnitOfWork
                 .Setup(u => u.SaveChangesAsync(
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(1);
 
-            // Skapa en ny handler för varje test
             _handler = new WithdrawHandler(
                 MockUnitOfWork.Object,
                 Mapper);
@@ -80,18 +61,22 @@ namespace NexaPay.Tests.Application.Features.Transactions
         // Test 1: Lyckad uttag
         // --------------------------------------------------------
         [Test]
+        [Description(
+            "Verifierar att ett giltigt uttag minskar saldot korrekt " +
+            "och att TransactionDto returneras med rätt värden. " +
+            "T.ex. saldo 1000 - uttag 300 = 700 kvar på kontot.")]
         public async Task Handle_WhenValidWithdrawal_ShouldDecreaseBalance()
         {
             // Arrange
             var userId = "user-123";
             var account = CreateTestAccount(
                 ownerId: userId,
-                balance: 1000); // 1000 kr på kontot
+                balance: 1000);
 
             var command = new WithdrawCommand
             {
                 AccountId = account.Id,
-                Amount = 300, // Ta ut 300 kr
+                Amount = 300,
                 Description = "Testuttag",
                 UserId = userId
             };
@@ -125,21 +110,26 @@ namespace NexaPay.Tests.Application.Features.Transactions
         }
 
         // --------------------------------------------------------
-        // Test 2: Overdraft-skydd – saldot räcker inte
+        // Test 2: Overdraft-skydd
         // --------------------------------------------------------
         [Test]
+        [Description(
+            "Verifierar det kritiska overdraft-skyddet – " +
+            "man ska INTE kunna ta ut mer pengar än vad som finns. " +
+            "Saldot ska förbli oförändrat och SaveChangesAsync " +
+            "ska ALDRIG anropas när saldot inte räcker.")]
         public async Task Handle_WhenInsufficientBalance_ShouldReturnFailure()
         {
             // Arrange
             var userId = "user-123";
             var account = CreateTestAccount(
                 ownerId: userId,
-                balance: 100); // Bara 100 kr på kontot
+                balance: 100);
 
             var command = new WithdrawCommand
             {
                 AccountId = account.Id,
-                Amount = 500, // Försöker ta ut 500 kr!
+                Amount = 500,
                 Description = "Testuttag",
                 UserId = userId
             };
@@ -155,13 +145,11 @@ namespace NexaPay.Tests.Application.Features.Transactions
 
             // Assert
             result.IsFailure.Should().BeTrue(
-                "man ska inte kunna ta ut mer pengar än vad som finns " +
-                "– overdraft-skyddet är en kritisk affärsregel!");
+                "man ska inte kunna ta ut mer pengar än vad som finns!");
 
             result.Error.Should().Contain("saldo",
                 "felmeddelandet ska nämna saldot");
 
-            // KRITISKT: Inget ska sparas när saldot inte räcker
             MockUnitOfWork.Verify(
                 u => u.SaveChangesAsync(It.IsAny<CancellationToken>()),
                 Times.Never,
@@ -169,21 +157,25 @@ namespace NexaPay.Tests.Application.Features.Transactions
         }
 
         // --------------------------------------------------------
-        // Test 3: Exakt saldo – ta ut hela beloppet
+        // Test 3: Exakt saldo
         // --------------------------------------------------------
         [Test]
+        [Description(
+            "Verifierar att man kan ta ut exakt hela saldot " +
+            "och att saldot blir 0 efter uttaget. " +
+            "Gränsfallet där Amount == Balance ska tillåtas.")]
         public async Task Handle_WhenWithdrawingExactBalance_ShouldSucceed()
         {
             // Arrange
             var userId = "user-123";
             var account = CreateTestAccount(
                 ownerId: userId,
-                balance: 500); // Exakt 500 kr
+                balance: 500);
 
             var command = new WithdrawCommand
             {
                 AccountId = account.Id,
-                Amount = 500, // Ta ut exakt hela saldot
+                Amount = 500,
                 Description = "Tömmer kontot",
                 UserId = userId
             };
@@ -209,6 +201,11 @@ namespace NexaPay.Tests.Application.Features.Transactions
         // Test 4: Fel ägare
         // --------------------------------------------------------
         [Test]
+        [Description(
+            "Verifierar att en användare INTE kan ta ut pengar " +
+            "från ett konto som tillhör någon annan. " +
+            "OwnerId måste matcha inloggad UserId – " +
+            "annars returneras Failure utan att något sparas.")]
         public async Task Handle_WhenWrongOwner_ShouldReturnFailure()
         {
             // Arrange
@@ -219,7 +216,7 @@ namespace NexaPay.Tests.Application.Features.Transactions
                 AccountId = account.Id,
                 Amount = 100,
                 Description = "Testuttag",
-                UserId = "hacker-456" // Fel användare!
+                UserId = "hacker-456"
             };
 
             MockAccountRepository
@@ -246,13 +243,18 @@ namespace NexaPay.Tests.Application.Features.Transactions
         // Test 5: Inaktivt konto
         // --------------------------------------------------------
         [Test]
+        [Description(
+            "Verifierar att uttag nekas på ett inaktivt konto. " +
+            "Ett stängt konto (IsActive = false) ska inte " +
+            "kunna användas för uttag – detta förhindrar " +
+            "transaktioner på avslutade konton.")]
         public async Task Handle_WhenAccountInactive_ShouldReturnFailure()
         {
             // Arrange
             var userId = "user-123";
             var account = CreateTestAccount(
                 ownerId: userId,
-                isActive: false); // Inaktivt konto!
+                isActive: false);
 
             var command = new WithdrawCommand
             {
@@ -285,6 +287,11 @@ namespace NexaPay.Tests.Application.Features.Transactions
         // Test 6: Konto finns inte
         // --------------------------------------------------------
         [Test]
+        [Description(
+            "Verifierar att uttag misslyckas med ett tydligt " +
+            "felmeddelande när kontot inte existerar i databasen. " +
+            "GetByIdAsync returnerar null och handleren " +
+            "ska returnera Result.Failure utan att spara något.")]
         public async Task Handle_WhenAccountNotFound_ShouldReturnFailure()
         {
             // Arrange
@@ -296,7 +303,6 @@ namespace NexaPay.Tests.Application.Features.Transactions
                 UserId = "user-123"
             };
 
-            // Mocken returnerar null = kontot finns inte
             MockAccountRepository
                 .Setup(r => r.GetByIdAsync(It.IsAny<Guid>()))
                 .ReturnsAsync(
