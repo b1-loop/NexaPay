@@ -2,18 +2,14 @@
 // AuthService.cs – NexaPay.Infrastructure/Identity
 // ============================================================
 // Implementerar IAuthService från Application-lagret.
-// Det är HÄR Identity-koden lever – inte i controllers!
+// Hanterar registrering och inloggning med ASP.NET Identity.
 //
-// AuthService känner till:
-//   - UserManager (Identity) – hanterar användare
-//   - RoleManager (Identity) – hanterar roller
-//   - IJwtService – genererar tokens
-//
-// Application-lagret vet INGENTING om detta –
-// det känner bara till IAuthService-interfacet.
+// Stödjer nu 5 roller:
+//   Admin, BankManager, Teller, Auditor, User
 // ============================================================
 
 using Microsoft.AspNetCore.Identity;
+using NexaPay.Application.Common.Constants;
 using NexaPay.Application.Common.Interfaces;
 using NexaPay.Application.Common.Models;
 using NexaPay.Application.DTOs;
@@ -22,13 +18,8 @@ namespace NexaPay.Infrastructure.Identity
 {
     public class AuthService : IAuthService
     {
-        // UserManager hanterar användare i Identity
         private readonly UserManager<IdentityUser> _userManager;
-
-        // RoleManager hanterar roller i Identity
         private readonly RoleManager<IdentityRole> _roleManager;
-
-        // IJwtService genererar JWT-tokens
         private readonly IJwtService _jwtService;
 
         public AuthService(
@@ -47,7 +38,7 @@ namespace NexaPay.Infrastructure.Identity
         public async Task<Result<AuthDto>> RegisterAsync(
             string email,
             string password,
-            bool isAdmin)
+            string role)
         {
             try
             {
@@ -59,13 +50,20 @@ namespace NexaPay.Infrastructure.Identity
                     return Result<AuthDto>.Failure(
                         "E-postadressen används redan");
 
+                // Validera att rollen är giltig
+                // Vi kontrollerar mot våra definierade roller
+                if (!IsValidRole(role))
+                    return Result<AuthDto>.Failure(
+                        $"Ogiltig roll: {role}. " +
+                        $"Giltiga roller är: {Roles.Admin}, " +
+                        $"{Roles.BankManager}, {Roles.Teller}, " +
+                        $"{Roles.Auditor}, {Roles.User}");
+
                 // Skapa ny användare
                 var user = new IdentityUser
                 {
                     UserName = email,
                     Email = email,
-                    // EmailConfirmed = true för enkelhetens skull
-                    // I produktion skulle vi skicka bekräftelsemail
                     EmailConfirmed = true
                 };
 
@@ -75,36 +73,30 @@ namespace NexaPay.Infrastructure.Identity
 
                 if (!result.Succeeded)
                 {
-                    // Samla alla felmeddelanden från Identity
                     var errors = string.Join(", ",
                         result.Errors.Select(e => e.Description));
-
                     return Result<AuthDto>.Failure(errors);
                 }
 
-                // Tilldela roll
-                var roleName = isAdmin ? "Admin" : "User";
-
                 // Skapa rollen om den inte finns
-                if (!await _roleManager.RoleExistsAsync(roleName))
+                if (!await _roleManager.RoleExistsAsync(role))
                     await _roleManager.CreateAsync(
-                        new IdentityRole(roleName));
+                        new IdentityRole(role));
 
                 // Tilldela rollen till användaren
-                await _userManager.AddToRoleAsync(user, roleName);
+                await _userManager.AddToRoleAsync(user, role);
 
                 // Generera JWT-token
                 var token = _jwtService.GenerateToken(
                     user.Id,
                     user.Email!,
-                    roleName);
+                    role);
 
-                // Returnera AuthDto med token och användarinfo
                 return Result<AuthDto>.Success(new AuthDto
                 {
                     Token = token,
                     Email = user.Email!,
-                    Role = roleName,
+                    Role = role,
                     ExpiresAt = DateTime.UtcNow.AddHours(24)
                 });
             }
@@ -124,17 +116,13 @@ namespace NexaPay.Infrastructure.Identity
         {
             try
             {
-                // Hitta användaren via e-post
                 var user = await _userManager
                     .FindByEmailAsync(email);
 
                 if (user == null)
-                    // Generiskt felmeddelande av säkerhetsskäl
-                    // Vi avslöjar inte om e-posten finns eller inte
                     return Result<AuthDto>.Failure(
                         "Felaktig e-post eller lösenord");
 
-                // Kontrollera lösenordet mot det hashade värdet
                 var passwordValid = await _userManager
                     .CheckPasswordAsync(user, password);
 
@@ -142,13 +130,9 @@ namespace NexaPay.Infrastructure.Identity
                     return Result<AuthDto>.Failure(
                         "Felaktig e-post eller lösenord");
 
-                // Hämta användarens roller
-                var roles = await _userManager
-                    .GetRolesAsync(user);
+                var roles = await _userManager.GetRolesAsync(user);
+                var role = roles.FirstOrDefault() ?? Roles.User;
 
-                var role = roles.FirstOrDefault() ?? "User";
-
-                // Generera JWT-token
                 var token = _jwtService.GenerateToken(
                     user.Id,
                     user.Email!,
@@ -167,6 +151,20 @@ namespace NexaPay.Infrastructure.Identity
                 return Result<AuthDto>.Failure(
                     $"Ett fel uppstod vid inloggning: {ex.Message}");
             }
+        }
+
+        // --------------------------------------------------------
+        // Hjälpmetod – validera rollnamn
+        // --------------------------------------------------------
+        // Kontrollerar att den angivna rollen är en av våra
+        // definierade roller – skyddar mot ogiltiga rollnamn
+        private static bool IsValidRole(string role)
+        {
+            return role == Roles.Admin ||
+                   role == Roles.BankManager ||
+                   role == Roles.Teller ||
+                   role == Roles.Auditor ||
+                   role == Roles.User;
         }
     }
 }
