@@ -16,6 +16,7 @@
 //   5. För stort belopp – ska misslyckas
 //   6. Tom AccountId – ska misslyckas
 //   7. Tom UserId – ska misslyckas
+//   8. Exakt gränsbelopp – ska lyckas
 // ============================================================
 
 using FluentAssertions;
@@ -27,11 +28,8 @@ namespace NexaPay.Tests.Application.Validators
     [TestFixture]
     public class DepositValidatorTests
     {
-        // Validatorn vi testar
-        // Ingen mock behövs – validators är självständiga
         private DepositValidator _validator = null!;
 
-        // [SetUp] körs innan varje test
         [SetUp]
         public void Setup()
         {
@@ -41,12 +39,17 @@ namespace NexaPay.Tests.Application.Validators
         }
 
         // --------------------------------------------------------
-        // Test 1: Giltigt command – ska passera validering
+        // Test 1: Giltigt command
         // --------------------------------------------------------
         [Test]
+        [Description(
+            "Verifierar att ett helt korrekt DepositCommand " +
+            "passerar alla valideringsregler utan fel. " +
+            "Används som baseline för att bekräfta att " +
+            "validatorn fungerar korrekt i normalfallet.")]
         public async Task Validate_WhenValidCommand_ShouldPass()
         {
-            // Arrange – ett helt giltigt command
+            // Arrange
             var command = new DepositCommand
             {
                 AccountId = Guid.NewGuid(),
@@ -55,7 +58,7 @@ namespace NexaPay.Tests.Application.Validators
                 UserId = "user-123"
             };
 
-            // Act – kör validatorn
+            // Act
             var result = await _validator.ValidateAsync(command);
 
             // Assert
@@ -67,16 +70,21 @@ namespace NexaPay.Tests.Application.Validators
         }
 
         // --------------------------------------------------------
-        // Test 2: Negativt belopp – ska misslyckas
+        // Test 2: Negativt belopp
         // --------------------------------------------------------
         [Test]
+        [Description(
+            "Verifierar att ett negativt belopp (-100) misslyckas " +
+            "validering med fel på Amount-fältet. " +
+            "Man kan inte sätta in negativa belopp – " +
+            "det skulle vara detsamma som ett uttag.")]
         public async Task Validate_WhenNegativeAmount_ShouldFail()
         {
             // Arrange
             var command = new DepositCommand
             {
                 AccountId = Guid.NewGuid(),
-                Amount = -100, // Negativt belopp!
+                Amount = -100,
                 Description = "Test",
                 UserId = "user-123"
             };
@@ -88,23 +96,26 @@ namespace NexaPay.Tests.Application.Validators
             result.IsValid.Should().BeFalse(
                 "ett negativt belopp ska inte vara giltigt");
 
-            // Kontrollera att felet är på rätt fält
             result.Errors.Should().Contain(e =>
                 e.PropertyName == "Amount",
                 "felet ska vara på Amount-fältet");
         }
 
         // --------------------------------------------------------
-        // Test 3: Noll belopp – ska misslyckas
+        // Test 3: Noll belopp
         // --------------------------------------------------------
         [Test]
+        [Description(
+            "Verifierar att ett belopp på 0 kr misslyckas validering. " +
+            "En insättning på 0 kr är meningslös och ska inte tillåtas. " +
+            "Validatorn använder GreaterThan(0) för detta krav.")]
         public async Task Validate_WhenZeroAmount_ShouldFail()
         {
             // Arrange
             var command = new DepositCommand
             {
                 AccountId = Guid.NewGuid(),
-                Amount = 0, // Noll kr!
+                Amount = 0,
                 Description = "Test",
                 UserId = "user-123"
             };
@@ -114,14 +125,18 @@ namespace NexaPay.Tests.Application.Validators
 
             // Assert
             result.IsValid.Should().BeFalse(
-                "ett belopp på 0 kr ska inte vara giltigt – " +
-                "man kan inte sätta in ingenting");
+                "ett belopp på 0 kr ska inte vara giltigt");
         }
 
         // --------------------------------------------------------
-        // Test 4: Tom beskrivning – ska misslyckas
+        // Test 4: Tom beskrivning
         // --------------------------------------------------------
         [Test]
+        [Description(
+            "Verifierar att en tom beskrivning misslyckas validering. " +
+            "Beskrivningen är obligatorisk för att transaktioner " +
+            "ska vara spårbara i kontoutdraget. " +
+            "Felet ska vara på Description-fältet.")]
         public async Task Validate_WhenEmptyDescription_ShouldFail()
         {
             // Arrange
@@ -129,7 +144,7 @@ namespace NexaPay.Tests.Application.Validators
             {
                 AccountId = Guid.NewGuid(),
                 Amount = 500,
-                Description = string.Empty, // Tom beskrivning!
+                Description = string.Empty,
                 UserId = "user-123"
             };
 
@@ -146,16 +161,21 @@ namespace NexaPay.Tests.Application.Validators
         }
 
         // --------------------------------------------------------
-        // Test 5: För stort belopp – ska misslyckas
+        // Test 5: För stort belopp
         // --------------------------------------------------------
         [Test]
+        [Description(
+            "Verifierar att ett belopp över 1 000 000 kr misslyckas. " +
+            "Detta är en AML-regel (Anti Money Laundering) som " +
+            "begränsar stora kontanttransaktioner. " +
+            "Validatorn använder LessThanOrEqualTo(1000000).")]
         public async Task Validate_WhenAmountExceedsLimit_ShouldFail()
         {
             // Arrange
             var command = new DepositCommand
             {
                 AccountId = Guid.NewGuid(),
-                Amount = 2000000, // Överstiger gränsen på 1 000 000!
+                Amount = 2000000,
                 Description = "Stort belopp",
                 UserId = "user-123"
             };
@@ -165,8 +185,7 @@ namespace NexaPay.Tests.Application.Validators
 
             // Assert
             result.IsValid.Should().BeFalse(
-                "ett belopp över 1 000 000 kr ska inte vara giltigt – " +
-                "detta är en AML-regel (Anti Money Laundering)");
+                "ett belopp över 1 000 000 kr ska inte vara giltigt");
 
             result.Errors.Should().Contain(e =>
                 e.PropertyName == "Amount",
@@ -174,15 +193,20 @@ namespace NexaPay.Tests.Application.Validators
         }
 
         // --------------------------------------------------------
-        // Test 6: Tom AccountId – ska misslyckas
+        // Test 6: Tom AccountId
         // --------------------------------------------------------
         [Test]
+        [Description(
+            "Verifierar att Guid.Empty misslyckas validering. " +
+            "Ett tomt AccountId (00000000-0000-...) indikerar " +
+            "att något gått fel i controllern. " +
+            "Felet ska vara på AccountId-fältet.")]
         public async Task Validate_WhenEmptyAccountId_ShouldFail()
         {
             // Arrange
             var command = new DepositCommand
             {
-                AccountId = Guid.Empty, // Tom Guid!
+                AccountId = Guid.Empty,
                 Amount = 500,
                 Description = "Test",
                 UserId = "user-123"
@@ -201,9 +225,14 @@ namespace NexaPay.Tests.Application.Validators
         }
 
         // --------------------------------------------------------
-        // Test 7: Tom UserId – ska misslyckas
+        // Test 7: Tom UserId
         // --------------------------------------------------------
         [Test]
+        [Description(
+            "Verifierar att ett tomt UserId misslyckas validering. " +
+            "UserId sätts från JWT-token i controllern. " +
+            "Om den är tom har något gått fel med autentiseringen. " +
+            "Felet ska vara på UserId-fältet.")]
         public async Task Validate_WhenEmptyUserId_ShouldFail()
         {
             // Arrange
@@ -212,7 +241,7 @@ namespace NexaPay.Tests.Application.Validators
                 AccountId = Guid.NewGuid(),
                 Amount = 500,
                 Description = "Test",
-                UserId = string.Empty // Tom UserId!
+                UserId = string.Empty
             };
 
             // Act
@@ -220,8 +249,7 @@ namespace NexaPay.Tests.Application.Validators
 
             // Assert
             result.IsValid.Should().BeFalse(
-                "ett tomt UserId ska inte vara giltigt – " +
-                "vi måste veta vem som gör insättningen");
+                "ett tomt UserId ska inte vara giltigt");
 
             result.Errors.Should().Contain(e =>
                 e.PropertyName == "UserId",
@@ -229,16 +257,21 @@ namespace NexaPay.Tests.Application.Validators
         }
 
         // --------------------------------------------------------
-        // Test 8: Exakt gränsbelopp – ska lyckas
+        // Test 8: Exakt gränsbelopp
         // --------------------------------------------------------
         [Test]
+        [Description(
+            "Verifierar att exakt 1 000 000 kr är giltigt. " +
+            "Detta testar gränsfallet för LessThanOrEqualTo(1000000). " +
+            "Beloppet på exakt gränsen ska tillåtas " +
+            "– bara belopp ÖVER gränsen ska nekas.")]
         public async Task Validate_WhenAmountIsExactLimit_ShouldPass()
         {
             // Arrange
             var command = new DepositCommand
             {
                 AccountId = Guid.NewGuid(),
-                Amount = 1000000, // Exakt på gränsen
+                Amount = 1000000,
                 Description = "Stort belopp",
                 UserId = "user-123"
             };
