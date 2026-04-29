@@ -1,20 +1,16 @@
 ﻿// ============================================================
 // CardsController.cs – NexaPay.API/Controllers
 // ============================================================
-// Hanterar alla kort-relaterade HTTP-endpoints.
-//
-// Controllern är tunn och delegerar all logik till MediatR.
-// Den känner inte till Identity, databaser eller affärsregler.
-//
-// Endpoints:
-//   GET api/cards/account/{accountId} ← Hämta kort per konto
-//   POST api/cards                    ← Skapa nytt kort
-//   PUT  api/cards/{id}/block         ← Blockera kort (Admin only)
+// Rollbehörigheter:
+//   GET  /cards/account/{id} → Alla inloggade
+//   POST /cards              → Admin, BankManager, Teller, User
+//   PUT  /cards/{id}/block   → Admin, BankManager
 // ============================================================
 
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NexaPay.Application.Common.Constants;
 using NexaPay.Application.Features.Cards.Commands.BlockCard;
 using NexaPay.Application.Features.Cards.Commands.CreateCard;
 using NexaPay.Application.Features.Cards.Queries.GetCardsByAccount;
@@ -34,19 +30,19 @@ namespace NexaPay.API.Controllers
             _mediator = mediator;
         }
 
-        // Hämta inloggad användares ID från JWT-token
         private string GetUserId() =>
             User.FindFirstValue(ClaimTypes.NameIdentifier)
             ?? string.Empty;
 
-        // Kontrollera om användaren är Admin
-        private bool IsAdmin() => User.IsInRole("Admin");
+        private bool IsStaff() =>
+            User.IsInRole(Roles.Admin) ||
+            User.IsInRole(Roles.BankManager) ||
+            User.IsInRole(Roles.Teller) ||
+            User.IsInRole(Roles.Auditor);
 
         // --------------------------------------------------------
         // GET api/cards/account/{accountId}
         // --------------------------------------------------------
-        // Hämtar alla kort kopplade till ett specifikt konto
-        // Kontrollerar att användaren äger kontot (eller är Admin)
         [HttpGet("account/{accountId:guid}")]
         public async Task<IActionResult> GetByAccount(Guid accountId)
         {
@@ -55,7 +51,7 @@ namespace NexaPay.API.Controllers
                 {
                     AccountId = accountId,
                     UserId = GetUserId(),
-                    IsAdmin = IsAdmin()
+                    IsAdmin = IsStaff()
                 });
 
             if (result.IsSuccess)
@@ -67,9 +63,9 @@ namespace NexaPay.API.Controllers
         // --------------------------------------------------------
         // POST api/cards
         // --------------------------------------------------------
-        // Skapar ett nytt bankkort kopplat till ett konto
-        // Kortet skapas alltid med status Inactive
+        // Auditor kan INTE skapa kort – read-only roll
         [HttpPost]
+        [Authorize(Roles = $"{Roles.Admin},{Roles.BankManager},{Roles.Teller},{Roles.User}")]
         public async Task<IActionResult> Create(
             [FromBody] CreateCardRequest request)
         {
@@ -78,7 +74,6 @@ namespace NexaPay.API.Controllers
                 {
                     AccountId = request.AccountId,
                     CardHolderName = request.CardHolderName,
-                    // UserId från JWT – kontrollerar att kontot tillhör användaren
                     UserId = GetUserId()
                 });
 
@@ -93,10 +88,9 @@ namespace NexaPay.API.Controllers
         // --------------------------------------------------------
         // PUT api/cards/{id}/block
         // --------------------------------------------------------
-        // Blockerar ett bankkort – bara Admin kan göra detta
-        // [Authorize(Roles = "Admin")] = 403 Forbidden om inte Admin
+        // Bara Admin och BankManager kan blockera kort
         [HttpPut("{id:guid}/block")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = $"{Roles.Admin},{Roles.BankManager}")]
         public async Task<IActionResult> Block(
             Guid id,
             [FromBody] BlockCardRequest request)
@@ -106,7 +100,6 @@ namespace NexaPay.API.Controllers
                 {
                     CardId = id,
                     Reason = request.Reason,
-                    // AdminId för loggning och revisionsspår
                     AdminId = GetUserId()
                 });
 
@@ -118,25 +111,14 @@ namespace NexaPay.API.Controllers
         }
     }
 
-    // --------------------------------------------------------
-    // Request-modeller
-    // --------------------------------------------------------
-
-    // Request-modell för POST /api/cards
     public record CreateCardRequest
     {
-        // Vilket konto kortet ska kopplas till
         public Guid AccountId { get; init; }
-
-        // Namnet som ska stå på kortet – t.ex. "ANNA SVENSSON"
         public string CardHolderName { get; init; } = string.Empty;
     }
 
-    // Request-modell för PUT /api/cards/{id}/block
     public record BlockCardRequest
     {
-        // Obligatorisk anledning till blockeringen
-        // Viktigt för revisionsspår i ett banksystem
         public string Reason { get; init; } = string.Empty;
     }
 }

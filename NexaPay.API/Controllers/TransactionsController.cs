@@ -1,22 +1,17 @@
 ﻿// ============================================================
 // TransactionsController.cs – NexaPay.API/Controllers
 // ============================================================
-// Hanterar alla transaktions-relaterade HTTP-endpoints.
-//
-// Controllern är tunn och delegerar all logik till MediatR.
-// All banklogik (saldokontroll, overdraft-skydd osv.)
-// finns i Application-lagrets Handlers.
-//
-// Endpoints:
-//   GET  api/transactions/account/{accountId} ← Kontoutdrag
-//   POST api/transactions/deposit             ← Sätt in pengar
-//   POST api/transactions/withdraw            ← Ta ut pengar
-//   POST api/transactions/transfer            ← Överför pengar
+// Rollbehörigheter:
+//   GET  /transactions/account/{id} → Alla inloggade
+//   POST /transactions/deposit      → Admin, BankManager, Teller, User
+//   POST /transactions/withdraw     → Admin, BankManager, Teller, User
+//   POST /transactions/transfer     → Admin, BankManager, User
 // ============================================================
 
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NexaPay.Application.Common.Constants;
 using NexaPay.Application.Features.Transactions.Commands.Deposit;
 using NexaPay.Application.Features.Transactions.Commands.Transfer;
 using NexaPay.Application.Features.Transactions.Commands.Withdraw;
@@ -37,19 +32,21 @@ namespace NexaPay.API.Controllers
             _mediator = mediator;
         }
 
-        // Hämta inloggad användares ID från JWT-token
         private string GetUserId() =>
             User.FindFirstValue(ClaimTypes.NameIdentifier)
             ?? string.Empty;
 
-        // Kontrollera om användaren är Admin
-        private bool IsAdmin() => User.IsInRole("Admin");
+        private bool IsStaff() =>
+            User.IsInRole(Roles.Admin) ||
+            User.IsInRole(Roles.BankManager) ||
+            User.IsInRole(Roles.Teller) ||
+            User.IsInRole(Roles.Auditor);
 
         // --------------------------------------------------------
         // GET api/transactions/account/{accountId}
         // --------------------------------------------------------
-        // Hämtar transaktionshistoriken för ett konto (kontoutdrag)
-        // Sorterade med senaste transaktion först
+        // Alla inloggade kan se transaktioner
+        // Personal ser alla – User ser bara sina egna
         [HttpGet("account/{accountId:guid}")]
         public async Task<IActionResult> GetByAccount(Guid accountId)
         {
@@ -58,7 +55,7 @@ namespace NexaPay.API.Controllers
                 {
                     AccountId = accountId,
                     UserId = GetUserId(),
-                    IsAdmin = IsAdmin()
+                    IsAdmin = IsStaff()
                 });
 
             if (result.IsSuccess)
@@ -70,9 +67,9 @@ namespace NexaPay.API.Controllers
         // --------------------------------------------------------
         // POST api/transactions/deposit
         // --------------------------------------------------------
-        // Sätter in pengar på ett konto
-        // Saldot ökar med beloppet och en transaktion skapas
+        // Auditor kan INTE göra insättningar
         [HttpPost("deposit")]
+        [Authorize(Roles = $"{Roles.Admin},{Roles.BankManager},{Roles.Teller},{Roles.User}")]
         public async Task<IActionResult> Deposit(
             [FromBody] DepositRequest request)
         {
@@ -82,7 +79,6 @@ namespace NexaPay.API.Controllers
                     AccountId = request.AccountId,
                     Amount = request.Amount,
                     Description = request.Description,
-                    // UserId från JWT – kontrollerar att kontot tillhör användaren
                     UserId = GetUserId()
                 });
 
@@ -97,9 +93,9 @@ namespace NexaPay.API.Controllers
         // --------------------------------------------------------
         // POST api/transactions/withdraw
         // --------------------------------------------------------
-        // Tar ut pengar från ett konto
-        // Saldot minskar med beloppet – overdraft-skydd finns i Handler
+        // Auditor kan INTE göra uttag
         [HttpPost("withdraw")]
+        [Authorize(Roles = $"{Roles.Admin},{Roles.BankManager},{Roles.Teller},{Roles.User}")]
         public async Task<IActionResult> Withdraw(
             [FromBody] WithdrawRequest request)
         {
@@ -123,9 +119,10 @@ namespace NexaPay.API.Controllers
         // --------------------------------------------------------
         // POST api/transactions/transfer
         // --------------------------------------------------------
-        // Överför pengar mellan två konton atomärt via Unit of Work
-        // Båda kontona uppdateras i samma databastransaktion
+        // Bara Admin, BankManager och User kan överföra
+        // Teller och Auditor kan INTE göra överföringar
         [HttpPost("transfer")]
+        [Authorize(Roles = $"{Roles.Admin},{Roles.BankManager},{Roles.User}")]
         public async Task<IActionResult> Transfer(
             [FromBody] TransferRequest request)
         {
@@ -148,49 +145,25 @@ namespace NexaPay.API.Controllers
         }
     }
 
-    // --------------------------------------------------------
-    // Request-modeller
-    // --------------------------------------------------------
-
-    // Request-modell för POST /api/transactions/deposit
     public record DepositRequest
     {
-        // Vilket konto pengarna ska sättas in på
         public Guid AccountId { get; init; }
-
-        // Beloppet – måste vara > 0 (valideras av DepositValidator)
         public decimal Amount { get; init; }
-
-        // Beskrivning som syns i kontoutdraget
         public string Description { get; init; } = string.Empty;
     }
 
-    // Request-modell för POST /api/transactions/withdraw
     public record WithdrawRequest
     {
-        // Vilket konto pengarna ska tas från
         public Guid AccountId { get; init; }
-
-        // Beloppet – måste vara > 0 och <= saldo
         public decimal Amount { get; init; }
-
-        // Beskrivning som syns i kontoutdraget
         public string Description { get; init; } = string.Empty;
     }
 
-    // Request-modell för POST /api/transactions/transfer
     public record TransferRequest
     {
-        // Kontot som pengarna dras ifrån
         public Guid FromAccountId { get; init; }
-
-        // Kontot som pengarna sätts in på
         public Guid ToAccountId { get; init; }
-
-        // Beloppet som ska överföras
         public decimal Amount { get; init; }
-
-        // Beskrivning som syns i kontoutdraget för båda kontona
         public string Description { get; init; } = string.Empty;
     }
 }

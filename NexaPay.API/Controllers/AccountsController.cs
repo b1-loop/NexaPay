@@ -1,26 +1,19 @@
 ﻿// ============================================================
 // AccountsController.cs – NexaPay.API/Controllers
 // ============================================================
-// Hanterar alla konto-relaterade HTTP-endpoints.
+// Uppdaterad med rollbaserad åtkomstkontroll (RBAC).
 //
-// Controllern är medvetet TUNN – den gör bara tre saker:
-//   1. Ta emot HTTP-request
-//   2. Skicka ett Command/Query till MediatR
-//   3. Returnera ett standardiserat ApiResponse
-//
-// All affärslogik finns i Application-lagrets Handlers.
-// Controllern känner INTE till databaser eller Identity.
-//
-// Endpoints:
-//   GET    api/accounts         ← Hämta alla konton (RBAC)
-//   GET    api/accounts/{id}    ← Hämta specifikt konto
-//   POST   api/accounts         ← Skapa nytt konto
-//   DELETE api/accounts/{id}    ← Stäng konto
+// Rollbehörigheter:
+//   GET    /accounts     → Admin, BankManager, Teller, Auditor, User
+//   GET    /accounts/{id}→ Admin, BankManager, Teller, Auditor, User
+//   POST   /accounts     → Alla inloggade
+//   DELETE /accounts/{id}→ Admin, BankManager, User (ej Teller/Auditor)
 // ============================================================
 
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NexaPay.Application.Common.Constants;
 using NexaPay.Application.Features.Accounts.Commands.CreateAccount;
 using NexaPay.Application.Features.Accounts.Commands.DeleteAccount;
 using NexaPay.Application.Features.Accounts.Queries.GetAccountById;
@@ -32,12 +25,9 @@ namespace NexaPay.API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    // Alla endpoints i denna controller kräver giltig JWT-token
     [Authorize]
     public class AccountsController : ControllerBase
     {
-        // IMediator är vår enda dependency – vi pratar bara med MediatR
-        // MediatR skickar vidare till rätt Handler automatiskt
         private readonly IMediator _mediator;
 
         public AccountsController(IMediator mediator)
@@ -45,37 +35,35 @@ namespace NexaPay.API.Controllers
             _mediator = mediator;
         }
 
-        // --------------------------------------------------------
-        // Hjälpmetoder för att läsa JWT-claims
-        // --------------------------------------------------------
-
-        // Hämta inloggad användares ID från JWT-token
-        // ClaimTypes.NameIdentifier = "sub"-claimet vi satte i JwtService
-        // Returnerar tom sträng om claim inte finns (bör inte hända)
         private string GetUserId() =>
             User.FindFirstValue(ClaimTypes.NameIdentifier)
             ?? string.Empty;
 
-        // Kontrollera om inloggad användare har Admin-rollen
-        // Används för RBAC – Role-Based Access Control
-        private bool IsAdmin() => User.IsInRole("Admin");
+        // Kontrollera om användaren är personal (ej vanlig User)
+        // Personal kan se alla konton
+        private bool IsStaff() =>
+            User.IsInRole(Roles.Admin) ||
+            User.IsInRole(Roles.BankManager) ||
+            User.IsInRole(Roles.Teller) ||
+            User.IsInRole(Roles.Auditor);
+
+        private bool IsAdmin() => User.IsInRole(Roles.Admin);
 
         // --------------------------------------------------------
         // GET api/accounts
         // --------------------------------------------------------
-        // Admin ser alla konton i systemet
-        // Vanlig User ser bara sina egna konton
+        // Personal ser alla konton
+        // Vanlig User ser bara sina egna
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
-            // Skapa Query med användarinfo från JWT-token
             var result = await _mediator.Send(
                 new GetAllAccountsQuery
                 {
-                    // UserId och IsAdmin hämtas från JWT-token
-                    // Inte från request-body – det vore en säkerhetsrisk
                     UserId = GetUserId(),
-                    IsAdmin = IsAdmin()
+                    // IsAdmin = true gör att handleren returnerar alla konton
+                    // Vi använder IsStaff() för att inkludera all personal
+                    IsAdmin = IsStaff()
                 });
 
             if (result.IsSuccess)
@@ -87,8 +75,6 @@ namespace NexaPay.API.Controllers
         // --------------------------------------------------------
         // GET api/accounts/{id}
         // --------------------------------------------------------
-        // Hämtar ett specifikt konto om användaren har behörighet
-        // ":guid" = URL-parametern måste vara ett giltigt Guid
         [HttpGet("{id:guid}")]
         public async Task<IActionResult> GetById(Guid id)
         {
@@ -97,22 +83,22 @@ namespace NexaPay.API.Controllers
                 {
                     AccountId = id,
                     UserId = GetUserId(),
-                    IsAdmin = IsAdmin()
+                    IsAdmin = IsStaff()
                 });
 
             if (result.IsSuccess)
                 return Ok(ApiResponse.Ok(result.Value));
 
-            // 404 om kontot inte finns eller användaren saknar behörighet
-            // Vi returnerar samma fel i båda fallen av säkerhetsskäl
             return NotFound(ApiResponse.Fail(result.Error));
         }
 
         // --------------------------------------------------------
         // POST api/accounts
         // --------------------------------------------------------
-        // Skapar ett nytt bankkonto för den inloggade användaren
+        // Alla inloggade kan skapa konton
+        // Auditor kan INTE skapa konton (read-only roll)
         [HttpPost]
+        [Authorize(Roles = $"{Roles.Admin},{Roles.BankManager},{Roles.Teller},{Roles.User}")]
         public async Task<IActionResult> Create(
             [FromBody] CreateAccountRequest request)
         {
@@ -121,14 +107,10 @@ namespace NexaPay.API.Controllers
                 {
                     AccountName = request.AccountName,
                     AccountType = request.AccountType,
-                    // OwnerId sätts från JWT-token – ALDRIG från request!
-                    // Kritisk säkerhetsregel – användaren kan inte
-                    // sätta sig själv som ägare av ett annat konto
                     OwnerId = GetUserId()
                 });
 
             if (result.IsSuccess)
-                // 201 Created med Location-header som pekar på det nya kontot
                 return CreatedAtAction(
                     nameof(GetById),
                     new { id = result.Value!.Id },
@@ -142,9 +124,10 @@ namespace NexaPay.API.Controllers
         // --------------------------------------------------------
         // DELETE api/accounts/{id}
         // --------------------------------------------------------
-        // Stänger ett konto (soft delete – kontot markeras som inaktivt)
-        // Bara ägaren eller Admin kan stänga ett konto
+        // Admin, BankManager och User kan stänga konton
+        // Teller och Auditor kan INTE stänga konton
         [HttpDelete("{id:guid}")]
+        [Authorize(Roles = $"{Roles.Admin},{Roles.BankManager},{Roles.User}")]
         public async Task<IActionResult> Delete(Guid id)
         {
             var result = await _mediator.Send(
@@ -156,9 +139,6 @@ namespace NexaPay.API.Controllers
                 });
 
             if (result.IsSuccess)
-                // 200 OK med bekräftelsemeddelande
-                // Vi returnerar 200 istället för 204 för att
-                // inkludera bekräftelsemeddelandet i ApiResponse
                 return Ok(ApiResponse.Ok(
                     message: "Konto stängdes framgångsrikt"));
 
@@ -166,18 +146,9 @@ namespace NexaPay.API.Controllers
         }
     }
 
-    // --------------------------------------------------------
-    // Request-modell för POST /api/accounts
-    // --------------------------------------------------------
-    // Enkel modell som representerar request-body
-    // OwnerId inkluderas INTE här – den hämtas från JWT-token
     public record CreateAccountRequest
     {
-        // Namnet användaren ger sitt konto
-        // T.ex. "Mitt sparkonto" eller "Hushållskassan"
         public string AccountName { get; init; } = string.Empty;
-
-        // Typen av konto – Checking, Savings eller ISK
         public AccountType AccountType { get; init; }
     }
 }

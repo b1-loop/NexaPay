@@ -2,12 +2,6 @@
 // RegisterHandler.cs
 // NexaPay.Application/Features/Auth/Commands/Register
 // ============================================================
-// Hanterar RegisterCommand.
-//
-// Notera: Handleren känner bara till IAuthService
-// Den vet INGENTING om UserManager, Identity eller databaser
-// Det är precis vad Clean Architecture kräver!
-// ============================================================
 
 using MediatR;
 using NexaPay.Application.Common.Interfaces;
@@ -19,8 +13,6 @@ namespace NexaPay.Application.Features.Auth.Commands.Register
     public class RegisterHandler
         : IRequestHandler<RegisterCommand, Result<AuthDto>>
     {
-        // IAuthService – Application känner bara till interfacet
-        // Infrastructure implementerar det med UserManager
         private readonly IAuthService _authService;
 
         public RegisterHandler(IAuthService authService)
@@ -34,12 +26,11 @@ namespace NexaPay.Application.Features.Auth.Commands.Register
         {
             try
             {
-                // Delegera till AuthService som hanterar
-                // all Identity-logik i Infrastructure
+                // Delegera till AuthService med den angivna rollen
                 return await _authService.RegisterAsync(
                     request.Email,
                     request.Password,
-                    request.IsAdmin);
+                    request.Role); // Skickar roll istället för bool
             }
             catch (Exception ex)
             {
