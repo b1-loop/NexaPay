@@ -3,13 +3,6 @@
 // NexaPay.Tests/Application/Features/Transactions
 // ============================================================
 // Testar DepositHandler med olika scenarier.
-//
-// Vi testar:
-//   1. Lyckad insättning – saldot ökar korrekt
-//   2. Konto finns inte – returnerar Failure
-//   3. Fel ägare – returnerar Failure
-//   4. Inaktivt konto – returnerar Failure
-//   5. Transaktionspost skapas med rätt typ
 // ============================================================
 
 using FluentAssertions;
@@ -20,6 +13,9 @@ using NUnit.Framework;
 namespace NexaPay.Tests.Application.Features.Transactions
 {
     [TestFixture]
+    [Category("Application")]
+    [Category("Transactions")]
+    [Category("Deposit")]
     public class DepositHandlerTests : TestBase
     {
         private DepositHandler _handler = null!;
@@ -27,13 +23,11 @@ namespace NexaPay.Tests.Application.Features.Transactions
         [SetUp]
         public void Setup()
         {
-            // Återställ alla mocks innan varje test
             MockUnitOfWork.Reset();
             MockAccountRepository.Reset();
             MockCardRepository.Reset();
             MockTransactionRepository.Reset();
 
-            // Sätt upp mocks på nytt efter reset
             MockUnitOfWork
                 .Setup(u => u.Accounts)
                 .Returns(MockAccountRepository.Object);
@@ -60,11 +54,10 @@ namespace NexaPay.Tests.Application.Features.Transactions
         // Test 1: Lyckad insättning
         // --------------------------------------------------------
         [Test]
+        [Category("HappyPath")]
         [Description(
             "Verifierar att en giltig insättning ökar kontosaldot " +
-            "med rätt belopp och att en TransactionDto returneras " +
-            "med korrekt BalanceAfterTransaction. " +
-            "T.ex. saldo 1000 + insättning 500 = 1500.")]
+            "med rätt belopp. T.ex. saldo 1000 + insättning 500 = 1500.")]
         public async Task Handle_WhenValidDeposit_ShouldIncreaseBalance()
         {
             // Arrange
@@ -110,11 +103,10 @@ namespace NexaPay.Tests.Application.Features.Transactions
         // Test 2: Konto finns inte
         // --------------------------------------------------------
         [Test]
+        [Category("NotFound")]
         [Description(
-            "Verifierar att en insättning misslyckas med ett " +
-            "tydligt felmeddelande när kontot inte existerar. " +
-            "SaveChangesAsync ska INTE anropas i detta fall " +
-            "– inget ska sparas om kontot inte hittades.")]
+            "Verifierar att insättning misslyckas när kontot " +
+            "inte existerar. SaveChangesAsync ska INTE anropas.")]
         public async Task Handle_WhenAccountNotFound_ShouldReturnFailure()
         {
             // Arrange
@@ -153,11 +145,11 @@ namespace NexaPay.Tests.Application.Features.Transactions
         // Test 3: Fel ägare
         // --------------------------------------------------------
         [Test]
+        [Category("Security")]
         [Description(
             "Verifierar att en användare INTE kan sätta in pengar " +
             "på ett konto som tillhör en annan användare. " +
-            "Detta är ett kritiskt säkerhetskrav – " +
-            "kontots OwnerId måste matcha inloggad UserId.")]
+            "Kritiskt säkerhetskrav – OwnerId måste matcha UserId.")]
         public async Task Handle_WhenWrongOwner_ShouldReturnFailure()
         {
             // Arrange
@@ -195,11 +187,10 @@ namespace NexaPay.Tests.Application.Features.Transactions
         // Test 4: Inaktivt konto
         // --------------------------------------------------------
         [Test]
+        [Category("BusinessRule")]
         [Description(
             "Verifierar att insättning nekas på ett inaktivt konto. " +
-            "Ett stängt konto (IsActive = false) ska inte " +
-            "kunna ta emot pengar – detta förhindrar " +
-            "transaktioner på avslutade konton.")]
+            "Ett stängt konto ska inte kunna ta emot pengar.")]
         public async Task Handle_WhenAccountInactive_ShouldReturnFailure()
         {
             // Arrange
@@ -239,11 +230,11 @@ namespace NexaPay.Tests.Application.Features.Transactions
         // Test 5: Transaktionspost skapas med rätt typ
         // --------------------------------------------------------
         [Test]
+        [Category("Mapping")]
         [Description(
-            "Verifierar att transaktionsposten som skapas vid " +
-            "insättning har rätt TransactionType (Deposit) och " +
-            "att beskrivningen mappas korrekt till TransactionDto. " +
-            "Transaktioner är oföränderliga revisionsposter.")]
+            "Verifierar att transaktionsposten har rätt " +
+            "TransactionType (Deposit) och att beskrivningen " +
+            "mappas korrekt till TransactionDto.")]
         public async Task Handle_WhenValidDeposit_TransactionTypeShouldBeDeposit()
         {
             // Arrange
