@@ -81,13 +81,15 @@ namespace NexaPay.API
         // --------------------------------------------------------
         // Seed – Skapa alla roller om de inte finns
         // --------------------------------------------------------
-        // "private static" = bara tillgänglig i denna klass
-        // Anropas bara från InitialiseDatabaseAsync
         private static async Task SeedRolesAsync(
             IServiceProvider services)
         {
             var roleManager = services
                 .GetRequiredService<RoleManager<IdentityRole>>();
+
+            var logger = services
+                .GetRequiredService<ILoggerFactory>()
+                .CreateLogger(nameof(DatabaseExtensions));
 
             // ------------------------------------------------
             // Alla roller i NexaPay-systemet
@@ -123,12 +125,7 @@ namespace NexaPay.API
                     await roleManager.CreateAsync(
                         new IdentityRole(role));
 
-                    // Logga att rollen skapades
-                    // Vi kan inte använda app.Logger här eftersom
-                    // vi är i en statisk metod utan tillgång till app
-                    // Så vi använder Console.WriteLine som fallback
-                    Console.WriteLine(
-                        $"Roll skapad: {role}");
+                    logger.LogInformation("Roll skapad: {Role}", role);
                 }
             }
         }

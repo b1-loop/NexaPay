@@ -328,7 +328,7 @@ Se **Bug 2** ovan. `AuthDto.ExpiresAt` är hårdkodad till 24 h medan den faktis
 
 15. ~~**Använd rollkonstanter i controllers**~~ – ✅ Åtgärdad (2026-05-06)  
 16. ~~**Flytta `IJwtService` till egen fil**~~ – ✅ Åtgärdad (2026-05-06)  
-17. Ersätt `Console.WriteLine` i `DatabaseExtensions.cs` med `ILogger`  
+17. ~~**Ersätt `Console.WriteLine` med `ILogger`** i `DatabaseExtensions.cs`~~ – ✅ Åtgärdad (2026-05-06)  
 18. ~~**Ta bort `GetTransactionsByAccountIdAsync`**~~ – ✅ Åtgärdad (2026-05-06)  
 19. ~~**Specificera CORS-origins per miljö**~~ – ✅ Åtgärdad (2026-05-06)  
 20. ~~**Lägg till tester för `BlockCardHandler`, `CreateCardHandler`, `DeleteAccountHandler`**~~ – ✅ Åtgärdad (2026-05-06)  
