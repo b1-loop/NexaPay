@@ -67,7 +67,7 @@ namespace NexaPay.API.Controllers
         // --------------------------------------------------------
         // Auditor kan INTE skapa kort – read-only roll
         [HttpPost]
-        [Authorize(Roles = $"{Roles.Admin},{Roles.BankManager},{Roles.Teller},{Roles.User}")]
+        [Authorize(Roles = Roles.CanWrite)]
         public async Task<IActionResult> Create(
             [FromBody] CreateCardRequest request)
         {
@@ -92,7 +92,7 @@ namespace NexaPay.API.Controllers
         // --------------------------------------------------------
         // Kortets ägare, Admin, BankManager och Teller kan aktivera kort
         [HttpPut("{id:guid}/activate")]
-        [Authorize(Roles = $"{Roles.Admin},{Roles.BankManager},{Roles.Teller},{Roles.User}")]
+        [Authorize(Roles = Roles.CanWrite)]
         public async Task<IActionResult> Activate(Guid id)
         {
             var result = await _mediator.Send(
@@ -115,7 +115,7 @@ namespace NexaPay.API.Controllers
         // --------------------------------------------------------
         // Bara Admin och BankManager kan blockera kort
         [HttpPut("{id:guid}/block")]
-        [Authorize(Roles = $"{Roles.Admin},{Roles.BankManager}")]
+        [Authorize(Roles = Roles.CanBlockCard)]
         public async Task<IActionResult> Block(
             Guid id,
             [FromBody] BlockCardRequest request)

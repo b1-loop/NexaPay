@@ -98,7 +98,7 @@ namespace NexaPay.API.Controllers
         // --------------------------------------------------------
         // Auditor kan INTE göra insättningar – read-only roll
         [HttpPost("deposit")]
-        [Authorize(Roles = $"{Roles.Admin},{Roles.BankManager},{Roles.Teller},{Roles.User}")]
+        [Authorize(Roles = Roles.CanWrite)]
         public async Task<IActionResult> Deposit(
             [FromBody] DepositRequest request)
         {
@@ -125,7 +125,7 @@ namespace NexaPay.API.Controllers
         // --------------------------------------------------------
         // Auditor kan INTE göra uttag – read-only roll
         [HttpPost("withdraw")]
-        [Authorize(Roles = $"{Roles.Admin},{Roles.BankManager},{Roles.Teller},{Roles.User}")]
+        [Authorize(Roles = Roles.CanWrite)]
         public async Task<IActionResult> Withdraw(
             [FromBody] WithdrawRequest request)
         {
@@ -153,7 +153,7 @@ namespace NexaPay.API.Controllers
         // Bara Admin, BankManager och User kan överföra
         // Teller och Auditor kan INTE göra överföringar
         [HttpPost("transfer")]
-        [Authorize(Roles = $"{Roles.Admin},{Roles.BankManager},{Roles.User}")]
+        [Authorize(Roles = Roles.CanTransfer)]
         public async Task<IActionResult> Transfer(
             [FromBody] TransferRequest request)
         {

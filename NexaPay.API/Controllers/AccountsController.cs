@@ -98,7 +98,7 @@ namespace NexaPay.API.Controllers
         // Alla inloggade kan skapa konton
         // Auditor kan INTE skapa konton (read-only roll)
         [HttpPost]
-        [Authorize(Roles = $"{Roles.Admin},{Roles.BankManager},{Roles.Teller},{Roles.User}")]
+        [Authorize(Roles = Roles.CanWrite)]
         public async Task<IActionResult> Create(
             [FromBody] CreateAccountRequest request)
         {
@@ -127,7 +127,7 @@ namespace NexaPay.API.Controllers
         // Admin, BankManager och User kan stänga konton
         // Teller och Auditor kan INTE stänga konton
         [HttpDelete("{id:guid}")]
-        [Authorize(Roles = $"{Roles.Admin},{Roles.BankManager},{Roles.User}")]
+        [Authorize(Roles = Roles.CanTransfer)]
         public async Task<IActionResult> Delete(Guid id)
         {
             var result = await _mediator.Send(

@@ -75,5 +75,14 @@ namespace NexaPay.Application.Common.Constants
         // Roller som kan utföra skrivoperationer på konton
         public const string CanWriteAccounts =
             $"{Admin},{BankManager},{Teller}";
+
+        // Alla roller utom Auditor – kan skapa konton, kort och göra insättningar/uttag
+        public const string CanWrite =
+            $"{Admin},{BankManager},{Teller},{User}";
+
+        // Roller som kan genomföra överföringar och stänga konton
+        // Teller kan hjälpa kunder med in/uttag men inte flytta pengar mellan konton
+        public const string CanTransfer =
+            $"{Admin},{BankManager},{User}";
     }
 }

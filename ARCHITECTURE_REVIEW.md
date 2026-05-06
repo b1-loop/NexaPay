@@ -223,26 +223,6 @@ builder.Property(a => a.RowVersion).IsRowVersion();
 
 ## 5. Designproblem & förbättringar
 
-### 5.1 Rollkonstanter definieras men används inte konsekvent
-
-**Fil:** `NexaPay.Application/Common/Constants/Roles.cs`
-
-Klassen definierar kombinerade konstanter:
-```csharp
-public const string AllStaff = $"{Admin},{BankManager},{Teller},{Auditor}";
-public const string CanBlockCard = $"{Admin},{BankManager}";
-public const string CanWriteAccounts = $"{Admin},{BankManager},{Teller}";
-```
-
-Men controllers använder sträng-interpolation direkt:
-```csharp
-[Authorize(Roles = $"{Roles.Admin},{Roles.BankManager},{Roles.Teller},{Roles.User}")]
-```
-
-Kombinationerna i `Roles.cs` används aldrig. Antingen ska de användas i controllers, eller tas bort.
-
----
-
 ### 5.3 `GetTransactionsByAccountIdAsync` (icke-paginerad) används inte
 
 **Fil:** `NexaPay.Domain/Interfaces/ITransactionRepository.cs`
@@ -414,7 +394,7 @@ return Random.Shared.Next(100, 999).ToString();
 
 #### LÅG (städning)
 
-15. Använd befintliga rollkonstanter (`Roles.AllStaff`, `Roles.CanBlockCard`) i controllers, eller ta bort dem  
+15. ~~**Använd rollkonstanter i controllers**~~ – ✅ Åtgärdad (2026-05-06)  
 16. Flytta `IJwtService` till en egen fil (eller till Application-lagret)  
 17. Ersätt `Console.WriteLine` i `DatabaseExtensions.cs` med `ILogger`  
 18. Ta bort eller exponera `GetTransactionsByAccountIdAsync` (icke-paginerad) om den inte används  
