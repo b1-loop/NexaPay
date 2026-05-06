@@ -231,18 +231,6 @@ builder.Property(a => a.RowVersion).IsRowVersion();
 
 ---
 
-### 5.5 `Microsoft.Extensions.Logging.Abstractions` version 10.0.0
-
-**Fil:** `NexaPay.Application/NexaPay.Application.csproj` rad 13
-
-```xml
-<PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0" />
-```
-
-Projektet riktar sig mot `.NET 8` men använder version `10.0.0` av logging-abstraktionerna (som är för .NET 10 preview). Bör nedgraderas till `8.0.x` för konsekvens och stabilitet.
-
----
-
 ### 5.7 Retry-logik i EF Core kan maskera problem
 
 **Fil:** `NexaPay.Infrastructure/DependencyInjection.cs` rad 49–56
@@ -373,7 +361,7 @@ return Random.Shared.Next(100, 999).ToString();
 10. **Skydda mot lösenordsloggning** – överskrid `ToString()` på `LoginCommand`  
 11. **Lägg till `RowVersion`** på `Account` för optimistisk concurrency  
 12. ~~**Lägg till kortnummer-kontroll** i `CreateCardHandler`~~ – ✅ Åtgärdad (2026-05-06)  
-13. **Nedgradera** `Microsoft.Extensions.Logging.Abstractions` från `10.0.0` till `8.0.x`  
+13. ~~**Ta bort explicit `Microsoft.Extensions.Logging.Abstractions`-pin**~~ – ✅ Åtgärdad (2026-05-06)  
 14. ~~**Ta bort `Microsoft.AspNetCore.Identity.EntityFrameworkCore`** från API-projektet~~ – ✅ Åtgärdad (2026-05-06)  
 
 #### LÅG (städning)
