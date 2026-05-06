@@ -117,7 +117,7 @@ Om `Jwt:ExpiryHours` ändras i konfigurationen gäller den faktiska token-livsl�
 
 | # | Problem | Fil | Detalj |
 |---|---------|-----|--------|
-| 1 | JWT-signeringsnyckel i klartext | `appsettings.json` rad 6 | `"Key": "NexaPaySuperSecretKeyThatIsAtLeast32CharactersLong!"` – vem som helst med repo-åtkomst kan signera godtyckliga JWT-tokens |
+| 1 | JWT-signeringsnyckel i klartext | `appsettings.json` rad 6 | Nyckeln låg hårdkodad i versionshantering — åtgärdat: flyttad till User Secrets (dev) och miljövariabel (prod) |
 | 2 | CVV lagras i databasen | `Card.cs`, `CardConfiguration.cs`, `CreateCardHandler.cs` | Bryter mot PCI-DSS 3.2.1. Koden kommenterar själv att det inte bör göras |
 | 3 | Vem som helst kan registrera sig som Admin | `AuthController.cs` – `POST /register` | Endpointen är publik (inget `[Authorize]`) och accepterar `"Role": "Admin"` |
 
