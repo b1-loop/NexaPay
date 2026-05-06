@@ -125,7 +125,7 @@ Det är korrekt och skyddar mot att pengar försvinner vid valideringsfel.
 | # | Problem | Fil | Detalj |
 |---|---------|-----|--------|
 | ~~5~~ | ~~Ingen rate limiting~~ | ~~`AuthController.cs`~~ | ✅ Åtgärdad (2026-05-06) – FixedWindow 5 req/min per IP, returnerar 429 |
-| 6 | Race condition på saldo | `DepositHandler`, `WithdrawHandler`, `TransferHandler` | Ingen optimistisk concurrency (`RowVersion`) – två simultana requests kan ge felaktigt saldo |
+| ~~6~~ | ~~Race condition på saldo~~ | ~~`DepositHandler`, `WithdrawHandler`, `TransferHandler`~~ | ✅ Åtgärdad (2026-05-06) – `RowVersion` på `Account`, `UnitOfWork` fångar `DbUpdateConcurrencyException` |
 
 **Rate limiting – åtgärd:**
 ```csharp
@@ -248,6 +248,3 @@ builder.Property(a => a.RowVersion).IsRowVersion();
 
 
 
-#### MEDEL (förbättringar)
-
-4. **Lägg till `RowVersion`** på `Account` för optimistisk concurrency  

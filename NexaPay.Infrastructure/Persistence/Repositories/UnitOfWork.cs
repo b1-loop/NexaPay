@@ -14,6 +14,7 @@
 // individuella repositories – enklare och mer sammanhängande.
 // ============================================================
 
+using Microsoft.EntityFrameworkCore;
 using NexaPay.Domain.Interfaces;
 
 namespace NexaPay.Infrastructure.Persistence.Repositories
@@ -72,10 +73,16 @@ namespace NexaPay.Infrastructure.Persistence.Repositories
         public async Task<int> SaveChangesAsync(
             CancellationToken cancellationToken = default)
         {
-            // Returnerar antalet rader som påverkades
-            // T.ex. om vi uppdaterade 2 konton och skapade 1 transaktion
-            // returneras 3
-            return await _context.SaveChangesAsync(cancellationToken);
+            try
+            {
+                return await _context.SaveChangesAsync(cancellationToken);
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                throw new Exception(
+                    "Kontot uppdaterades av en annan begäran samtidigt. " +
+                    "Försök igen.");
+            }
         }
 
         // --------------------------------------------------------

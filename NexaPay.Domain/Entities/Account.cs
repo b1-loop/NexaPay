@@ -68,5 +68,13 @@ namespace NexaPay.Domain.Entities
         // En Account kan ha 0 till många Cards
         public ICollection<Card> Cards { get; set; }
             = new List<Card>();
+
+        // --------------------------------------------------------
+        // Optimistisk concurrency – skydd mot parallella uppdateringar
+        // --------------------------------------------------------
+        // SQL Server uppdaterar denna automatiskt vid varje UPDATE.
+        // EF Core inkluderar den i WHERE-klausulen vid sparning.
+        // Om versionen inte stämmer → DbUpdateConcurrencyException.
+        public byte[] RowVersion { get; set; } = [];
     }
 }

@@ -82,6 +82,11 @@ namespace NexaPay.Infrastructure.Persistence.Configurations
             builder.Property(a => a.UpdatedAt)
                 .IsRequired(false);
 
+            // RowVersion – optimistisk concurrency
+            // SQL Server uppdaterar denna timestamp automatiskt
+            builder.Property(a => a.RowVersion)
+                .IsRowVersion();
+
             // --------------------------------------------------------
             // Index
             // --------------------------------------------------------
