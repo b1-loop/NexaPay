@@ -159,7 +159,7 @@ public async Task<IActionResult> RegisterStaff([FromBody] RegisterStaffRequest r
 
 | # | Problem | Fil | Detalj |
 |---|---------|-----|--------|
-| 4 | Lösenord loggas i klartext | `LoggingBehavior.cs` rad 52–54 | `{@Request}` serialiserar hela `LoginCommand` inkl. `Password` |
+| ~~4~~ | ~~Lösenord loggas i klartext~~ | ~~`LoggingBehavior.cs` rad 52–54~~ | ~~`{@Request}` serialiserar hela `LoginCommand` inkl. `Password`~~ — ✅ Åtgärdad (2026-05-06) |
 | 5 | Ingen rate limiting | `AuthController.cs` | Brute-force på `POST /login` möjlig |
 | 6 | Race condition på saldo | `DepositHandler`, `WithdrawHandler`, `TransferHandler` | Ingen optimistisk concurrency (`RowVersion`) – två simultana requests kan ge felaktigt saldo |
 
@@ -202,9 +202,9 @@ builder.Property(a => a.RowVersion).IsRowVersion();
 
 | # | Problem | Fil | Detalj |
 |---|---------|-----|--------|
-| 7 | CORS AllowAll | `ServiceExtensions.cs` rad 145–153 | Tillåter alla origins i alla miljöer |
+| ~~7~~ | ~~CORS AllowAll~~ | ~~`ServiceExtensions.cs` rad 145–153~~ | ~~Tillåter alla origins i alla miljöer~~ — ✅ Åtgärdad (2026-05-06) |
 | 8 | `AllowedHosts: "*"` | `appsettings.json` | Inga host-begränsningar |
-| 9 | `Console.WriteLine` i produktionskod | `DatabaseExtensions.cs` rad 131 | Ska vara `ILogger` |
+| ~~9~~ | ~~`Console.WriteLine` i produktionskod~~ | ~~`DatabaseExtensions.cs` rad 131~~ | ~~Ska vara `ILogger`~~ — ✅ Åtgärdad (2026-05-06) |
 | 10 | Inget audit log | Hela Infrastructure | Ingen spårning av vem som ändrat vad |
 
 ---
@@ -303,7 +303,7 @@ Se **Bug 2** ovan. `AuthDto.ExpiresAt` är hårdkodad till 24 h medan den faktis
 
 #### KRITISKT (blockerande för produktion)
 
-1. **Ta bort JWT-nyckeln från `appsettings.json`** → User Secrets / miljövariabel  
+1. ~~**Ta bort JWT-nyckeln från `appsettings.json`**~~ → ✅ Åtgärdad (2026-05-06) – User Secrets (dev) / miljövariabel (prod)  
 2. **Ta bort CVV-lagring** – ny migration, returnera CVV en gång vid skapande  
 3. **Begränsa Admin-registrering** – publik endpoint ska bara tillåta `User`-rollen  
 4. ~~**Fixa Teller-bug**~~ – ✅ Åtgärdad (2026-05-06)
