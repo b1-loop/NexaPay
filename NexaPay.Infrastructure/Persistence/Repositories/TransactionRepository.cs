@@ -21,23 +21,7 @@ namespace NexaPay.Infrastructure.Persistence.Repositories
         {
         }
 
-        // Hämta alla transaktioner för ett konto
-        // Sorterade med senaste transaktion FÖRST
-        public async Task<IEnumerable<Transaction>>
-            GetTransactionsByAccountIdAsync(Guid accountId)
-        {
-            return await _dbSet
-                .Where(t => t.AccountId == accountId)
-                .OrderByDescending(t => t.CreatedAt)
-                .AsNoTracking()
-                .ToListAsync();
-        }
-
-        // --------------------------------------------------------
-        // NY METOD: Paginerad version
-        // --------------------------------------------------------
         // Returnerar en tuple med transaktioner och totalt antal
-        // Detta gör att vi kan returnera pagineringsinformation
         // utan att behöva göra två separata databasfrågor
         public async Task<(IEnumerable<Transaction> Transactions,
             int TotalCount)>
