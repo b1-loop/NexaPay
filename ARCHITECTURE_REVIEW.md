@@ -103,35 +103,7 @@ using System.Transactions; // ← FELAKTIGT
 
 ---
 
-### Bug 2 – Bankpersonal kan inte göra transaktioner åt kunder
-
-**Filer:** `DepositHandler.cs`, `WithdrawHandler.cs`, `TransferHandler.cs`
-
-Alla tre handlers kontrollerar ägarskap på samma sätt:
-
-```csharp
-if (account.OwnerId != request.UserId)
-    return Result<TransactionDto>.Failure("... hittades inte");
-```
-
-`request.UserId` är alltid den **inloggade användarens** ID. Det innebär att en Teller (userId = `"teller-123"`) som försöker göra en insättning på en kunds konto (ownerId = `"kund-456"`) alltid får fel – trots att Teller är godkänd i controllern.
-
-**Konsekvens:** `POST /transactions/deposit` och `POST /transactions/withdraw` är auktoriserade för Teller i controllern, men handlens ägarskapscheck blockerar dem. Teller kan i praktiken bara göra transaktioner på sina *egna* konton.
-
-**Åtgärd:** Lägg till `IsStaff`-flagga i commands (som redan görs för `GetAllAccountsQuery`) och hoppa över ägarskapskontrollen för personal:
-
-```csharp
-// I DepositCommand
-public bool IsStaff { get; init; }
-
-// I DepositHandler
-if (!request.IsStaff && account.OwnerId != request.UserId)
-    return Result<TransactionDto>.Failure("...");
-```
-
----
-
-### Bug 3 – Kortnummer kontrolleras inte mot databas vid skapande
+### Bug 2 – Kortnummer kontrolleras inte mot databas vid skapande
 
 **Fil:** `NexaPay.Application/Features/Cards/Commands/CreateCard/CreateCardHandler.cs`
 
@@ -156,7 +128,7 @@ Vid kollision kastas ett databasundantag som fångas och returnerar ett generisk
 
 ---
 
-### Bug 4 – `AuthDto.ExpiresAt` är hårdkodad till 24 timmar
+### Bug 3 – `AuthDto.ExpiresAt` är hårdkodad till 24 timmar
 
 **Fil:** `NexaPay.Infrastructure/Identity/AuthService.cs` rad 100 och 141
 
@@ -176,7 +148,7 @@ Om `Jwt:ExpiryHours` ändras i konfigurationen gäller den faktiska token-livsl�
 
 ---
 
-### Bug 5 – Inget sätt att aktivera ett kort
+### Bug 4 – Inget sätt att aktivera ett kort
 
 **Fil:** `NexaPay.API/Controllers/CardsController.cs`
 
@@ -386,7 +358,7 @@ sqlOptions.EnableRetryOnFailure(
 
 ### 5.8 `AuthDto.ExpiresAt` och token-livslängd är osynkroniserade
 
-Se **Bug 4** ovan. `AuthDto.ExpiresAt` är hårdkodad till 24 h medan den faktiska token-livslängden läses från konfigurationen.
+Se **Bug 3** ovan. `AuthDto.ExpiresAt` är hårdkodad till 24 h medan den faktiska token-livslängden läses från konfigurationen.
 
 ---
 
@@ -484,7 +456,7 @@ return Random.Shared.Next(100, 999).ToString();
 1. **Ta bort JWT-nyckeln från `appsettings.json`** → User Secrets / miljövariabel  
 2. **Ta bort CVV-lagring** – ny migration, returnera CVV en gång vid skapande  
 3. **Begränsa Admin-registrering** – publik endpoint ska bara tillåta `User`-rollen  
-4. **Fixa Teller-bug** – lägg till `IsStaff`-flagga i `DepositCommand`, `WithdrawCommand`, `TransferCommand`
+4. ~~**Fixa Teller-bug**~~ – ✅ Åtgärdad (2026-05-06)
 
 #### HÖG (bör fixas snart)
 
