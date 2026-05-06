@@ -224,7 +224,7 @@ Se **Bug 2** ovan. `AuthDto.ExpiresAt` är hårdkodad till 24 h medan den faktis
 | Fil | Antal tester | Täcker |
 |-----|-------------|--------|
 | `CreateAccountHandlerTests` | 4 | Skapande, noll-saldo, SaveChanges, mapping |
-| `DepositHandlerTests` | Flera | Insättning, overdraft |
+| `DepositHandlerTests` | **6** | Insättning, overdraft, fel ägare, inaktivt konto, transaktionstyp, Teller IsStaff |
 | `WithdrawHandlerTests` | Flera | Uttag, overdraft-skydd |
 | `TransferHandlerTests` | **8** | Happy path, fel ägare, insufficient balance, saknade konton, inaktiva konton, exakt saldo |
 | `AccountTests` | Flera | Domänentitet |
@@ -233,6 +233,13 @@ Se **Bug 2** ovan. `AuthDto.ExpiresAt` är hårdkodad till 24 h medan den faktis
 | `DepositValidatorTests` | Flera | Belopp, beskrivning |
 | `WithdrawValidatorTests` | Flera | Belopp, beskrivning |
 | `TransferValidatorTests` | Flera | Från/till konton, belopp, självöverföring |
+| `BlockCardHandlerTests` | **4** | Happy path, ej funnet, redan blockerat, utgånget |
+| `ActivateCardHandlerTests` | **7** | Happy path, IsStaff, fel ägare, ej funnet, redan aktivt, blockerat, utgånget |
+| `CreateCardHandlerTests` | **5** | Happy path, ej funnet, fel ägare, inaktivt konto, Inactive-status |
+| `DeleteAccountHandlerTests` | **6** | Happy path, ej funnet, fel ägare, Admin override, saldo > 0, soft delete |
+| `GetTransactionsByAccountHandlerTests` | **6** | Happy path, ej funnet, fel ägare, IsAdmin, Page=0→1, PageSize>100→100 |
+| `RegisterValidatorTests` | **14** | E-post, lösenordskrav (4 regler), ogiltig roll, alla 5 giltiga roller |
+| `LoginValidatorTests` | **4** | Happy path, tom e-post, ogiltigt format, tomt lösenord |
 
 `TransferHandlerTests` är särskilt välskrivet – täcker alla affärsregler och verifierar att `SaveChangesAsync` aldrig anropas vid fel.
 
@@ -241,14 +248,14 @@ Se **Bug 2** ovan. `AuthDto.ExpiresAt` är hårdkodad till 24 h medan den faktis
 | Saknas | Prioritet | Kommentar |
 |--------|-----------|-----------|
 | ~~Test: Teller kan göra deposit på kundens konto~~ | ~~HÖG~~ | ✅ Åtgärdad (2026-05-06) |
-| Test: Admin kan registreras via publik endpoint | HÖG | Avslöjar Bug 3 (säkerhet) |
-| Test: `ActivateCardHandler` | MEDEL | Ingen täckning för kortaktivering |
-| `BlockCardHandlerTests` | MEDEL | Ingen täckning för kortblockering |
-| `CreateCardHandlerTests` | MEDEL | Ingen täckning för kortskapande |
-| `DeleteAccountHandlerTests` | MEDEL | Ingen täckning för kontostängning |
-| `GetTransactionsByAccountHandlerTests` | LÅG | Pagination-logik otestad |
-| `RegisterValidatorTests` | LÅG | Lösenordskomplex, rollvalidering |
-| `LoginValidatorTests` | LÅG | E-postformat |
+| ~~Test: `ActivateCardHandler`~~ | ~~MEDEL~~ | ✅ Åtgärdad (2026-05-06) |
+| ~~`BlockCardHandlerTests`~~ | ~~MEDEL~~ | ✅ Åtgärdad (2026-05-06) |
+| ~~`CreateCardHandlerTests`~~ | ~~MEDEL~~ | ✅ Åtgärdad (2026-05-06) |
+| ~~`DeleteAccountHandlerTests`~~ | ~~MEDEL~~ | ✅ Åtgärdad (2026-05-06) |
+| ~~`GetTransactionsByAccountHandlerTests`~~ | ~~LÅG~~ | ✅ Åtgärdad (2026-05-06) |
+| ~~`RegisterValidatorTests`~~ | ~~LÅG~~ | ✅ Åtgärdad (2026-05-06) |
+| ~~`LoginValidatorTests`~~ | ~~LÅG~~ | ✅ Åtgärdad (2026-05-06) |
+| Test: Admin kan registreras via publik endpoint | HÖG | Kräver integrationstester |
 | Integrationstester (`WebApplicationFactory`) | MEDEL | Testar hela HTTP-flödet |
 
 ### Testarkitekturen är bra
