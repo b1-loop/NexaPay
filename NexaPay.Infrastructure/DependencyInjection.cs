@@ -22,6 +22,7 @@ using NexaPay.Application.Common.Interfaces;
 using NexaPay.Domain.Interfaces;
 using NexaPay.Infrastructure.Identity;
 using NexaPay.Infrastructure.Persistence;
+using NexaPay.Infrastructure.Settings;
 using NexaPay.Infrastructure.Persistence.Repositories;
 using System.Text;
 
@@ -65,6 +66,11 @@ namespace NexaPay.Infrastructure
 
             // Registrera UnitOfWork – används av alla handlers
             services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+            // --------------------------------------------------------
+            // App Settings
+            // --------------------------------------------------------
+            services.AddSingleton<IAppSettings, AppSettings>();
 
             // --------------------------------------------------------
             // JWT Service

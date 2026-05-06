@@ -97,24 +97,7 @@ Det är korrekt och skyddar mot att pengar försvinner vid valideringsfel.
 
 | # | Problem | Fil | Detalj |
 |---|---------|-----|--------|
-| 3 | Vem som helst kan registrera sig som Admin | `AuthController.cs` – `POST /register` | Endpointen är publik (inget `[Authorize]`) och accepterar `"Role": "Admin"` |
-
-**Admin-registrering – åtgärd:**
-```csharp
-// AuthController.cs – begränsa till User-rollen utan autentisering
-[HttpPost("register")]
-public async Task<IActionResult> Register([FromBody] RegisterRequest request)
-{
-    // Utan autentisering kan bara User-rollen sättas
-    var role = Roles.User;
-    // ...
-}
-
-// Separat endpoint för personal, kräver Admin-token:
-[HttpPost("register/staff")]
-[Authorize(Roles = Roles.Admin)]
-public async Task<IActionResult> RegisterStaff([FromBody] RegisterStaffRequest request) { ... }
-```
+| ~~3~~ | ~~Vem som helst kan registrera sig som Admin~~ | ~~`AuthController.cs` – `POST /register`~~ | ✅ Åtgärdad (2026-05-06) – domänbaserad rollbegränsning: `@nexapay.com` krävs för personalroller, övriga låses till `User` |
 
 ---
 
@@ -241,10 +224,6 @@ builder.Property(a => a.RowVersion).IsRowVersion();
 ---
 
 ### Prioriterad åtgärdslista
-
-#### KRITISKT (blockerande för produktion)
-
-1. **Begränsa Admin-registrering** – publik endpoint ska bara tillåta `User`-rollen
 
 #### HÖG (bör fixas snart)
 
