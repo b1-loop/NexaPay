@@ -1,217 +1,190 @@
-# NexaPay – Arkitekturanalys & Kodgranskning
+# NexaPay – Fullständig Arkitekturanalys & Kodgranskning
 
 > **Datum:** 2026-05-06  
-> **Granskad av:** Claude (AI-assistent)  
+> **Granskad av:** Claude – varje fil läst individuellt  
 > **Branch:** master  
-> **Ramverk:** .NET 8 · ASP.NET Core · Entity Framework Core 8
+> **Stack:** .NET 8 · ASP.NET Core · Entity Framework Core 8 · MediatR · FluentValidation · AutoMapper · ASP.NET Identity · JWT
 
 ---
 
 ## Innehåll
 
-1. [Projektstruktur & lager](#1-projektstruktur--lager)
-2. [Vad som är bra](#2-vad-som-är-bra)
-3. [Vad som kan förbättras](#3-vad-som-kan-förbättras)
+1. [Projektstruktur](#1-projektstruktur)
+2. [Vad som fungerar bra](#2-vad-som-fungerar-bra)
+3. [Verkliga buggar – måste åtgärdas](#3-verkliga-buggar--måste-åtgärdas)
 4. [Säkerhetsproblem](#4-säkerhetsproblem)
-5. [Tester](#5-tester)
-6. [NuGet-paket](#6-nuget-paket)
-7. [Sammanfattande betyg](#7-sammanfattande-betyg)
+5. [Designproblem & förbättringar](#5-designproblem--förbättringar)
+6. [Tester – vad finns och vad saknas](#6-tester--vad-finns-och-vad-saknas)
+7. [NuGet-paket](#7-nuget-paket)
+8. [Sammanfattning & prioriterad åtgärdslista](#8-sammanfattning--prioriterad-åtgärdslista)
 
 ---
 
-## 1. Projektstruktur & lager
+## 1. Projektstruktur
 
 ```
 NexaPay.sln
-├── NexaPay.Domain          (Entiteter, interface, enums – inga externa beroenden)
-├── NexaPay.Application     (Handlers, validators, DTOs, MediatR – ingen DB-åtkomst)
-├── NexaPay.Infrastructure  (EF Core, repos, Identity, JWT)
-├── NexaPay.API             (Controllers, middleware, Swagger, startup)
-└── NexaPay.Tests           (NUnit, Moq, FluentAssertions, InMemory EF)
+├── NexaPay.Domain          – Entiteter, interface, enums. Inga externa NuGet-beroenden ✅
+├── NexaPay.Application     – Handlers, validators, DTOs, behaviors. Ingen DB-åtkomst ✅
+├── NexaPay.Infrastructure  – EF Core, repositories, Identity, JWT
+├── NexaPay.API             – Controllers, middleware, Swagger, Program.cs
+└── NexaPay.Tests           – NUnit, Moq, FluentAssertions
 ```
 
-Beroendeflödet är korrekt: `API → Application → Domain` och `Infrastructure → Domain + Application`.  
-Domain-lagret har inga externa NuGet-beroenden alls – det är rätt.
-
----
-
-## 2. Vad som är bra
-
-### Arkitektur
-
-| Mönster | Status |
-|---------|--------|
-| Clean Architecture | Korrekt implementerat med 4 lager |
-| CQRS med MediatR | Alla kommandon och queries hanteras via handlers |
-| Repository Pattern | Generisk `IRepository<T>` + specifika repos per entitet |
-| Unit of Work | `IUnitOfWork` samlar alla repos, atomärt SaveChanges |
-| Result Pattern | `Result<T>` – explicit success/failure utan exception-missbruk |
-| Pipeline Behaviors | LoggingBehavior → ValidationBehavior → Handler (korrekt ordning) |
-| Soft Delete | Global query filter på `IsActive` för Account |
-| Pagination | `GetTransactionsByAccountIdPagedAsync` med Skip/Take |
-
-### Säkerhet
-
-- JWT-autentisering med korrekt validering (Issuer, Audience, ClockSkew = 0)
-- ASP.NET Identity med starka lösenordskrav (8+ tecken, versaler, siffror, specialtecken)
-- Kontolåsning efter 5 misslyckade inloggningsförsök (15 min)
-- RBAC med 5 väldefinierade roller (Admin, BankManager, Teller, Auditor, User)
-- Ägarskapsvalidering – en User kan inte se andras konton
-- Cascade delete på Account → Transactions och Account → Cards
-
-### Kodkvalitet
-
-- Alla I/O-anrop är asynkrona (async/await genomgående)
-- Nullable reference types aktiverat
-- Rollkonstanter i statisk klass (`Roles.Admin`, `Roles.Teller`, etc.) – inga magic strings
-- `ApiResponse<T>` som standardiserat svarsobjekt
-- Global exceptionsmiddleware med strukturerade JSON-felmeddelanden
-- `ExpiryDate` på Card använder `DateOnly` (korrekt val)
-
----
-
-## 3. Vad som kan förbättras
-
-### 3.1 Transactions-controller – OK
-
-`TransactionsController.cs` finns och exponerar alla fyra endpoints:
-
-| Metod | Route | Roller |
-|-------|-------|--------|
-| `GET` | `api/transactions/account/{id}?page=1&pageSize=20` | Alla inloggade |
-| `POST` | `api/transactions/deposit` | Admin, BankManager, Teller, User |
-| `POST` | `api/transactions/withdraw` | Admin, BankManager, Teller, User |
-| `POST` | `api/transactions/transfer` | Admin, BankManager, User |
-
-Notera att **Teller är exkluderad från Transfer** – det är ett medvetet rollbeslut (junior personal kan hjälpa med in-/uttag men inte genomföra överföringar).
-
----
-
-### 3.2 JWT-nyckel i appsettings.json
-
-**Problem:** `"Key": "NexaPaySuperSecretKeyThatIsAtLeast32CharactersLong!"` ligger hårdkodad i `appsettings.json` som troligen versionshanteras.
-
-**Risk:** Om repot är offentligt exponeras signeringsnyckeln – alla kan skapa giltiga JWT-tokens.
-
-**Åtgärd:** Flytta till .NET User Secrets (utveckling) och miljövariabler / Azure Key Vault (produktion):
-```bash
-dotnet user-secrets set "Jwt:Key" "din-hemliga-nyckel"
+**Beroendeflöde (korrekt):**
 ```
-Lägg till `appsettings.json` i `.gitignore` eller ta bort nyckelvärdet från filen.
+API ──→ Application ──→ Domain
+API ──→ Infrastructure ──→ Domain + Application
+```
+
+**Alla lager:**
+
+| Lager | Nyckelklasser |
+|-------|--------------|
+| Domain | `Account`, `Card`, `Transaction`, `BaseEntity`, `IRepository<T>`, `IUnitOfWork` |
+| Application | `DepositHandler`, `TransferHandler`, `ValidationBehavior`, `LoggingBehavior`, `Result<T>`, `PagedResult<T>` |
+| Infrastructure | `ApplicationDbContext`, `UnitOfWork`, `AccountRepository`, `JwtService`, `AuthService` |
+| API | `AccountsController`, `CardsController`, `TransactionsController`, `AuthController`, `ExceptionMiddleware` |
 
 ---
 
-### 3.3 CORS är för tillåtande
+## 2. Vad som fungerar bra
 
-**Problem:** `"AllowAll"`-policyn tillåter alla ursprung, metoder och headers.
+### Arkitekturmönster (korrekt implementerade)
 
-**Åtgärd:** Specificera tillåtna origins i produktion:
+| Mönster | Var | Kommentar |
+|---------|-----|-----------|
+| Clean Architecture | Hela lösningen | Korrekt lagerindelning, rätt beroendeflöde |
+| CQRS via MediatR | Application\Features\** | Alla operationer separerade i kommandon/queries |
+| Repository + Unit of Work | Infrastructure\Persistence | `IUnitOfWork` samlar repos, atomär SaveChanges |
+| Pipeline Behaviors | Logging → Validation → Handler | Rätt ordning – loggas innan validering stoppar |
+| Result Pattern | `Result<T>` i alla handlers | Explicit success/failure, inga kastas exceptions för affärslogikfel |
+| Soft Delete | `Account.IsActive` + global query filter | Konton tas aldrig bort fysiskt |
+| Pagination | `GetTransactionsByAccountIdPagedAsync` | Skip/Take med `PagedResult<T>` som returnerar metadata |
+| DTO-separation | `AccountDto`, `CardDto`, `TransactionDto` | Interna entiteter exponeras aldrig direkt |
+| Lazy Initialization | `UnitOfWork` | Repositories skapas bara vid behov via `??=` |
+
+### Säkerhet som fungerar rätt
+
+- JWT-validering med Issuer, Audience, Lifetime och `ClockSkew = TimeSpan.Zero`
+- ASP.NET Identity med starka lösenordskrav: 8+ tecken, versaler, gemener, siffror, specialtecken
+- Kontolåsning: 5 misslyckade försök → 15 minuters lockout
+- RBAC med 5 väldefinierade roller och tydlig rollhierarki
+- Ägarskapsvalidering i handlers: ägare-check sker INNAN data ändras
+- Kortnummer maskeras i `CardDto` (`**** **** **** 9010`) – CVV skickas aldrig ut
+- `ExceptionMiddleware` returnerar generiska felmeddelanden på 500-fel
+
+### Swagger
+
+Swagger är korrekt konfigurerat med JWT Bearer-stöd och är **redan inlindat i `if (app.Environment.IsDevelopment())`** i `ServiceExtensions.cs` – exponeras alltså inte i produktion.
+
+### TransferHandler – buggfix-logiken
+
+`TransferHandler` är uppdelad i tre faser:
+1. **Validering** – hämta och validera ALLT, ingen uppdatering
+2. **Uppdatering** – ändra saldon först när alla checks passerat
+3. **Spara atomärt** – ett enda `SaveChangesAsync`
+
+Det är korrekt och skyddar mot att pengar försvinner vid valideringsfel.
+
+---
+
+## 3. Verkliga buggar – måste åtgärdas
+
+### Bug 1 – Fel `using`-direktiv i `Account.cs`
+
+**Fil:** `NexaPay.Domain/Entities/Account.cs` rad 15
+
 ```csharp
-builder.WithOrigins("https://nexapay.se")
-       .AllowAnyHeader()
-       .AllowAnyMethod();
+using System.Transactions; // ← FELAKTIGT
+```
+
+`System.Transactions` är .NET-namnrymden för distribuerade databastransaktioner – den har inget med `NexaPay.Domain.Entities.Transaction` att göra. Den importerar en `Transaction`-klass från .NET som krockar namnmässigt med din domänklass. Ska tas bort.
+
+---
+
+### Bug 2 – Bankpersonal kan inte göra transaktioner åt kunder
+
+**Filer:** `DepositHandler.cs`, `WithdrawHandler.cs`, `TransferHandler.cs`
+
+Alla tre handlers kontrollerar ägarskap på samma sätt:
+
+```csharp
+if (account.OwnerId != request.UserId)
+    return Result<TransactionDto>.Failure("... hittades inte");
+```
+
+`request.UserId` är alltid den **inloggade användarens** ID. Det innebär att en Teller (userId = `"teller-123"`) som försöker göra en insättning på en kunds konto (ownerId = `"kund-456"`) alltid får fel – trots att Teller är godkänd i controllern.
+
+**Konsekvens:** `POST /transactions/deposit` och `POST /transactions/withdraw` är auktoriserade för Teller i controllern, men handlens ägarskapscheck blockerar dem. Teller kan i praktiken bara göra transaktioner på sina *egna* konton.
+
+**Åtgärd:** Lägg till `IsStaff`-flagga i commands (som redan görs för `GetAllAccountsQuery`) och hoppa över ägarskapskontrollen för personal:
+
+```csharp
+// I DepositCommand
+public bool IsStaff { get; init; }
+
+// I DepositHandler
+if (!request.IsStaff && account.OwnerId != request.UserId)
+    return Result<TransactionDto>.Failure("...");
 ```
 
 ---
 
-### 3.4 Swagger exponeras i alla miljöer
+### Bug 3 – Kortnummer kontrolleras inte mot databas vid skapande
 
-**Problem:** Swagger är aktivt även i produktion, vilket exponerar hela API-kontraktet.
+**Fil:** `NexaPay.Application/Features/Cards/Commands/CreateCard/CreateCardHandler.cs`
 
-**Åtgärd:**
+`CreateCardHandler` genererar ett kortnummer och sparar det direkt utan att kontrollera om det redan finns:
+
 ```csharp
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+var cardNumber = GenerateCardNumber(); // Genereras
+// Ingen existenskontroll!
+var card = new Card { CardNumber = cardNumber, ... };
+await _unitOfWork.Cards.AddAsync(card); // Direkt insert
 ```
+
+Jämför med `CreateAccountHandler` som har en while-loop:
+```csharp
+while (await _unitOfWork.Accounts.AccountNumberExistsAsync(accountNumber))
+    accountNumber = GenerateAccountNumber();
+```
+
+Vid kollision kastas ett databasundantag som fångas och returnerar ett generiskt felmeddelande. Sannolikt inte ett problem i praktiken, men inkonsekvent.
+
+**Åtgärd:** Lägg till `GetByCardNumberAsync`-kontroll (metoden finns redan i `ICardRepository`) och loopa tills ett ledigt nummer hittas.
 
 ---
 
-### 3.5 Ingen rate limiting
+### Bug 4 – `AuthDto.ExpiresAt` är hårdkodad till 24 timmar
 
-**Problem:** API:et saknar begränsning på antal anrop. En angripare kan t.ex. brute-force:a lösenord eller överbelasta systemet.
+**Fil:** `NexaPay.Infrastructure/Identity/AuthService.cs` rad 100 och 141
 
-**Åtgärd:** Använd .NET 7+ inbyggd rate limiting:
 ```csharp
-builder.Services.AddRateLimiter(options =>
-{
-    options.AddFixedWindowLimiter("auth", o =>
-    {
-        o.PermitLimit = 5;
-        o.Window = TimeSpan.FromMinutes(1);
-    });
-});
+ExpiresAt = DateTime.UtcNow.AddHours(24) // Hårdkodat!
 ```
-Applicera på `AuthController` som minimum.
+
+Men `JwtService` läser från konfigurationen:
+```csharp
+expires: DateTime.UtcNow.AddHours(
+    double.Parse(_configuration["Jwt:ExpiryHours"] ?? "24"))
+```
+
+Om `Jwt:ExpiryHours` ändras i konfigurationen gäller den faktiska token-livslängden det nya värdet, men `ExpiresAt`-fältet i API-svaret säger fortfarande 24 timmar. Klienten får felaktig information om när token löper ut.
+
+**Åtgärd:** Läs `ExpiryHours` från `IConfiguration` i `AuthService` och använd samma värde för `ExpiresAt`.
 
 ---
 
-### 3.6 Ingen optimistisk concurrency-kontroll
+### Bug 5 – Inget sätt att aktivera ett kort
 
-**Problem:** Om två requests uppdaterar samma konto simultant (t.ex. två överföringar) kan Race Condition uppstå och saldon bli felaktiga.
+**Fil:** `NexaPay.API/Controllers/CardsController.cs`
 
-**Åtgärd:** Lägg till `RowVersion`/`ConcurrencyToken` på Account:
-```csharp
-[Timestamp]
-public byte[] RowVersion { get; set; } = [];
-```
-Konfigurera i `AccountConfiguration`:
-```csharp
-builder.Property(a => a.RowVersion).IsRowVersion();
-```
+Kort skapas alltid med `CardStatus.Inactive`. Det finns:
+- `POST /cards` – skapar Inactive-kort
+- `PUT /cards/{id}/block` – blockerar
 
----
-
-### 3.7 Ingen explicit databastransaktion i Transfer
-
-**Problem:** TransferHandler uppdaterar två konton och sparar. Om ett sparande misslyckas halvvägs kan saldot bli inkonsekvent.
-
-**Åtgärd:** Wrappa i en explicit `IDbContextTransaction`:
-```csharp
-await using var tx = await _context.Database.BeginTransactionAsync();
-// ... uppdatera båda konton
-await tx.CommitAsync();
-```
-Alternativt kan `IUnitOfWork.SaveChangesAsync` alltid köras en gång efter båda uppdateringarna (vilket delvis redan görs).
-
----
-
-### 3.8 Koppling från Application till Infrastructure via IAuthService
-
-**Problem:** `IAuthService` är definierad i Application men implementeras i Infrastructure – det är korrekt. Men om Application-projektet refererar direkt till Infrastructure-typer bryter det clean architecture.
-
-**Verifiera** att Application bara använder interfacet och att registreringen sker i API/Infrastructure.
-
----
-
-### 3.9 Rollvalidering vid registrering
-
-**Problem:** `RegisterValidator` validerar att en roll är giltig, men vem som helst kan registrera sig som Admin via `POST /auth/register`.
-
-**Åtgärd:** Begränsa vilka roller som kan sättas vid publik registrering:
-```csharp
-// Tillåt bara "User" utan autentisering
-// Admin/BankManager/Teller/Auditor kräver Admin-behörighet
-```
-
----
-
-### 3.10 Loggning loggar hela request-objektet
-
-**Problem:** `LoggingBehavior` loggar hela request-objektet, vilket kan inkludera lösenord i klartext vid `LoginCommand`.
-
-**Åtgärd:** Implementera `ILoggingExclusion`-markörinterface eller överskrid `ToString()` på känsliga requests:
-```csharp
-public class LoginCommand : IRequest<Result<AuthDto>>
-{
-    public string Email { get; set; } = "";
-    public string Password { get; set; } = ""; // loggas ej!
-    
-    public override string ToString() => $"LoginCommand {{ Email = {Email} }}";
-}
-```
+Men det finns **inget** `PUT /cards/{id}/activate`. Användare kan skapa kort men aldrig använda dem.
 
 ---
 
@@ -219,117 +192,321 @@ public class LoginCommand : IRequest<Result<AuthDto>>
 
 ### KRITISKT
 
-| # | Problem | Fil | Risk |
-|---|---------|-----|------|
-| 1 | JWT-signeringsnyckel i versionshanterad fil | `appsettings.json` | Kritisk – token-förfalskning möjlig |
-| 2 | CVV lagras i databasen | `Card.cs`, `CardConfiguration.cs` | Bryter mot PCI-DSS |
-| 3 | Vem som helst kan registrera sig som Admin | `AuthController.cs` | Eskalering av privilegier |
+| # | Problem | Fil | Detalj |
+|---|---------|-----|--------|
+| 1 | JWT-signeringsnyckel i klartext | `appsettings.json` rad 6 | `"Key": "NexaPaySuperSecretKeyThatIsAtLeast32CharactersLong!"` – vem som helst med repo-åtkomst kan signera godtyckliga JWT-tokens |
+| 2 | CVV lagras i databasen | `Card.cs`, `CardConfiguration.cs`, `CreateCardHandler.cs` | Bryter mot PCI-DSS 3.2.1. Koden kommenterar själv att det inte bör göras |
+| 3 | Vem som helst kan registrera sig som Admin | `AuthController.cs` – `POST /register` | Endpointen är publik (inget `[Authorize]`) och accepterar `"Role": "Admin"` |
 
-### MEDEL
+**JWT-nyckel – åtgärd:**
+```bash
+# Lägg till i .gitignore:
+appsettings.json
 
-| # | Problem | Fil | Risk |
-|---|---------|-----|------|
-| 4 | Lösenord loggas (potentiellt) | `LoggingBehavior.cs` | Läckage av autentiseringsuppgifter |
-| 5 | Swagger tillgänglig i produktion | `Program.cs` | Exponerar API-kontrakt |
-| 6 | Race condition på saldo | `TransferHandler.cs` | Inkonsekvent data |
-| 7 | Ingen rate limiting | `AuthController.cs` | Brute-force-attacker |
+# Använd User Secrets i dev:
+dotnet user-secrets set "Jwt:Key" "ny-hemlig-nyckel-minst-32-tecken"
 
-### LÅG
+# I produktion: miljövariabel
+JWT__KEY=din-hemliga-nyckel
+```
 
-| # | Problem | Fil | Risk |
-|---|---------|-----|------|
-| 8 | CORS AllowAll | `ServiceExtensions.cs` | Obegränsad cross-origin åtkomst |
-| 9 | `AllowedHosts: "*"` | `appsettings.json` | Host header injection |
-| 10 | Inget audit log | Hela Infrastructure | Svårare att spåra missbruk |
+**CVV – åtgärd:**
+Ta bort `CVV`-property från `Card`, ta bort från `CardConfiguration`, skapa ny migration. Returnera CVV *en gång* i `CreateCardHandler` som en separat sträng utanför `CardDto` – spara det aldrig.
 
----
-
-### CVV – Detalj
-
-CVV-koder ska **aldrig** lagras i databasen efter att en kortvalidering är klar. Det är ett direkt brott mot PCI-DSS Standard 3.2.1. Alternativ:
-
-- Ta bort `CVV`-fältet från `Card`-entiteten och databasen
-- Generera CVV dynamiskt och returnera det **en gång** vid kortskapande
-- Spara aldrig CVV i varken klartext eller hashat format
-
----
-
-## 5. Tester
-
-### Vad som finns
-
-| Testfil | Täcker |
-|---------|--------|
-| `CreateAccountHandlerTests` | Happy path, noll-saldo, SaveChanges-anrop, mapping |
-| `DepositHandlerTests` | Insättning |
-| `WithdrawHandlerTests` | Uttag med skydd mot negativt saldo |
-| `TransferHandlerTests` | Överföring mellan konton |
-| `AccountTests` | Domänentitet |
-| `AuthServiceTests` | Registrering och inloggning |
-| Validator-tester | CreateAccount, Deposit, Withdraw, Transfer |
-
-### Vad som saknas
-
-- **Integrationstester** – tester mot riktig databas (EF InMemory täcker inte SQL Server-specifika beteenden som transaktioner och constraints)
-- **Controller-tester** – tester av HTTP-lager, statuskoder och headers
-- **Säkerhetstester** – testa att en User inte kan komma åt en annans konto
-- **Edge case-tester** – transferera till sig själv, negativa belopp, konto utan aktiv status
-- **Validator-tester för Auth** – `RegisterValidator`, `LoginValidator`
-
-### Rekommendation
-
-Lägg till `WebApplicationFactory<Program>` för integrationstester:
+**Admin-registrering – åtgärd:**
 ```csharp
-// NexaPay.Tests/Integration/AccountsIntegrationTests.cs
-public class AccountsIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
+// AuthController.cs – begränsa till User-rollen utan autentisering
+[HttpPost("register")]
+public async Task<IActionResult> Register([FromBody] RegisterRequest request)
 {
-    // Testar hela HTTP-flödet mot InMemory-databas
+    // Utan autentisering kan bara User-rollen sättas
+    var role = Roles.User;
+    // ...
 }
+
+// Separat endpoint för personal, kräver Admin-token:
+[HttpPost("register/staff")]
+[Authorize(Roles = Roles.Admin)]
+public async Task<IActionResult> RegisterStaff([FromBody] RegisterStaffRequest request) { ... }
 ```
 
 ---
 
-## 6. NuGet-paket
+### MEDEL
 
-| Paket | Version | Kommentar |
-|-------|---------|-----------|
-| MediatR | 12.4.0 | Aktuell |
-| AutoMapper | 16.1.1 | Aktuell |
-| FluentValidation | 12.1.1 | Aktuell |
-| EF Core SqlServer | 8.0.26 | Aktuell (.NET 8) |
-| JwtBearer | 8.0.26 | Aktuell |
-| Swashbuckle | 6.9.0 | Aktuell för .NET 8 |
-| NUnit | 3.14.0 | Aktuell |
-| Moq | 4.20.72 | Aktuell |
-| FluentAssertions | 8.9.0 | Aktuell |
-| coverlet.collector | 6.0.0 | Kodtäckningsmätning |
+| # | Problem | Fil | Detalj |
+|---|---------|-----|--------|
+| 4 | Lösenord loggas i klartext | `LoggingBehavior.cs` rad 52–54 | `{@Request}` serialiserar hela `LoginCommand` inkl. `Password` |
+| 5 | Ingen rate limiting | `AuthController.cs` | Brute-force på `POST /login` möjlig |
+| 6 | Race condition på saldo | `DepositHandler`, `WithdrawHandler`, `TransferHandler` | Ingen optimistisk concurrency (`RowVersion`) – två simultana requests kan ge felaktigt saldo |
 
-**Noteringar:**
-- `Microsoft.Extensions.Logging.Abstractions 10.0.0` i Application-projektet är en pre-release/preview-version för .NET 10 trots att projektet riktar sig mot .NET 8. Nedgradera till `8.0.x` för konsekvens.
-- `Microsoft.AspNetCore.Identity.EntityFrameworkCore` finns i **både** Infrastructure och API – det räcker i Infrastructure.
+**Lösenordsloggning – åtgärd:**
+```csharp
+// LoginCommand.cs – överskrid ToString()
+public override string ToString() =>
+    $"LoginCommand {{ Email = {Email} }}"; // Password utelämnas
+```
+
+**Rate limiting – åtgärd:**
+```csharp
+// Program.cs
+builder.Services.AddRateLimiter(options =>
+    options.AddFixedWindowLimiter("auth", o =>
+    {
+        o.PermitLimit = 5;
+        o.Window = TimeSpan.FromMinutes(1);
+        o.QueueLimit = 0;
+    }));
+
+// AuthController.cs
+[EnableRateLimiting("auth")]
+public class AuthController : ControllerBase { ... }
+```
+
+**Race condition – åtgärd:**
+```csharp
+// Account.cs
+[Timestamp]
+public byte[] RowVersion { get; set; } = [];
+
+// AccountConfiguration.cs
+builder.Property(a => a.RowVersion).IsRowVersion();
+```
 
 ---
 
-## 7. Sammanfattande betyg
+### LÅG
+
+| # | Problem | Fil | Detalj |
+|---|---------|-----|--------|
+| 7 | CORS AllowAll | `ServiceExtensions.cs` rad 145–153 | Tillåter alla origins i alla miljöer |
+| 8 | `AllowedHosts: "*"` | `appsettings.json` | Inga host-begränsningar |
+| 9 | `Console.WriteLine` i produktionskod | `DatabaseExtensions.cs` rad 131 | Ska vara `ILogger` |
+| 10 | Inget audit log | Hela Infrastructure | Ingen spårning av vem som ändrat vad |
+
+---
+
+## 5. Designproblem & förbättringar
+
+### 5.1 `DeleteAccountCommand.cs` är felplacerad
+
+**Fil:** `NexaPay.Application/Features/Accounts/Commands/DeleteAccountCommand.cs`
+
+Kommandot ligger direkt i `Commands/`-mappen medan handlern och validatorn ligger i undermappen `Commands/DeleteAccount/`. Inkonsekvent struktur:
+
+```
+Commands/
+  DeleteAccountCommand.cs        ← Här
+  DeleteAccount/
+    DeleteAccountHandler.cs      ← Men handlern är här
+    DeleteAccountValidator.cs
+```
+
+Ska vara:
+```
+Commands/
+  DeleteAccount/
+    DeleteAccountCommand.cs
+    DeleteAccountHandler.cs
+    DeleteAccountValidator.cs
+```
+
+---
+
+### 5.2 Rollkonstanter definieras men används inte konsekvent
+
+**Fil:** `NexaPay.Application/Common/Constants/Roles.cs`
+
+Klassen definierar kombinerade konstanter:
+```csharp
+public const string AllStaff = $"{Admin},{BankManager},{Teller},{Auditor}";
+public const string CanBlockCard = $"{Admin},{BankManager}";
+public const string CanWriteAccounts = $"{Admin},{BankManager},{Teller}";
+```
+
+Men controllers använder sträng-interpolation direkt:
+```csharp
+[Authorize(Roles = $"{Roles.Admin},{Roles.BankManager},{Roles.Teller},{Roles.User}")]
+```
+
+Kombinationerna i `Roles.cs` används aldrig. Antingen ska de användas i controllers, eller tas bort.
+
+---
+
+### 5.3 `GetTransactionsByAccountIdAsync` (icke-paginerad) används inte
+
+**Fil:** `NexaPay.Domain/Interfaces/ITransactionRepository.cs`
+
+`GetTransactionsByAccountIdAsync` (returnerar alla utan paginering) är definierad i interfacet och implementerad i `TransactionRepository`, men ingen handler eller controller anropar den. Bara den paginerade versionen används.
+
+---
+
+### 5.4 `IJwtService`-interfacet definieras i samma fil som implementationen
+
+**Fil:** `NexaPay.Infrastructure/Identity/JwtService.cs`
+
+`interface IJwtService` och `class JwtService` ligger i samma fil. Konventionen är en klass/interface per fil. Interfacet bör antingen flytta till Application-lagret (om det ska vara testbart) eller till en separat fil i Infrastructure.
+
+---
+
+### 5.5 `Microsoft.Extensions.Logging.Abstractions` version 10.0.0
+
+**Fil:** `NexaPay.Application/NexaPay.Application.csproj` rad 13
+
+```xml
+<PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0" />
+```
+
+Projektet riktar sig mot `.NET 8` men använder version `10.0.0` av logging-abstraktionerna (som är för .NET 10 preview). Bör nedgraderas till `8.0.x` för konsekvens och stabilitet.
+
+---
+
+### 5.6 `Microsoft.AspNetCore.Identity.EntityFrameworkCore` i två projekt
+
+**Filer:** `NexaPay.Infrastructure.csproj`, `NexaPay.API.csproj`
+
+Paketet refereras i både Infrastructure och API. API-projektet behöver det inte direkt – det räcker att Infrastructure refererar till det. Redundant beroende i API-projektet.
+
+---
+
+### 5.7 Retry-logik i EF Core kan maskera problem
+
+**Fil:** `NexaPay.Infrastructure/DependencyInjection.cs` rad 49–56
+
+```csharp
+sqlOptions.EnableRetryOnFailure(
+    maxRetryCount: 3,
+    maxRetryDelay: TimeSpan.FromSeconds(30),
+    ...);
+```
+
+`maxRetryDelay: TimeSpan.FromSeconds(30)` kombinerat med exponentiell backoff kan ge väntetider på upp till 90+ sekunder vid upprepade fel. HTTP-timeouts inträffar långt innan dess (standard ASP.NET Core request timeout). Överväg ett lägre värde (t.ex. 5 sekunder).
+
+---
+
+### 5.8 `AuthDto.ExpiresAt` och token-livslängd är osynkroniserade
+
+Se **Bug 4** ovan. `AuthDto.ExpiresAt` är hårdkodad till 24 h medan den faktiska token-livslängden läses från konfigurationen.
+
+---
+
+### 5.9 `GenerateCVV()` genererar 100–998, inte 100–999
+
+**Fil:** `NexaPay.Application/Features/Cards/Commands/CreateCard/CreateCardHandler.cs` rad 142
+
+```csharp
+return Random.Shared.Next(100, 999).ToString();
+```
+
+`Random.Next(min, max)` i .NET exkluderar övre gränsen. CVV 999 genereras aldrig. Minderoblem men tekniskt inkorrekt.
+
+---
+
+## 6. Tester – vad finns och vad saknas
+
+### Testfiler (14 st)
+
+| Fil | Antal tester | Täcker |
+|-----|-------------|--------|
+| `CreateAccountHandlerTests` | 4 | Skapande, noll-saldo, SaveChanges, mapping |
+| `DepositHandlerTests` | Flera | Insättning, overdraft |
+| `WithdrawHandlerTests` | Flera | Uttag, overdraft-skydd |
+| `TransferHandlerTests` | **8** | Happy path, fel ägare, insufficient balance, saknade konton, inaktiva konton, exakt saldo |
+| `AccountTests` | Flera | Domänentitet |
+| `AuthServiceTests` | **8** | Registrering (5 scenarion), inloggning (3 scenarion) |
+| `CreateAccountValidatorTests` | **9** | Tom, för kort, för lång, exakt min/max, ogiltig typ, tom OwnerId, alla typer |
+| `DepositValidatorTests` | Flera | Belopp, beskrivning |
+| `WithdrawValidatorTests` | Flera | Belopp, beskrivning |
+| `TransferValidatorTests` | Flera | Från/till konton, belopp, självöverföring |
+
+`TransferHandlerTests` är särskilt välskrivet – täcker alla affärsregler och verifierar att `SaveChangesAsync` aldrig anropas vid fel.
+
+### Vad som saknas
+
+| Saknas | Prioritet | Kommentar |
+|--------|-----------|-----------|
+| Test: Teller kan göra deposit på kundens konto | HÖG | Avslöjar Bug 2 |
+| Test: Admin kan registreras via publik endpoint | HÖG | Avslöjar Bug 3 (säkerhet) |
+| Test: Kort kan inte aktiveras | MEDEL | Avslöjar Bug 5 |
+| `BlockCardHandlerTests` | MEDEL | Ingen täckning för kortblockering |
+| `CreateCardHandlerTests` | MEDEL | Ingen täckning för kortskapande |
+| `DeleteAccountHandlerTests` | MEDEL | Ingen täckning för kontostängning |
+| `GetTransactionsByAccountHandlerTests` | LÅG | Pagination-logik otestad |
+| `RegisterValidatorTests` | LÅG | Lösenordskomplex, rollvalidering |
+| `LoginValidatorTests` | LÅG | E-postformat |
+| Integrationstester (`WebApplicationFactory`) | MEDEL | Testar hela HTTP-flödet |
+
+### Testarkitekturen är bra
+
+`TestBase` med `MockUnitOfWork`, `MockAccountRepository` och `MockTransactionRepository` kopplat via `Setup()` är ett bra mönster. Riktig AutoMapper används (inte mockad) vilket innebär att mappingsfel fångas i tester.
+
+---
+
+## 7. NuGet-paket
+
+| Paket | Version | Status |
+|-------|---------|--------|
+| MediatR | 12.4.0 | OK |
+| AutoMapper | 16.1.1 | OK |
+| FluentValidation.DependencyInjectionExtensions | 12.1.1 | OK |
+| Microsoft.Extensions.Logging.Abstractions | **10.0.0** | ⚠️ .NET 10 preview – bör vara 8.0.x |
+| Microsoft.AspNetCore.Authentication.JwtBearer | 8.0.26 | OK |
+| Microsoft.AspNetCore.Identity.EntityFrameworkCore | 8.0.26 | OK (men dubblerad i API) |
+| Microsoft.EntityFrameworkCore.SqlServer | 8.0.26 | OK |
+| Swashbuckle.AspNetCore | 6.9.0 | OK |
+| NUnit | 3.14.0 | OK |
+| Moq | 4.20.72 | OK |
+| FluentAssertions | 8.9.0 | OK |
+| Microsoft.EntityFrameworkCore.InMemory | 8.0.26 | OK |
+| coverlet.collector | 6.0.0 | OK |
+
+---
+
+## 8. Sammanfattning & prioriterad åtgärdslista
+
+### Betyg
 
 | Område | Betyg | Kommentar |
 |--------|-------|-----------|
-| Arkitektur | 9/10 | Clean Architecture korrekt implementerat |
-| Kodkvalitet | 8/10 | Async genomgående, bra namngivning, Result-pattern |
-| Säkerhet | 5/10 | JWT-nyckel i klartext, CVV i DB, fri Admin-registrering |
-| Testning | 6/10 | Bra unit-tester, men saknar integrationstester |
-| Dokumentation | 7/10 | Swagger finns, men ingen API-dokumentation i koden |
-| Produktionsklar | 5/10 | Bra grund men kräver säkerhetsåtgärder innan deploy |
+| Arkitektur | 9/10 | Clean Architecture korrekt, rätt beroendeflöde, bra mönster |
+| Kodkvalitet | 7/10 | Async genomgående, bra namngivning, men felaktig using, inkonsistent filstruktur |
+| Säkerhet | 4/10 | JWT i klartext, CVV i DB, fri Admin-registrering, lösenord loggas |
+| Funktionalitet | 7/10 | Alla CRUD-flöden finns men Teller-bug, ingen kortaktivering |
+| Testning | 7/10 | Bra täckning på Transfer och Auth, men stora luckor (BlockCard, DeleteAccount) |
+| Produktionsklar | 4/10 | Kräver säkerhetsåtgärder och buggfixar innan deploy |
+
+---
 
 ### Prioriterad åtgärdslista
 
-1. **[KRITISKT]** Flytta JWT-nyckeln till User Secrets / miljövariabler
-2. **[KRITISKT]** Ta bort CVV-lagring – bryter mot PCI-DSS
-3. **[KRITISKT]** Begränsa vem som kan registrera sig som Admin
-4. **[HÖG]** Lägg till rate limiting på auth-endpoints (se punkt 3.5)
-5. **[HÖG]** Lägg till rate limiting på auth-endpoints
-6. **[MEDEL]** Stäng av Swagger i produktion
-7. **[MEDEL]** Lägg till optimistisk concurrency (`RowVersion`) på Account
-8. **[MEDEL]** Begränsa loggning av känsliga request-fält
-9. **[LÅG]** Specificera CORS-origins per miljö
-10. **[LÅG]** Lägg till integrationstester med `WebApplicationFactory`
+#### KRITISKT (blockerande för produktion)
+
+1. **Ta bort JWT-nyckeln från `appsettings.json`** → User Secrets / miljövariabel  
+2. **Ta bort CVV-lagring** – ny migration, returnera CVV en gång vid skapande  
+3. **Begränsa Admin-registrering** – publik endpoint ska bara tillåta `User`-rollen  
+4. **Fixa Teller-bug** – lägg till `IsStaff`-flagga i `DepositCommand`, `WithdrawCommand`, `TransferCommand`
+
+#### HÖG (bör fixas snart)
+
+5. **Lägg till kortaktivering** – `PUT /cards/{id}/activate` med `BlockCardHandler`-mönster  
+6. **Fixa `AuthDto.ExpiresAt`** – läs `Jwt:ExpiryHours` från konfiguration istället för hårdkodat 24  
+7. **Lägg till rate limiting** på `AuthController` mot brute-force  
+8. **Ta bort felaktigt `using System.Transactions;`** i `Account.cs`  
+
+#### MEDEL (förbättringar)
+
+9. **Flytta `DeleteAccountCommand.cs`** till `Commands/DeleteAccount/`-undermappen  
+10. **Skydda mot lösenordsloggning** – överskrid `ToString()` på `LoginCommand`  
+11. **Lägg till `RowVersion`** på `Account` för optimistisk concurrency  
+12. **Lägg till kortnummer-kontroll** i `CreateCardHandler` (som `CreateAccountHandler` gör)  
+13. **Nedgradera** `Microsoft.Extensions.Logging.Abstractions` från `10.0.0` till `8.0.x`  
+14. **Ta bort** `Microsoft.AspNetCore.Identity.EntityFrameworkCore` från API-projektet  
+
+#### LÅG (städning)
+
+15. Använd befintliga rollkonstanter (`Roles.AllStaff`, `Roles.CanBlockCard`) i controllers, eller ta bort dem  
+16. Flytta `IJwtService` till en egen fil (eller till Application-lagret)  
+17. Ersätt `Console.WriteLine` i `DatabaseExtensions.cs` med `ILogger`  
+18. Ta bort eller exponera `GetTransactionsByAccountIdAsync` (icke-paginerad) om den inte används  
+19. Specificera CORS-origins per miljö istället för AllowAll  
+20. Lägg till tester för `BlockCardHandler`, `CreateCardHandler`, `DeleteAccountHandler`  
