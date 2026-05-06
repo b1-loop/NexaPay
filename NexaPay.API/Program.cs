@@ -1,8 +1,8 @@
 // ============================================================
-// Program.cs – NexaPay.API
+// Program.cs ï¿½ NexaPay.API
 // ============================================================
-// Startpunkten för NexaPay API.
-// Ren och minimal – allt ansvar är utbrutit till
+// Startpunkten fï¿½r NexaPay API.
+// Ren och minimal ï¿½ allt ansvar ï¿½r utbrutit till
 // ServiceExtensions.cs och DatabaseExtensions.cs
 // ============================================================
 
@@ -22,7 +22,7 @@ namespace NexaPay.API
             var builder = WebApplication.CreateBuilder(args);
 
             // --------------------------------------------------------
-            // Registrera tjänster – varje rad har ett tydligt ansvar
+            // Registrera tjï¿½nster ï¿½ varje rad har ett tydligt ansvar
             // --------------------------------------------------------
 
             // Application-lagret: MediatR, AutoMapper, FluentValidation
@@ -31,11 +31,11 @@ namespace NexaPay.API
             // Infrastructure-lagret: EF Core, Repositories, JWT
             builder.Services.AddInfrastructure(builder.Configuration);
 
-            // Identity: Användare, lösenord och roller
+            // Identity: Anvï¿½ndare, lï¿½senord och roller
             builder.Services.AddIdentityServices();
 
             // API: Controllers, Swagger, CORS
-            builder.Services.AddApiServices();
+            builder.Services.AddApiServices(builder.Configuration);
 
             // ============================================================
             // Bygg applikationen
@@ -43,7 +43,7 @@ namespace NexaPay.API
             var app = builder.Build();
 
             // --------------------------------------------------------
-            // Initalisera databas – migrationer och seed-data
+            // Initalisera databas ï¿½ migrationer och seed-data
             // --------------------------------------------------------
             await app.InitialiseDatabaseAsync();
 

@@ -48,7 +48,8 @@ namespace NexaPay.API
         // API-tjänster – Controllers, Swagger, CORS
         // --------------------------------------------------------
         public static IServiceCollection AddApiServices(
-            this IServiceCollection services)
+            this IServiceCollection services,
+            IConfiguration configuration)
         {
             // Controllers
             services.AddControllers();
@@ -140,16 +141,31 @@ namespace NexaPay.API
             });
 
             // --------------------------------------------------------
-            // CORS
+            // CORS – origins läses från konfigurationen per miljö
             // --------------------------------------------------------
+            // Development (appsettings.Development.json): localhost-origins
+            // Production (appsettings.json): tom lista – måste konfigureras
+            var allowedOrigins = configuration
+                .GetSection("Cors:AllowedOrigins")
+                .Get<string[]>() ?? [];
+
             services.AddCors(options =>
             {
-                options.AddPolicy("AllowAll", policy =>
+                options.AddPolicy("CorsPolicy", policy =>
                 {
-                    policy
-                        .AllowAnyOrigin()
-                        .AllowAnyMethod()
-                        .AllowAnyHeader();
+                    if (allowedOrigins.Length > 0)
+                    {
+                        policy
+                            .WithOrigins(allowedOrigins)
+                            .AllowAnyMethod()
+                            .AllowAnyHeader();
+                    }
+                    else
+                    {
+                        // Inga origins konfigurerade – neka allt
+                        // Tvingar en explicit konfiguration i produktion
+                        policy.SetIsOriginAllowed(_ => false);
+                    }
                 });
             });
 
@@ -202,7 +218,7 @@ namespace NexaPay.API
             app.UseHttpsRedirection();
 
             // 3. CORS
-            app.UseCors("AllowAll");
+            app.UseCors("CorsPolicy");
 
             // 4. Authentication – vem är du?
             app.UseAuthentication();
