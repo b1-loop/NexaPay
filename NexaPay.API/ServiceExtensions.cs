@@ -6,10 +6,12 @@
 // ============================================================
 
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using NexaPay.API.Middleware;
 using NexaPay.Infrastructure.Persistence;
+using System.Threading.RateLimiting;
 
 namespace NexaPay.API
 {
@@ -53,6 +55,28 @@ namespace NexaPay.API
         {
             // Controllers
             services.AddControllers();
+
+            // --------------------------------------------------------
+            // Rate Limiting – skydd mot brute-force på auth-endpoints
+            // --------------------------------------------------------
+            // Max 5 requests per minut per IP-adress på /auth/*
+            // Returnerar 429 Too Many Requests vid överträdelse
+            services.AddRateLimiter(options =>
+            {
+                options.AddPolicy("auth", httpContext =>
+                    RateLimitPartition.GetFixedWindowLimiter(
+                        partitionKey: httpContext.Connection.RemoteIpAddress?
+                            .ToString() ?? "unknown",
+                        factory: _ => new FixedWindowRateLimiterOptions
+                        {
+                            PermitLimit = 5,
+                            Window = TimeSpan.FromMinutes(1),
+                            QueueLimit = 0
+                        }));
+
+                options.RejectionStatusCode =
+                    StatusCodes.Status429TooManyRequests;
+            });
 
             // --------------------------------------------------------
             // Swagger med JWT-stöd
@@ -220,13 +244,16 @@ namespace NexaPay.API
             // 3. CORS
             app.UseCors("CorsPolicy");
 
-            // 4. Authentication – vem är du?
+            // 4. Rate Limiting – före autentisering för maximal effekt
+            app.UseRateLimiter();
+
+            // 5. Authentication – vem är du?
             app.UseAuthentication();
 
-            // 5. Authorization – vad får du göra?
+            // 6. Authorization – vad får du göra?
             app.UseAuthorization();
 
-            // 6. Controllers
+            // 7. Controllers
             app.MapControllers();
 
             return app;

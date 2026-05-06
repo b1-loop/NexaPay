@@ -7,6 +7,7 @@
 
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using NexaPay.Application.Common.Constants;
 using NexaPay.Application.Features.Auth.Commands.Login;
 using NexaPay.Application.Features.Auth.Commands.Register;
@@ -15,6 +16,7 @@ namespace NexaPay.API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [EnableRateLimiting("auth")]
     public class AuthController : ControllerBase
     {
         private readonly IMediator _mediator;

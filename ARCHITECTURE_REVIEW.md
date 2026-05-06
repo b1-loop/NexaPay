@@ -124,7 +124,7 @@ Det är korrekt och skyddar mot att pengar försvinner vid valideringsfel.
 
 | # | Problem | Fil | Detalj |
 |---|---------|-----|--------|
-| 5 | Ingen rate limiting | `AuthController.cs` | Brute-force på `POST /login` möjlig |
+| ~~5~~ | ~~Ingen rate limiting~~ | ~~`AuthController.cs`~~ | ✅ Åtgärdad (2026-05-06) – FixedWindow 5 req/min per IP, returnerar 429 |
 | 6 | Race condition på saldo | `DepositHandler`, `WithdrawHandler`, `TransferHandler` | Ingen optimistisk concurrency (`RowVersion`) – två simultana requests kan ge felaktigt saldo |
 
 **Rate limiting – åtgärd:**
@@ -246,7 +246,7 @@ builder.Property(a => a.RowVersion).IsRowVersion();
 
 #### HÖG (bör fixas snart)
 
-2. **Lägg till rate limiting** på `AuthController` mot brute-force  
+
 
 #### MEDEL (förbättringar)
 
