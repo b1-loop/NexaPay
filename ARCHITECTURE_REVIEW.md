@@ -240,7 +240,7 @@ Se **Bug 2** ovan. `AuthDto.ExpiresAt` är hårdkodad till 24 h medan den faktis
 
 | Saknas | Prioritet | Kommentar |
 |--------|-----------|-----------|
-| Test: Teller kan göra deposit på kundens konto | HÖG | Avslöjar Bug 2 |
+| ~~Test: Teller kan göra deposit på kundens konto~~ | ~~HÖG~~ | ✅ Åtgärdad (2026-05-06) |
 | Test: Admin kan registreras via publik endpoint | HÖG | Avslöjar Bug 3 (säkerhet) |
 | Test: `ActivateCardHandler` | MEDEL | Ingen täckning för kortaktivering |
 | `BlockCardHandlerTests` | MEDEL | Ingen täckning för kortblockering |

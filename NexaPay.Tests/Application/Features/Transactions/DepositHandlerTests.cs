@@ -267,5 +267,51 @@ namespace NexaPay.Tests.Application.Features.Transactions
             result.Value.Description.Should().Be("Löneinsättning",
                 "beskrivningen ska matcha det vi angav");
         }
+
+        // --------------------------------------------------------
+        // Test 6: Teller kan sätta in pengar på kundens konto
+        // --------------------------------------------------------
+        [Test]
+        [Category("Security")]
+        [Description(
+            "Verifierar att personal (IsStaff=true) kan sätta in " +
+            "pengar på en kunds konto utan att äga det. " +
+            "Testar att IsStaff-flaggan kringgår ägarskapskontrollen.")]
+        public async Task Handle_WhenStaffDepositsToCustomerAccount_ShouldSucceed()
+        {
+            // Arrange
+            var account = CreateTestAccount(
+                ownerId: "customer-123",
+                balance: 500);
+
+            var command = new DepositCommand
+            {
+                AccountId = account.Id,
+                Amount = 200,
+                Description = "Insättning av Teller",
+                UserId = "teller-456", // Annan användare än ägaren
+                IsStaff = true        // Personal – ägarskapskontrollen hoppas över
+            };
+
+            MockAccountRepository
+                .Setup(r => r.GetByIdAsync(account.Id))
+                .ReturnsAsync(account);
+
+            // Act
+            var result = await _handler.Handle(
+                command,
+                CancellationToken.None);
+
+            // Assert
+            result.IsSuccess.Should().BeTrue(
+                "personal ska kunna sätta in pengar på kunders konton");
+
+            account.Balance.Should().Be(700,
+                "saldot ska vara 500 + 200 = 700 efter insättningen");
+
+            MockUnitOfWork.Verify(
+                u => u.SaveChangesAsync(It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
     }
 }
