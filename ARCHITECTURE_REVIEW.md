@@ -103,32 +103,7 @@ using System.Transactions; // ← FELAKTIGT
 
 ---
 
-### Bug 2 – Kortnummer kontrolleras inte mot databas vid skapande
-
-**Fil:** `NexaPay.Application/Features/Cards/Commands/CreateCard/CreateCardHandler.cs`
-
-`CreateCardHandler` genererar ett kortnummer och sparar det direkt utan att kontrollera om det redan finns:
-
-```csharp
-var cardNumber = GenerateCardNumber(); // Genereras
-// Ingen existenskontroll!
-var card = new Card { CardNumber = cardNumber, ... };
-await _unitOfWork.Cards.AddAsync(card); // Direkt insert
-```
-
-Jämför med `CreateAccountHandler` som har en while-loop:
-```csharp
-while (await _unitOfWork.Accounts.AccountNumberExistsAsync(accountNumber))
-    accountNumber = GenerateAccountNumber();
-```
-
-Vid kollision kastas ett databasundantag som fångas och returnerar ett generiskt felmeddelande. Sannolikt inte ett problem i praktiken, men inkonsekvent.
-
-**Åtgärd:** Lägg till `GetByCardNumberAsync`-kontroll (metoden finns redan i `ICardRepository`) och loopa tills ett ledigt nummer hittas.
-
----
-
-### Bug 3 – `AuthDto.ExpiresAt` är hårdkodad till 24 timmar
+### Bug 2 – `AuthDto.ExpiresAt` är hårdkodad till 24 timmar
 
 **Fil:** `NexaPay.Infrastructure/Identity/AuthService.cs` rad 100 och 141
 
@@ -148,7 +123,7 @@ Om `Jwt:ExpiryHours` ändras i konfigurationen gäller den faktiska token-livsl�
 
 ---
 
-### Bug 4 – Inget sätt att aktivera ett kort
+### Bug 3 – Inget sätt att aktivera ett kort
 
 **Fil:** `NexaPay.API/Controllers/CardsController.cs`
 
@@ -358,7 +333,7 @@ sqlOptions.EnableRetryOnFailure(
 
 ### 5.8 `AuthDto.ExpiresAt` och token-livslängd är osynkroniserade
 
-Se **Bug 3** ovan. `AuthDto.ExpiresAt` är hårdkodad till 24 h medan den faktiska token-livslängden läses från konfigurationen.
+Se **Bug 2** ovan. `AuthDto.ExpiresAt` är hårdkodad till 24 h medan den faktiska token-livslängden läses från konfigurationen.
 
 ---
 
@@ -470,7 +445,7 @@ return Random.Shared.Next(100, 999).ToString();
 9. **Flytta `DeleteAccountCommand.cs`** till `Commands/DeleteAccount/`-undermappen  
 10. **Skydda mot lösenordsloggning** – överskrid `ToString()` på `LoginCommand`  
 11. **Lägg till `RowVersion`** på `Account` för optimistisk concurrency  
-12. **Lägg till kortnummer-kontroll** i `CreateCardHandler` (som `CreateAccountHandler` gör)  
+12. ~~**Lägg till kortnummer-kontroll** i `CreateCardHandler`~~ – ✅ Åtgärdad (2026-05-06)  
 13. **Nedgradera** `Microsoft.Extensions.Logging.Abstractions` från `10.0.0` till `8.0.x`  
 14. **Ta bort** `Microsoft.AspNetCore.Identity.EntityFrameworkCore` från API-projektet  
 

@@ -67,8 +67,15 @@ namespace NexaPay.Application.Features.Cards.Commands.CreateCard
                 // --------------------------------------------------------
 
                 // Generera ett unikt 16-siffrigt kortnummer
-                // I verkligheten följer detta Luhn-algoritmen
+                // Loopa tills vi hittar ett ledigt nummer – precis som
+                // CreateAccountHandler gör med kontonummer
                 var cardNumber = GenerateCardNumber();
+
+                while (await _unitOfWork.Cards
+                    .GetByCardNumberAsync(cardNumber) != null)
+                {
+                    cardNumber = GenerateCardNumber();
+                }
 
                 // Generera en 3-siffrig CVV-kod
                 var cvv = GenerateCVV();
