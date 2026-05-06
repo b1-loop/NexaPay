@@ -86,18 +86,17 @@ namespace NexaPay.Infrastructure.Identity
                 // Tilldela rollen till användaren
                 await _userManager.AddToRoleAsync(user, role);
 
-                // Generera JWT-token
-                var token = _jwtService.GenerateToken(
+                var tokenResult = _jwtService.GenerateToken(
                     user.Id,
                     user.Email!,
                     role);
 
                 return Result<AuthDto>.Success(new AuthDto
                 {
-                    Token = token,
+                    Token = tokenResult.Token,
                     Email = user.Email!,
                     Role = role,
-                    ExpiresAt = DateTime.UtcNow.AddHours(24)
+                    ExpiresAt = tokenResult.ExpiresAt
                 });
             }
             catch (Exception ex)
@@ -133,17 +132,17 @@ namespace NexaPay.Infrastructure.Identity
                 var roles = await _userManager.GetRolesAsync(user);
                 var role = roles.FirstOrDefault() ?? Roles.User;
 
-                var token = _jwtService.GenerateToken(
+                var tokenResult = _jwtService.GenerateToken(
                     user.Id,
                     user.Email!,
                     role);
 
                 return Result<AuthDto>.Success(new AuthDto
                 {
-                    Token = token,
+                    Token = tokenResult.Token,
                     Email = user.Email!,
                     Role = role,
-                    ExpiresAt = DateTime.UtcNow.AddHours(24)
+                    ExpiresAt = tokenResult.ExpiresAt
                 });
             }
             catch (Exception ex)

@@ -4,8 +4,10 @@
 
 namespace NexaPay.Infrastructure.Identity
 {
+    public record TokenResult(string Token, DateTime ExpiresAt);
+
     public interface IJwtService
     {
-        string GenerateToken(string userId, string email, string role);
+        TokenResult GenerateToken(string userId, string email, string role);
     }
 }

@@ -89,26 +89,6 @@ Det är korrekt och skyddar mot att pengar försvinner vid valideringsfel.
 
 ---
 
-## 3. Verkliga buggar – måste åtgärdas
-
-### Bug 2 – `AuthDto.ExpiresAt` är hårdkodad till 24 timmar
-
-**Fil:** `NexaPay.Infrastructure/Identity/AuthService.cs` rad 100 och 141
-
-```csharp
-ExpiresAt = DateTime.UtcNow.AddHours(24) // Hårdkodat!
-```
-
-Men `JwtService` läser från konfigurationen:
-```csharp
-expires: DateTime.UtcNow.AddHours(
-    double.Parse(_configuration["Jwt:ExpiryHours"] ?? "24"))
-```
-
-Om `Jwt:ExpiryHours` ändras i konfigurationen gäller den faktiska token-livslängden det nya värdet, men `ExpiresAt`-fältet i API-svaret säger fortfarande 24 timmar. Klienten får felaktig information om när token löper ut.
-
-**Åtgärd:** Läs `ExpiryHours` från `IConfiguration` i `AuthService` och använd samma värde för `ExpiresAt`.
-
 ---
 
 ## 4. Säkerhetsproblem
@@ -183,10 +163,6 @@ builder.Property(a => a.RowVersion).IsRowVersion();
 ---
 
 ## 5. Designproblem & förbättringar
-
-### 5.8 `AuthDto.ExpiresAt` och token-livslängd är osynkroniserade
-
-Se **Bug 2** ovan. `AuthDto.ExpiresAt` är hårdkodad till 24 h medan den faktiska token-livslängden läses från konfigurationen.
 
 ---
 
@@ -272,7 +248,7 @@ Se **Bug 2** ovan. `AuthDto.ExpiresAt` är hårdkodad till 24 h medan den faktis
 
 #### HÖG (bör fixas snart)
 
-2. **Fixa `AuthDto.ExpiresAt`** – läs `Jwt:ExpiryHours` från konfiguration istället för hårdkodat 24  
+2. ~~**Fixa `AuthDto.ExpiresAt`**~~ → ✅ Åtgärdad (2026-05-06) – `JwtService.GenerateToken` returnerar `TokenResult` med `ExpiresAt`, `AuthService` hårdkodar inte längre  
 3. **Lägg till rate limiting** på `AuthController` mot brute-force  
 
 #### MEDEL (förbättringar)

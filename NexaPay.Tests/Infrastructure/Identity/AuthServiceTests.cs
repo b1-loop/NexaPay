@@ -49,7 +49,9 @@ namespace NexaPay.Tests.Infrastructure.Identity
                     It.IsAny<string>(),
                     It.IsAny<string>(),
                     It.IsAny<string>()))
-                .Returns("fake-jwt-token-for-testing");
+                .Returns(new TokenResult(
+                    "fake-jwt-token-for-testing",
+                    DateTime.UtcNow.AddHours(24)));
 
             // Skapa AuthService
             _authService = new AuthService(

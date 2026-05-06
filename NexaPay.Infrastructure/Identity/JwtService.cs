@@ -33,7 +33,7 @@ namespace NexaPay.Infrastructure.Identity
             _configuration = configuration;
         }
 
-        public string GenerateToken(string userId, string email, string role)
+        public TokenResult GenerateToken(string userId, string email, string role)
         {
             // --------------------------------------------------------
             // Steg 1: Definiera Claims (anspråk)
@@ -107,12 +107,12 @@ namespace NexaPay.Infrastructure.Identity
             );
 
             // --------------------------------------------------------
-            // Steg 4: Serialisera token till en sträng
+            // Steg 4: Serialisera och returnera token + utgångstid
             // --------------------------------------------------------
-            // WriteToken konverterar JwtSecurityToken-objektet
-            // till den faktiska token-strängen som skickas till klienten
-            // T.ex. "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-            return new JwtSecurityTokenHandler().WriteToken(tokenDescriptor);
+            var tokenString = new JwtSecurityTokenHandler()
+                .WriteToken(tokenDescriptor);
+
+            return new TokenResult(tokenString, tokenDescriptor.ValidTo);
         }
     }
 }
