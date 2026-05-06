@@ -32,11 +32,6 @@ namespace NexaPay.Domain.Entities
         // Vi lagrar bara datum (inte tid) via DateOnly
         public DateOnly ExpiryDate { get; set; }
 
-        // CVV – tresiffrigt säkerhetsnummer på baksidan
-        // I verkligheten lagras aldrig CVV i databasen (PCI-DSS krav)
-        // Vi gör det här för enkelhetens skull i utbildningssyfte
-        public string CVV { get; set; } = string.Empty;
-
         // Kortets nuvarande status – Active, Blocked, Expired, Inactive
         // Nytt kort börjar alltid som Inactive tills användaren aktiverar det
         public CardStatus Status { get; set; } = CardStatus.Inactive;

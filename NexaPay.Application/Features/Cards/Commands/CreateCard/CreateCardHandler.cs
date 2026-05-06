@@ -22,7 +22,7 @@ using NexaPay.Domain.Interfaces;
 namespace NexaPay.Application.Features.Cards.Commands.CreateCard
 {
     public class CreateCardHandler
-        : IRequestHandler<CreateCardCommand, Result<CardDto>>
+        : IRequestHandler<CreateCardCommand, Result<CreateCardResponse>>
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
@@ -33,7 +33,7 @@ namespace NexaPay.Application.Features.Cards.Commands.CreateCard
             _mapper = mapper;
         }
 
-        public async Task<Result<CardDto>> Handle(
+        public async Task<Result<CreateCardResponse>> Handle(
             CreateCardCommand request,
             CancellationToken cancellationToken)
         {
@@ -47,19 +47,19 @@ namespace NexaPay.Application.Features.Cards.Commands.CreateCard
 
                 // Kontot måste finnas
                 if (account == null)
-                    return Result<CardDto>.Failure(
+                    return Result<CreateCardResponse>.Failure(
                         $"Konto med ID {request.AccountId} hittades inte");
 
                 // Kontot måste tillhöra den inloggade användaren
                 // Vi vill inte att någon skapar kort på andras konton
                 if (account.OwnerId != request.UserId)
-                    return Result<CardDto>.Failure(
+                    return Result<CreateCardResponse>.Failure(
                         $"Konto med ID {request.AccountId} hittades inte");
 
                 // Kontot måste vara aktivt
                 // Man kan inte skapa kort på ett stängt konto
                 if (!account.IsActive)
-                    return Result<CardDto>.Failure(
+                    return Result<CreateCardResponse>.Failure(
                         "Kan inte skapa kort på ett inaktivt konto");
 
                 // --------------------------------------------------------
@@ -77,7 +77,8 @@ namespace NexaPay.Application.Features.Cards.Commands.CreateCard
                     cardNumber = GenerateCardNumber();
                 }
 
-                // Generera en 3-siffrig CVV-kod
+                // Generera en 3-siffrig CVV-kod – sparas INTE i databasen
+                // Returneras en enda gång i svaret (PCI-DSS krav)
                 var cvv = GenerateCVV();
 
                 // Utgångsdatum = 3 år från idag
@@ -96,7 +97,6 @@ namespace NexaPay.Application.Features.Cards.Commands.CreateCard
                     // Konvertera till versaler – standard för bankkort
                     CardHolderName = request.CardHolderName.ToUpper(),
                     ExpiryDate = expiryDate,
-                    CVV = cvv,
 
                     // Nytt kort är alltid Inactive från start
                     // Användaren måste aktivera det separat
@@ -113,15 +113,16 @@ namespace NexaPay.Application.Features.Cards.Commands.CreateCard
                 await _unitOfWork.Cards.AddAsync(card);
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-                // Mappa Card → CardDto
-                // Observera: CardDto innehåller MaskedCardNumber
-                // CVV skickas ALDRIG tillbaka till klienten
                 var cardDto = _mapper.Map<CardDto>(card);
-                return Result<CardDto>.Success(cardDto);
+                return Result<CreateCardResponse>.Success(new CreateCardResponse
+                {
+                    Card = cardDto,
+                    Cvv = cvv
+                });
             }
             catch (Exception ex)
             {
-                return Result<CardDto>.Failure(
+                return Result<CreateCardResponse>.Failure(
                     $"Ett fel uppstod när kortet skulle skapas: {ex.Message}");
             }
         }

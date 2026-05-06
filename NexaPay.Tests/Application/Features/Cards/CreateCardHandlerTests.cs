@@ -99,11 +99,14 @@ namespace NexaPay.Tests.Application.Features.Cards
 
             result.Value.Should().NotBeNull();
 
-            result.Value!.CardHolderName.Should().Be("ANNA SVENSSON",
+            result.Value!.Card.CardHolderName.Should().Be("ANNA SVENSSON",
                 "kortinnehavarens namn ska konverteras till versaler");
 
-            result.Value.MaskedCardNumber.Should().Contain("****",
+            result.Value.Card.MaskedCardNumber.Should().Contain("****",
                 "kortnumret ska vara maskerat i svaret");
+
+            result.Value.Cvv.Should().HaveLength(3,
+                "CVV ska vara 3 siffror och returneras en gång vid skapande");
 
             MockUnitOfWork.Verify(
                 u => u.SaveChangesAsync(It.IsAny<CancellationToken>()),

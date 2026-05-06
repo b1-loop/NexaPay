@@ -13,7 +13,7 @@ using NexaPay.Application.DTOs;
 
 namespace NexaPay.Application.Features.Cards.Commands.CreateCard
 {
-    public record CreateCardCommand : IRequest<Result<CardDto>>
+    public record CreateCardCommand : IRequest<Result<CreateCardResponse>>
     {
         // Vilket konto kortet ska kopplas till
         // Kontot måste tillhöra den inloggade användaren

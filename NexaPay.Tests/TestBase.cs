@@ -164,8 +164,6 @@ namespace NexaPay.Tests
                 ExpiryDate = DateOnly.FromDateTime(
                     DateTime.UtcNow.AddYears(3)),
 
-                CVV = "123",
-
                 // Status – kan anpassas per test
                 // T.ex. CardStatus.Blocked för att testa blockerade kort
                 Status = status,

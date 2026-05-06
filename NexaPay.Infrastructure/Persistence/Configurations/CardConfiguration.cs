@@ -31,12 +31,6 @@ namespace NexaPay.Infrastructure.Persistence.Configurations
             builder.Property(c => c.ExpiryDate)
                 .IsRequired();
 
-            // CVV – 3 siffror
-            // I verkligheten skulle detta vara krypterat
-            builder.Property(c => c.CVV)
-                .IsRequired()
-                .HasMaxLength(3);
-
             // Status – enum lagras som int
             builder.Property(c => c.Status)
                 .IsRequired();

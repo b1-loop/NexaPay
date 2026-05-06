@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.Mvc;
 using NexaPay.Application.Common.Constants;
 using NexaPay.Application.Features.Cards.Commands.ActivateCard;
 using NexaPay.Application.Features.Cards.Commands.BlockCard;
+using NexaPay.Application.DTOs;
 using NexaPay.Application.Features.Cards.Commands.CreateCard;
 using NexaPay.Application.Features.Cards.Queries.GetCardsByAccount;
 using System.Security.Claims;

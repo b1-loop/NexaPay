@@ -118,7 +118,7 @@ Om `Jwt:ExpiryHours` ändras i konfigurationen gäller den faktiska token-livsl�
 | # | Problem | Fil | Detalj |
 |---|---------|-----|--------|
 | 1 | JWT-signeringsnyckel i klartext | `appsettings.json` rad 6 | Nyckeln låg hårdkodad i versionshantering — åtgärdat: flyttad till User Secrets (dev) och miljövariabel (prod) |
-| 2 | CVV lagras i databasen | `Card.cs`, `CardConfiguration.cs`, `CreateCardHandler.cs` | Bryter mot PCI-DSS 3.2.1. Koden kommenterar själv att det inte bör göras |
+| ~~2~~ | ~~CVV lagras i databasen~~ | ~~`Card.cs`, `CardConfiguration.cs`, `CreateCardHandler.cs`~~ | ~~Bryter mot PCI-DSS 3.2.1~~ — ✅ Åtgärdad (2026-05-06): CVV genereras i minnet och returneras en gång i `CreateCardResponse`, sparas aldrig i DB |
 | 3 | Vem som helst kan registrera sig som Admin | `AuthController.cs` – `POST /register` | Endpointen är publik (inget `[Authorize]`) och accepterar `"Role": "Admin"` |
 
 **JWT-nyckel – åtgärd:**
@@ -304,7 +304,7 @@ Se **Bug 2** ovan. `AuthDto.ExpiresAt` är hårdkodad till 24 h medan den faktis
 #### KRITISKT (blockerande för produktion)
 
 1. ~~**Ta bort JWT-nyckeln från `appsettings.json`**~~ → ✅ Åtgärdad (2026-05-06) – User Secrets (dev) / miljövariabel (prod)  
-2. **Ta bort CVV-lagring** – ny migration, returnera CVV en gång vid skapande  
+2. ~~**Ta bort CVV-lagring**~~ → ✅ Åtgärdad (2026-05-06) – `CreateCardResponse` returnerar CVV en gång, kolumnen droppas via migration  
 3. **Begränsa Admin-registrering** – publik endpoint ska bara tillåta `User`-rollen  
 4. ~~**Fixa Teller-bug**~~ – ✅ Åtgärdad (2026-05-06)
 
