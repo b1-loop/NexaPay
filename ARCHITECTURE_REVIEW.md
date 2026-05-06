@@ -223,32 +223,7 @@ builder.Property(a => a.RowVersion).IsRowVersion();
 
 ## 5. Designproblem & förbättringar
 
-### 5.1 `DeleteAccountCommand.cs` är felplacerad
-
-**Fil:** `NexaPay.Application/Features/Accounts/Commands/DeleteAccountCommand.cs`
-
-Kommandot ligger direkt i `Commands/`-mappen medan handlern och validatorn ligger i undermappen `Commands/DeleteAccount/`. Inkonsekvent struktur:
-
-```
-Commands/
-  DeleteAccountCommand.cs        ← Här
-  DeleteAccount/
-    DeleteAccountHandler.cs      ← Men handlern är här
-    DeleteAccountValidator.cs
-```
-
-Ska vara:
-```
-Commands/
-  DeleteAccount/
-    DeleteAccountCommand.cs
-    DeleteAccountHandler.cs
-    DeleteAccountValidator.cs
-```
-
----
-
-### 5.2 Rollkonstanter definieras men används inte konsekvent
+### 5.1 Rollkonstanter definieras men används inte konsekvent
 
 **Fil:** `NexaPay.Application/Common/Constants/Roles.cs`
 
@@ -430,7 +405,7 @@ return Random.Shared.Next(100, 999).ToString();
 
 #### MEDEL (förbättringar)
 
-9. **Flytta `DeleteAccountCommand.cs`** till `Commands/DeleteAccount/`-undermappen  
+9. ~~**Flytta `DeleteAccountCommand.cs`**~~ – ✅ Åtgärdad (2026-05-06)  
 10. **Skydda mot lösenordsloggning** – överskrid `ToString()` på `LoginCommand`  
 11. **Lägg till `RowVersion`** på `Account` för optimistisk concurrency  
 12. ~~**Lägg till kortnummer-kontroll** i `CreateCardHandler`~~ – ✅ Åtgärdad (2026-05-06)  
