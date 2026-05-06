@@ -148,7 +148,7 @@ namespace NexaPay.Application.Features.Cards.Commands.CreateCard
         private static string GenerateCVV()
         {
             // Next(100, 999) ger alltid ett 3-siffrigt tal
-            return Random.Shared.Next(100, 999).ToString();
+            return Random.Shared.Next(100, 1000).ToString();
         }
     }
 }

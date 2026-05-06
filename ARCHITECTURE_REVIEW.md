@@ -252,18 +252,6 @@ Se **Bug 2** ovan. `AuthDto.ExpiresAt` är hårdkodad till 24 h medan den faktis
 
 ---
 
-### 5.9 `GenerateCVV()` genererar 100–998, inte 100–999
-
-**Fil:** `NexaPay.Application/Features/Cards/Commands/CreateCard/CreateCardHandler.cs` rad 142
-
-```csharp
-return Random.Shared.Next(100, 999).ToString();
-```
-
-`Random.Next(min, max)` i .NET exkluderar övre gränsen. CVV 999 genereras aldrig. Minderoblem men tekniskt inkorrekt.
-
----
-
 ## 6. Tester – vad finns och vad saknas
 
 ### Testfiler (14 st)
