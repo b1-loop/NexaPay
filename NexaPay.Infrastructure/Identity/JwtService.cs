@@ -22,14 +22,6 @@ using System.Text;
 
 namespace NexaPay.Infrastructure.Identity
 {
-    // Interface för JwtService – för testbarhet och DI
-    public interface IJwtService
-    {
-        // Genererar en JWT-token för en användare
-        // Returnerar token-strängen som skickas till klienten
-        string GenerateToken(string userId, string email, string role);
-    }
-
     public class JwtService : IJwtService
     {
         // IConfiguration ger oss tillgång till appsettings.json

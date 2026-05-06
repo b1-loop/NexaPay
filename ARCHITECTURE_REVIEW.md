@@ -211,14 +211,6 @@ builder.Property(a => a.RowVersion).IsRowVersion();
 
 ## 5. Designproblem & förbättringar
 
-### 5.4 `IJwtService`-interfacet definieras i samma fil som implementationen
-
-**Fil:** `NexaPay.Infrastructure/Identity/JwtService.cs`
-
-`interface IJwtService` och `class JwtService` ligger i samma fil. Konventionen är en klass/interface per fil. Interfacet bör antingen flytta till Application-lagret (om det ska vara testbart) eller till en separat fil i Infrastructure.
-
----
-
 ### 5.8 `AuthDto.ExpiresAt` och token-livslängd är osynkroniserade
 
 Se **Bug 2** ovan. `AuthDto.ExpiresAt` är hårdkodad till 24 h medan den faktiska token-livslängden läses från konfigurationen.
@@ -328,7 +320,7 @@ Se **Bug 2** ovan. `AuthDto.ExpiresAt` är hårdkodad till 24 h medan den faktis
 #### LÅG (städning)
 
 15. ~~**Använd rollkonstanter i controllers**~~ – ✅ Åtgärdad (2026-05-06)  
-16. Flytta `IJwtService` till en egen fil (eller till Application-lagret)  
+16. ~~**Flytta `IJwtService` till egen fil**~~ – ✅ Åtgärdad (2026-05-06)  
 17. Ersätt `Console.WriteLine` i `DatabaseExtensions.cs` med `ILogger`  
 18. ~~**Ta bort `GetTransactionsByAccountIdAsync`**~~ – ✅ Åtgärdad (2026-05-06)  
 19. Specificera CORS-origins per miljö istället för AllowAll  
