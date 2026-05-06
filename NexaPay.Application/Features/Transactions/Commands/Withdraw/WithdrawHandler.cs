@@ -46,7 +46,8 @@ namespace NexaPay.Application.Features.Transactions.Commands.Withdraw
                     return Result<TransactionDto>.Failure(
                         $"Konto med ID {request.AccountId} hittades inte");
 
-                if (account.OwnerId != request.UserId)
+                // Personal (IsStaff) kan göra uttag från kunders konton
+                if (!request.IsStaff && account.OwnerId != request.UserId)
                     return Result<TransactionDto>.Failure(
                         $"Konto med ID {request.AccountId} hittades inte");
 

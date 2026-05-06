@@ -108,9 +108,8 @@ namespace NexaPay.API.Controllers
                     AccountId = request.AccountId,
                     Amount = request.Amount,
                     Description = request.Description,
-                    // UserId från JWT – kontrollerar att kontot
-                    // tillhör den inloggade användaren
-                    UserId = GetUserId()
+                    UserId = GetUserId(),
+                    IsStaff = IsStaff()
                 });
 
             if (result.IsSuccess)
@@ -136,7 +135,8 @@ namespace NexaPay.API.Controllers
                     AccountId = request.AccountId,
                     Amount = request.Amount,
                     Description = request.Description,
-                    UserId = GetUserId()
+                    UserId = GetUserId(),
+                    IsStaff = IsStaff()
                 });
 
             if (result.IsSuccess)
@@ -164,7 +164,8 @@ namespace NexaPay.API.Controllers
                     ToAccountId = request.ToAccountId,
                     Amount = request.Amount,
                     Description = request.Description,
-                    UserId = GetUserId()
+                    UserId = GetUserId(),
+                    IsStaff = IsStaff()
                 });
 
             if (result.IsSuccess)

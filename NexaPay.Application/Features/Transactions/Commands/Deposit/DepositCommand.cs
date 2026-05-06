@@ -28,5 +28,9 @@ namespace NexaPay.Application.Features.Transactions.Commands.Deposit
 
         // Den inloggade användarens ID – för behörighetskontroll
         public string UserId { get; init; } = string.Empty;
+
+        // Om den inloggade användaren är personal (Admin, BankManager, Teller, Auditor)
+        // Personal hoppar över ägarskapskontrollen och kan göra insättningar åt kunder
+        public bool IsStaff { get; init; }
     }
 }

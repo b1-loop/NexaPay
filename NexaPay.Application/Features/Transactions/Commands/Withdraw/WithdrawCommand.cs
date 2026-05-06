@@ -25,5 +25,9 @@ namespace NexaPay.Application.Features.Transactions.Commands.Withdraw
 
         // Den inloggade användarens ID
         public string UserId { get; init; } = string.Empty;
+
+        // Om den inloggade användaren är personal
+        // Personal kan göra uttag från kunders konton
+        public bool IsStaff { get; init; }
     }
 }

@@ -53,8 +53,9 @@ namespace NexaPay.Application.Features.Transactions.Commands.Deposit
                     return Result<TransactionDto>.Failure(
                         $"Konto med ID {request.AccountId} hittades inte");
 
-                // Kontot måste tillhöra den inloggade användaren
-                if (account.OwnerId != request.UserId)
+                // Personal (IsStaff) kan göra insättningar åt kunder
+                // Vanliga användare får bara sätta in på sina egna konton
+                if (!request.IsStaff && account.OwnerId != request.UserId)
                     return Result<TransactionDto>.Failure(
                         $"Konto med ID {request.AccountId} hittades inte");
 

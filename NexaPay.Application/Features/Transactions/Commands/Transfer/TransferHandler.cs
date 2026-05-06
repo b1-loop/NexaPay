@@ -63,9 +63,9 @@ namespace NexaPay.Application.Features.Transactions.Commands.Transfer
                         $"{request.FromAccountId} hittades inte");
 
                 // Steg 2: Kontrollera ägarskap DIREKT
-                // Detta görs tidigt innan någon uppdatering sker
-                // En användare kan bara överföra från SINA egna konton
-                if (fromAccount.OwnerId != request.UserId)
+                // Personal (IsStaff) kan överföra från kunders konton
+                // Vanliga användare kan bara överföra från sina egna konton
+                if (!request.IsStaff && fromAccount.OwnerId != request.UserId)
                     return Result<TransactionDto>.Failure(
                         $"Avsändarkonto med ID " +
                         $"{request.FromAccountId} hittades inte");

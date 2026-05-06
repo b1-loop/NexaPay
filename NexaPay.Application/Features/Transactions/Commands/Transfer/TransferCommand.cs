@@ -34,7 +34,11 @@ namespace NexaPay.Application.Features.Transactions.Commands.Transfer
         public string Description { get; init; } = string.Empty;
 
         // Den inloggade användarens ID
-        // Måste äga FromAccount – man kan inte överföra från andras konton
+        // Måste äga FromAccount – om inte IsStaff är satt
         public string UserId { get; init; } = string.Empty;
+
+        // Om den inloggade användaren är personal (Admin, BankManager)
+        // Teller är inte tillåten för Transfer – se TransactionsController
+        public bool IsStaff { get; init; }
     }
 }
