@@ -234,7 +234,7 @@ builder.Property(a => a.RowVersion).IsRowVersion();
 | Arkitektur | 9/10 | Clean Architecture korrekt, rätt beroendeflöde, bra mönster |
 | Kodkvalitet | 7/10 | Async genomgående, bra namngivning, men felaktig using, inkonsistent filstruktur |
 | Säkerhet | 6/10 | JWT-nyckel, CVV och lösenordsloggning åtgärdade – kvar: fri Admin-registrering, ingen rate limiting |
-| Funktionalitet | 8/10 | Teller-bug och kortaktivering fixade – kvar: AuthDto.ExpiresAt osynkroniserad |
+| Funktionalitet | 8/10 | Teller-bug, kortaktivering och ExpiresAt-synk fixade |
 | Testning | 9/10 | Bred täckning över alla handlers och validators – kvar: integrationstester |
 | Produktionsklar | 5/10 | Flera säkerhetsproblem lösta – Admin-registrering måste begränsas innan deploy |
 
@@ -248,8 +248,7 @@ builder.Property(a => a.RowVersion).IsRowVersion();
 
 #### HÖG (bör fixas snart)
 
-2. ~~**Fixa `AuthDto.ExpiresAt`**~~ → ✅ Åtgärdad (2026-05-06) – `JwtService.GenerateToken` returnerar `TokenResult` med `ExpiresAt`, `AuthService` hårdkodar inte längre  
-3. **Lägg till rate limiting** på `AuthController` mot brute-force  
+2. **Lägg till rate limiting** på `AuthController` mot brute-force  
 
 #### MEDEL (förbättringar)
 
