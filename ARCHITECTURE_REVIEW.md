@@ -91,18 +91,6 @@ Det är korrekt och skyddar mot att pengar försvinner vid valideringsfel.
 
 ## 3. Verkliga buggar – måste åtgärdas
 
-### Bug 1 – Fel `using`-direktiv i `Account.cs`
-
-**Fil:** `NexaPay.Domain/Entities/Account.cs` rad 15
-
-```csharp
-using System.Transactions; // ← FELAKTIGT
-```
-
-`System.Transactions` är .NET-namnrymden för distribuerade databastransaktioner – den har inget med `NexaPay.Domain.Entities.Transaction` att göra. Den importerar en `Transaction`-klass från .NET som krockar namnmässigt med din domänklass. Ska tas bort.
-
----
-
 ### Bug 2 – `AuthDto.ExpiresAt` är hårdkodad till 24 timmar
 
 **Fil:** `NexaPay.Infrastructure/Identity/AuthService.cs` rad 100 och 141
@@ -341,7 +329,7 @@ Se **Bug 2** ovan. `AuthDto.ExpiresAt` är hårdkodad till 24 h medan den faktis
 5. ~~**Lägg till kortaktivering**~~ – ✅ Åtgärdad (2026-05-06)  
 6. **Fixa `AuthDto.ExpiresAt`** – läs `Jwt:ExpiryHours` från konfiguration istället för hårdkodat 24  
 7. **Lägg till rate limiting** på `AuthController` mot brute-force  
-8. **Ta bort felaktigt `using System.Transactions;`** i `Account.cs`  
+8. ~~**Ta bort felaktigt `using System.Transactions;`** i `Account.cs`~~ – ✅ Åtgärdad (2026-05-06)  
 
 #### MEDEL (förbättringar)
 

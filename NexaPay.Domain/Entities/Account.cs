@@ -11,8 +11,6 @@
 // ============================================================
 
 using NexaPay.Domain.Enums;
-using NexaPay.Domain.Entities;
-using System.Transactions; // Vi importerar våra egna enums
 
 namespace NexaPay.Domain.Entities
 {
