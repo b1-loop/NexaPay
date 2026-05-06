@@ -123,18 +123,6 @@ Om `Jwt:ExpiryHours` ändras i konfigurationen gäller den faktiska token-livsl�
 
 ---
 
-### Bug 3 – Inget sätt att aktivera ett kort
-
-**Fil:** `NexaPay.API/Controllers/CardsController.cs`
-
-Kort skapas alltid med `CardStatus.Inactive`. Det finns:
-- `POST /cards` – skapar Inactive-kort
-- `PUT /cards/{id}/block` – blockerar
-
-Men det finns **inget** `PUT /cards/{id}/activate`. Användare kan skapa kort men aldrig använda dem.
-
----
-
 ## 4. Säkerhetsproblem
 
 ### KRITISKT
@@ -374,7 +362,7 @@ return Random.Shared.Next(100, 999).ToString();
 |--------|-----------|-----------|
 | Test: Teller kan göra deposit på kundens konto | HÖG | Avslöjar Bug 2 |
 | Test: Admin kan registreras via publik endpoint | HÖG | Avslöjar Bug 3 (säkerhet) |
-| Test: Kort kan inte aktiveras | MEDEL | Avslöjar Bug 5 |
+| Test: `ActivateCardHandler` | MEDEL | Ingen täckning för kortaktivering |
 | `BlockCardHandlerTests` | MEDEL | Ingen täckning för kortblockering |
 | `CreateCardHandlerTests` | MEDEL | Ingen täckning för kortskapande |
 | `DeleteAccountHandlerTests` | MEDEL | Ingen täckning för kontostängning |
@@ -435,7 +423,7 @@ return Random.Shared.Next(100, 999).ToString();
 
 #### HÖG (bör fixas snart)
 
-5. **Lägg till kortaktivering** – `PUT /cards/{id}/activate` med `BlockCardHandler`-mönster  
+5. ~~**Lägg till kortaktivering**~~ – ✅ Åtgärdad (2026-05-06)  
 6. **Fixa `AuthDto.ExpiresAt`** – läs `Jwt:ExpiryHours` från konfiguration istället för hårdkodat 24  
 7. **Lägg till rate limiting** på `AuthController` mot brute-force  
 8. **Ta bort felaktigt `using System.Transactions;`** i `Account.cs`  

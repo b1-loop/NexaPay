@@ -2,15 +2,17 @@
 // CardsController.cs – NexaPay.API/Controllers
 // ============================================================
 // Rollbehörigheter:
-//   GET  /cards/account/{id} → Alla inloggade
-//   POST /cards              → Admin, BankManager, Teller, User
-//   PUT  /cards/{id}/block   → Admin, BankManager
+//   GET  /cards/account/{id}    → Alla inloggade
+//   POST /cards                 → Admin, BankManager, Teller, User
+//   PUT  /cards/{id}/activate   → Admin, BankManager, Teller, User
+//   PUT  /cards/{id}/block      → Admin, BankManager
 // ============================================================
 
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NexaPay.Application.Common.Constants;
+using NexaPay.Application.Features.Cards.Commands.ActivateCard;
 using NexaPay.Application.Features.Cards.Commands.BlockCard;
 using NexaPay.Application.Features.Cards.Commands.CreateCard;
 using NexaPay.Application.Features.Cards.Queries.GetCardsByAccount;
@@ -81,6 +83,29 @@ namespace NexaPay.API.Controllers
                 return Ok(ApiResponse.Ok(
                     result.Value,
                     "Kort skapades framgångsrikt"));
+
+            return BadRequest(ApiResponse.Fail(result.Error));
+        }
+
+        // --------------------------------------------------------
+        // PUT api/cards/{id}/activate
+        // --------------------------------------------------------
+        // Kortets ägare, Admin, BankManager och Teller kan aktivera kort
+        [HttpPut("{id:guid}/activate")]
+        [Authorize(Roles = $"{Roles.Admin},{Roles.BankManager},{Roles.Teller},{Roles.User}")]
+        public async Task<IActionResult> Activate(Guid id)
+        {
+            var result = await _mediator.Send(
+                new ActivateCardCommand
+                {
+                    CardId = id,
+                    UserId = GetUserId(),
+                    IsStaff = IsStaff()
+                });
+
+            if (result.IsSuccess)
+                return Ok(ApiResponse.Ok(
+                    message: "Kort aktiverades framgångsrikt"));
 
             return BadRequest(ApiResponse.Fail(result.Error));
         }
