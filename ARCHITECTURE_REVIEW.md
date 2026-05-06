@@ -11,12 +11,10 @@
 
 1. [Projektstruktur](#1-projektstruktur)
 2. [Vad som fungerar bra](#2-vad-som-fungerar-bra)
-3. [Verkliga buggar – måste åtgärdas](#3-verkliga-buggar--måste-åtgärdas)
-4. [Säkerhetsproblem](#4-säkerhetsproblem)
-5. [Designproblem & förbättringar](#5-designproblem--förbättringar)
-6. [Tester – vad finns och vad saknas](#6-tester--vad-finns-och-vad-saknas)
-7. [NuGet-paket](#7-nuget-paket)
-8. [Sammanfattning & prioriterad åtgärdslista](#8-sammanfattning--prioriterad-åtgärdslista)
+3. [Säkerhetsproblem](#3-säkerhetsproblem)
+4. [Tester – vad finns och vad saknas](#4-tester--vad-finns-och-vad-saknas)
+5. [NuGet-paket](#5-nuget-paket)
+6. [Sammanfattning & prioriterad åtgärdslista](#6-sammanfattning--prioriterad-åtgärdslista)
 
 ---
 
@@ -72,6 +70,8 @@ API ──→ Infrastructure ──→ Domain + Application
 - Kontolåsning: 5 misslyckade försök → 15 minuters lockout
 - RBAC med 5 väldefinierade roller och tydlig rollhierarki
 - Domänbaserad rollbegränsning vid registrering (se nedan)
+- Rate limiting på `AuthController`: max 5 requests/minut per IP → 429 Too Many Requests
+- Optimistisk concurrency via `RowVersion` på `Account` – förhindrar race conditions vid parallella transaktioner
 - Ägarskapsvalidering i handlers: ägare-check sker INNAN data ändras
 - Kortnummer maskeras i `CardDto` (`**** **** **** 9010`) – CVV returneras en gång vid skapande, lagras aldrig
 - `ExceptionMiddleware` returnerar generiska felmeddelanden på 500-fel
@@ -108,52 +108,7 @@ Det är korrekt och skyddar mot att pengar försvinner vid valideringsfel.
 
 ---
 
----
-
-## 4. Säkerhetsproblem
-
-### KRITISKT
-
-| # | Problem | Fil | Detalj |
-|---|---------|-----|--------|
-| ~~3~~ | ~~Vem som helst kan registrera sig som Admin~~ | ~~`AuthController.cs` – `POST /register`~~ | ✅ Åtgärdad (2026-05-06) – domänbaserad rollbegränsning: `@nexapay.com` krävs för personalroller, övriga låses till `User` |
-
----
-
-### MEDEL
-
-| # | Problem | Fil | Detalj |
-|---|---------|-----|--------|
-| ~~5~~ | ~~Ingen rate limiting~~ | ~~`AuthController.cs`~~ | ✅ Åtgärdad (2026-05-06) – FixedWindow 5 req/min per IP, returnerar 429 |
-| ~~6~~ | ~~Race condition på saldo~~ | ~~`DepositHandler`, `WithdrawHandler`, `TransferHandler`~~ | ✅ Åtgärdad (2026-05-06) – `RowVersion` på `Account`, `UnitOfWork` fångar `DbUpdateConcurrencyException` |
-
-**Rate limiting – åtgärd:**
-```csharp
-// Program.cs
-builder.Services.AddRateLimiter(options =>
-    options.AddFixedWindowLimiter("auth", o =>
-    {
-        o.PermitLimit = 5;
-        o.Window = TimeSpan.FromMinutes(1);
-        o.QueueLimit = 0;
-    }));
-
-// AuthController.cs
-[EnableRateLimiting("auth")]
-public class AuthController : ControllerBase { ... }
-```
-
-**Race condition – åtgärd:**
-```csharp
-// Account.cs
-[Timestamp]
-public byte[] RowVersion { get; set; } = [];
-
-// AccountConfiguration.cs
-builder.Property(a => a.RowVersion).IsRowVersion();
-```
-
----
+## 3. Säkerhetsproblem
 
 ### LÅG
 
@@ -164,13 +119,9 @@ builder.Property(a => a.RowVersion).IsRowVersion();
 
 ---
 
-## 5. Designproblem & förbättringar
+## 4. Tester – vad finns och vad saknas
 
----
-
-## 6. Tester – vad finns och vad saknas
-
-### Testfiler (14 st)
+### Testfiler
 
 | Fil | Antal tester | Täcker |
 |-----|-------------|--------|
@@ -180,6 +131,7 @@ builder.Property(a => a.RowVersion).IsRowVersion();
 | `TransferHandlerTests` | **8** | Happy path, fel ägare, insufficient balance, saknade konton, inaktiva konton, exakt saldo |
 | `AccountTests` | Flera | Domänentitet |
 | `AuthServiceTests` | **8** | Registrering (5 scenarion), inloggning (3 scenarion) |
+| `RegisterHandlerTests` | **8** | Domänbaserad rollbegränsning – alla kombinationer av domän och roll |
 | `CreateAccountValidatorTests` | **9** | Tom, för kort, för lång, exakt min/max, ogiltig typ, tom OwnerId, alla typer |
 | `DepositValidatorTests` | Flera | Belopp, beskrivning |
 | `WithdrawValidatorTests` | Flera | Belopp, beskrivning |
@@ -198,8 +150,7 @@ builder.Property(a => a.RowVersion).IsRowVersion();
 
 | Saknas | Prioritet | Kommentar |
 |--------|-----------|-----------|
-| Test: Admin kan registreras via publik endpoint | HÖG | Kräver integrationstester |
-| Integrationstester (`WebApplicationFactory`) | MEDEL | Testar hela HTTP-flödet |
+| Integrationstester (`WebApplicationFactory`) | MEDEL | Testar hela HTTP-flödet end-to-end |
 
 ### Testarkitekturen är bra
 
@@ -207,16 +158,15 @@ builder.Property(a => a.RowVersion).IsRowVersion();
 
 ---
 
-## 7. NuGet-paket
+## 5. NuGet-paket
 
 | Paket | Version | Status |
 |-------|---------|--------|
 | MediatR | 12.4.0 | OK |
 | AutoMapper | 16.1.1 | OK |
 | FluentValidation.DependencyInjectionExtensions | 12.1.1 | OK |
-| Microsoft.Extensions.Logging.Abstractions | **10.0.0** | ⚠️ .NET 10 preview – bör vara 8.0.x |
 | Microsoft.AspNetCore.Authentication.JwtBearer | 8.0.26 | OK |
-| Microsoft.AspNetCore.Identity.EntityFrameworkCore | 8.0.26 | OK (men dubblerad i API) |
+| Microsoft.AspNetCore.Identity.EntityFrameworkCore | 8.0.26 | OK |
 | Microsoft.EntityFrameworkCore.SqlServer | 8.0.26 | OK |
 | Swashbuckle.AspNetCore | 6.9.0 | OK |
 | NUnit | 3.14.0 | OK |
@@ -227,24 +177,25 @@ builder.Property(a => a.RowVersion).IsRowVersion();
 
 ---
 
-## 8. Sammanfattning & prioriterad åtgärdslista
+## 6. Sammanfattning & prioriterad åtgärdslista
 
 ### Betyg
 
 | Område | Betyg | Kommentar |
 |--------|-------|-----------|
 | Arkitektur | 9/10 | Clean Architecture korrekt, rätt beroendeflöde, bra mönster |
-| Kodkvalitet | 7/10 | Async genomgående, bra namngivning, men felaktig using, inkonsistent filstruktur |
-| Säkerhet | 6/10 | JWT-nyckel, CVV och lösenordsloggning åtgärdade – kvar: fri Admin-registrering, ingen rate limiting |
-| Funktionalitet | 8/10 | Teller-bug, kortaktivering och ExpiresAt-synk fixade |
-| Testning | 9/10 | Bred täckning över alla handlers och validators – kvar: integrationstester |
-| Produktionsklar | 5/10 | Flera säkerhetsproblem lösta – Admin-registrering måste begränsas innan deploy |
+| Kodkvalitet | 8/10 | Async genomgående, bra namngivning, välstrukturerade handlers |
+| Säkerhet | 8/10 | JWT, CVV, lösenordsloggning, Admin-registrering, rate limiting och concurrency åtgärdade |
+| Funktionalitet | 8/10 | Alla CRUD-flöden, kortaktivering, domänbaserad rollbegränsning |
+| Testning | 9/10 | 130 tester, bred täckning – kvar: integrationstester |
+| Produktionsklar | 7/10 | Säkerhetsfundamentet på plats – kvar: audit log, AllowedHosts |
 
 ---
 
-### Prioriterad åtgärdslista
+### Kvarvarande öppna punkter
 
-#### HÖG (bör fixas snart)
-
-
-
+| # | Problem | Prioritet |
+|---|---------|-----------|
+| 8 | `AllowedHosts: "*"` i `appsettings.json` | LÅG |
+| 10 | Inget audit log | LÅG |
+| – | Integrationstester (`WebApplicationFactory`) | MEDEL |
