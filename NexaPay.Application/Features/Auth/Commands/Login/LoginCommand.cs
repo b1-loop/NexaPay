@@ -19,5 +19,11 @@ namespace NexaPay.Application.Features.Auth.Commands.Login
         // Lösenordet som kontrolleras mot det hashade värdet
         // i databasen via Identity
         public string Password { get; init; } = string.Empty;
+
+        // Förhindrar att lösenordet hamnar i klartext i loggarna.
+        // LoggingBehavior loggar hela request-objektet – utan denna
+        // override skulle Password synas i loggfiler.
+        public override string ToString() =>
+            $"LoginCommand {{ Email: {Email}, Password: [SKYDDAD] }}";
     }
 }

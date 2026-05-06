@@ -318,7 +318,7 @@ Se **Bug 2** ovan. `AuthDto.ExpiresAt` är hårdkodad till 24 h medan den faktis
 #### MEDEL (förbättringar)
 
 9. ~~**Flytta `DeleteAccountCommand.cs`**~~ – ✅ Åtgärdad (2026-05-06)  
-10. **Skydda mot lösenordsloggning** – överskrid `ToString()` på `LoginCommand`  
+10. ~~**Skydda mot lösenordsloggning**~~ – ✅ Åtgärdad (2026-05-06)  
 11. **Lägg till `RowVersion`** på `Account` för optimistisk concurrency  
 12. ~~**Lägg till kortnummer-kontroll** i `CreateCardHandler`~~ – ✅ Åtgärdad (2026-05-06)  
 13. ~~**Ta bort explicit `Microsoft.Extensions.Logging.Abstractions`-pin**~~ – ✅ Åtgärdad (2026-05-06)  
