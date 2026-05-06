@@ -67,12 +67,31 @@ API ──→ Infrastructure ──→ Domain + Application
 ### Säkerhet som fungerar rätt
 
 - JWT-validering med Issuer, Audience, Lifetime och `ClockSkew = TimeSpan.Zero`
+- JWT-nyckel och connection string lagras i User Secrets (dev) / miljövariabler (prod) – aldrig i källkod
 - ASP.NET Identity med starka lösenordskrav: 8+ tecken, versaler, gemener, siffror, specialtecken
 - Kontolåsning: 5 misslyckade försök → 15 minuters lockout
 - RBAC med 5 väldefinierade roller och tydlig rollhierarki
+- Domänbaserad rollbegränsning vid registrering (se nedan)
 - Ägarskapsvalidering i handlers: ägare-check sker INNAN data ändras
-- Kortnummer maskeras i `CardDto` (`**** **** **** 9010`) – CVV skickas aldrig ut
+- Kortnummer maskeras i `CardDto` (`**** **** **** 9010`) – CVV returneras en gång vid skapande, lagras aldrig
 - `ExceptionMiddleware` returnerar generiska felmeddelanden på 500-fel
+
+### Domänbaserad rollbegränsning – registrering
+
+`POST /register` är publik men personalroller kräver en `@nexapay.com`-e-postadress. Logiken sitter i `RegisterHandler` och domänen läses från konfiguration (`StaffDomain` i `appsettings.json`).
+
+| E-postdomän | Begärd roll | Resultat |
+|-------------|-------------|----------|
+| `@nexapay.com` | Admin, BankManager, Teller, Auditor | ✅ Tillåtet |
+| `@nexapay.com` | User | ✅ Tillåtet |
+| Annan domän | Admin, BankManager, Teller, Auditor | ❌ Explicit fel – "Personalroller kräver en @nexapay.com-e-postadress" |
+| Annan domän | User | ✅ Tillåtet |
+
+**Inblandade filer:**
+- `appsettings.json` – `"StaffDomain": "nexapay.com"` (konfigurerbar, ej hårdkodad)
+- `IAppSettings` – interface i Application-lagret
+- `AppSettings` – implementation i Infrastructure, läser från `IConfiguration`
+- `RegisterHandler` – tillämpar domänregeln innan `AuthService` anropas
 
 ### Swagger
 
