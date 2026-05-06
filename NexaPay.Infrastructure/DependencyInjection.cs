@@ -51,7 +51,7 @@ namespace NexaPay.Infrastructure
                         // Försöker upp till 3 gånger med exponentiell backoff
                         sqlOptions.EnableRetryOnFailure(
                             maxRetryCount: 3,
-                            maxRetryDelay: TimeSpan.FromSeconds(30),
+                            maxRetryDelay: TimeSpan.FromSeconds(5),
                             errorNumbersToAdd: null);
                     });
             });

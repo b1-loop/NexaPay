@@ -295,7 +295,7 @@ namespace NexaPay.Tests.Application.Features.Accounts
 
             // Assert – kontot finns fortfarande men är inaktivt
             MockAccountRepository.Verify(
-                r => r.Remove(It.IsAny<NexaPay.Domain.Entities.Account>()),
+                r => r.Delete(It.IsAny<NexaPay.Domain.Entities.Account>()),
                 Times.Never,
                 "kontot ska INTE tas bort fysiskt ur databasen");
 

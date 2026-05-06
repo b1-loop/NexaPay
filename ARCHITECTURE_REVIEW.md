@@ -219,21 +219,6 @@ builder.Property(a => a.RowVersion).IsRowVersion();
 
 ---
 
-### 5.7 Retry-logik i EF Core kan maskera problem
-
-**Fil:** `NexaPay.Infrastructure/DependencyInjection.cs` rad 49–56
-
-```csharp
-sqlOptions.EnableRetryOnFailure(
-    maxRetryCount: 3,
-    maxRetryDelay: TimeSpan.FromSeconds(30),
-    ...);
-```
-
-`maxRetryDelay: TimeSpan.FromSeconds(30)` kombinerat med exponentiell backoff kan ge väntetider på upp till 90+ sekunder vid upprepade fel. HTTP-timeouts inträffar långt innan dess (standard ASP.NET Core request timeout). Överväg ett lägre värde (t.ex. 5 sekunder).
-
----
-
 ### 5.8 `AuthDto.ExpiresAt` och token-livslängd är osynkroniserade
 
 Se **Bug 2** ovan. `AuthDto.ExpiresAt` är hårdkodad till 24 h medan den faktiska token-livslängden läses från konfigurationen.
