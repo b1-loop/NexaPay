@@ -117,24 +117,7 @@ Om `Jwt:ExpiryHours` ändras i konfigurationen gäller den faktiska token-livsl�
 
 | # | Problem | Fil | Detalj |
 |---|---------|-----|--------|
-| 1 | JWT-signeringsnyckel i klartext | `appsettings.json` rad 6 | Nyckeln låg hårdkodad i versionshantering — åtgärdat: flyttad till User Secrets (dev) och miljövariabel (prod) |
-| ~~2~~ | ~~CVV lagras i databasen~~ | ~~`Card.cs`, `CardConfiguration.cs`, `CreateCardHandler.cs`~~ | ~~Bryter mot PCI-DSS 3.2.1~~ — ✅ Åtgärdad (2026-05-06): CVV genereras i minnet och returneras en gång i `CreateCardResponse`, sparas aldrig i DB |
 | 3 | Vem som helst kan registrera sig som Admin | `AuthController.cs` – `POST /register` | Endpointen är publik (inget `[Authorize]`) och accepterar `"Role": "Admin"` |
-
-**JWT-nyckel – åtgärd:**
-```bash
-# Lägg till i .gitignore:
-appsettings.json
-
-# Använd User Secrets i dev:
-dotnet user-secrets set "Jwt:Key" "ny-hemlig-nyckel-minst-32-tecken"
-
-# I produktion: miljövariabel
-JWT__KEY=din-hemliga-nyckel
-```
-
-**CVV – åtgärd:**
-Ta bort `CVV`-property från `Card`, ta bort från `CardConfiguration`, skapa ny migration. Returnera CVV *en gång* i `CreateCardHandler` som en separat sträng utanför `CardDto` – spara det aldrig.
 
 **Admin-registrering – åtgärd:**
 ```csharp
@@ -159,16 +142,8 @@ public async Task<IActionResult> RegisterStaff([FromBody] RegisterStaffRequest r
 
 | # | Problem | Fil | Detalj |
 |---|---------|-----|--------|
-| ~~4~~ | ~~Lösenord loggas i klartext~~ | ~~`LoggingBehavior.cs` rad 52–54~~ | ~~`{@Request}` serialiserar hela `LoginCommand` inkl. `Password`~~ — ✅ Åtgärdad (2026-05-06) |
 | 5 | Ingen rate limiting | `AuthController.cs` | Brute-force på `POST /login` möjlig |
 | 6 | Race condition på saldo | `DepositHandler`, `WithdrawHandler`, `TransferHandler` | Ingen optimistisk concurrency (`RowVersion`) – två simultana requests kan ge felaktigt saldo |
-
-**Lösenordsloggning – åtgärd:**
-```csharp
-// LoginCommand.cs – överskrid ToString()
-public override string ToString() =>
-    $"LoginCommand {{ Email = {Email} }}"; // Password utelämnas
-```
 
 **Rate limiting – åtgärd:**
 ```csharp
@@ -202,9 +177,7 @@ builder.Property(a => a.RowVersion).IsRowVersion();
 
 | # | Problem | Fil | Detalj |
 |---|---------|-----|--------|
-| ~~7~~ | ~~CORS AllowAll~~ | ~~`ServiceExtensions.cs` rad 145–153~~ | ~~Tillåter alla origins i alla miljöer~~ — ✅ Åtgärdad (2026-05-06) |
 | 8 | `AllowedHosts: "*"` | `appsettings.json` | Inga host-begränsningar |
-| ~~9~~ | ~~`Console.WriteLine` i produktionskod~~ | ~~`DatabaseExtensions.cs` rad 131~~ | ~~Ska vara `ILogger`~~ — ✅ Åtgärdad (2026-05-06) |
 | 10 | Inget audit log | Hela Infrastructure | Ingen spårning av vem som ändrat vad |
 
 ---
@@ -247,14 +220,6 @@ Se **Bug 2** ovan. `AuthDto.ExpiresAt` är hårdkodad till 24 h medan den faktis
 
 | Saknas | Prioritet | Kommentar |
 |--------|-----------|-----------|
-| ~~Test: Teller kan göra deposit på kundens konto~~ | ~~HÖG~~ | ✅ Åtgärdad (2026-05-06) |
-| ~~Test: `ActivateCardHandler`~~ | ~~MEDEL~~ | ✅ Åtgärdad (2026-05-06) |
-| ~~`BlockCardHandlerTests`~~ | ~~MEDEL~~ | ✅ Åtgärdad (2026-05-06) |
-| ~~`CreateCardHandlerTests`~~ | ~~MEDEL~~ | ✅ Åtgärdad (2026-05-06) |
-| ~~`DeleteAccountHandlerTests`~~ | ~~MEDEL~~ | ✅ Åtgärdad (2026-05-06) |
-| ~~`GetTransactionsByAccountHandlerTests`~~ | ~~LÅG~~ | ✅ Åtgärdad (2026-05-06) |
-| ~~`RegisterValidatorTests`~~ | ~~LÅG~~ | ✅ Åtgärdad (2026-05-06) |
-| ~~`LoginValidatorTests`~~ | ~~LÅG~~ | ✅ Åtgärdad (2026-05-06) |
 | Test: Admin kan registreras via publik endpoint | HÖG | Kräver integrationstester |
 | Integrationstester (`WebApplicationFactory`) | MEDEL | Testar hela HTTP-flödet |
 
@@ -292,10 +257,10 @@ Se **Bug 2** ovan. `AuthDto.ExpiresAt` är hårdkodad till 24 h medan den faktis
 |--------|-------|-----------|
 | Arkitektur | 9/10 | Clean Architecture korrekt, rätt beroendeflöde, bra mönster |
 | Kodkvalitet | 7/10 | Async genomgående, bra namngivning, men felaktig using, inkonsistent filstruktur |
-| Säkerhet | 4/10 | JWT i klartext, CVV i DB, fri Admin-registrering, lösenord loggas |
-| Funktionalitet | 7/10 | Alla CRUD-flöden finns men Teller-bug, ingen kortaktivering |
-| Testning | 7/10 | Bra täckning på Transfer och Auth, men stora luckor (BlockCard, DeleteAccount) |
-| Produktionsklar | 4/10 | Kräver säkerhetsåtgärder och buggfixar innan deploy |
+| Säkerhet | 6/10 | JWT-nyckel, CVV och lösenordsloggning åtgärdade – kvar: fri Admin-registrering, ingen rate limiting |
+| Funktionalitet | 8/10 | Teller-bug och kortaktivering fixade – kvar: AuthDto.ExpiresAt osynkroniserad |
+| Testning | 9/10 | Bred täckning över alla handlers och validators – kvar: integrationstester |
+| Produktionsklar | 5/10 | Flera säkerhetsproblem lösta – Admin-registrering måste begränsas innan deploy |
 
 ---
 
@@ -303,32 +268,13 @@ Se **Bug 2** ovan. `AuthDto.ExpiresAt` är hårdkodad till 24 h medan den faktis
 
 #### KRITISKT (blockerande för produktion)
 
-1. ~~**Ta bort JWT-nyckeln från `appsettings.json`**~~ → ✅ Åtgärdad (2026-05-06) – User Secrets (dev) / miljövariabel (prod)  
-2. ~~**Ta bort CVV-lagring**~~ → ✅ Åtgärdad (2026-05-06) – `CreateCardResponse` returnerar CVV en gång, kolumnen droppas via migration  
-3. **Begränsa Admin-registrering** – publik endpoint ska bara tillåta `User`-rollen  
-4. ~~**Fixa Teller-bug**~~ – ✅ Åtgärdad (2026-05-06)
+1. **Begränsa Admin-registrering** – publik endpoint ska bara tillåta `User`-rollen
 
 #### HÖG (bör fixas snart)
 
-5. ~~**Lägg till kortaktivering**~~ – ✅ Åtgärdad (2026-05-06)  
-6. **Fixa `AuthDto.ExpiresAt`** – läs `Jwt:ExpiryHours` från konfiguration istället för hårdkodat 24  
-7. **Lägg till rate limiting** på `AuthController` mot brute-force  
-8. ~~**Ta bort felaktigt `using System.Transactions;`** i `Account.cs`~~ – ✅ Åtgärdad (2026-05-06)  
+2. **Fixa `AuthDto.ExpiresAt`** – läs `Jwt:ExpiryHours` från konfiguration istället för hårdkodat 24  
+3. **Lägg till rate limiting** på `AuthController` mot brute-force  
 
 #### MEDEL (förbättringar)
 
-9. ~~**Flytta `DeleteAccountCommand.cs`**~~ – ✅ Åtgärdad (2026-05-06)  
-10. ~~**Skydda mot lösenordsloggning**~~ – ✅ Åtgärdad (2026-05-06)  
-11. **Lägg till `RowVersion`** på `Account` för optimistisk concurrency  
-12. ~~**Lägg till kortnummer-kontroll** i `CreateCardHandler`~~ – ✅ Åtgärdad (2026-05-06)  
-13. ~~**Ta bort explicit `Microsoft.Extensions.Logging.Abstractions`-pin**~~ – ✅ Åtgärdad (2026-05-06)  
-14. ~~**Ta bort `Microsoft.AspNetCore.Identity.EntityFrameworkCore`** från API-projektet~~ – ✅ Åtgärdad (2026-05-06)  
-
-#### LÅG (städning)
-
-15. ~~**Använd rollkonstanter i controllers**~~ – ✅ Åtgärdad (2026-05-06)  
-16. ~~**Flytta `IJwtService` till egen fil**~~ – ✅ Åtgärdad (2026-05-06)  
-17. ~~**Ersätt `Console.WriteLine` med `ILogger`** i `DatabaseExtensions.cs`~~ – ✅ Åtgärdad (2026-05-06)  
-18. ~~**Ta bort `GetTransactionsByAccountIdAsync`**~~ – ✅ Åtgärdad (2026-05-06)  
-19. ~~**Specificera CORS-origins per miljö**~~ – ✅ Åtgärdad (2026-05-06)  
-20. ~~**Lägg till tester för `BlockCardHandler`, `CreateCardHandler`, `DeleteAccountHandler`**~~ – ✅ Åtgärdad (2026-05-06)  
+4. **Lägg till `RowVersion`** på `Account` för optimistisk concurrency  
