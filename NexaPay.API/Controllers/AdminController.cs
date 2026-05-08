@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NexaPay.Application.Common.Constants;
+using NexaPay.Application.DTOs;
 using NexaPay.Application.Features.Auth.Commands.Register;
 
 namespace NexaPay.API.Controllers
@@ -29,7 +30,7 @@ namespace NexaPay.API.Controllers
         // Personalroller (Admin, BankManager, Teller, Auditor)
         // kräver fortfarande @nexapay.com-epost (hanteras av RegisterHandler).
         [HttpPost("users")]
-        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse<AuthDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(StatusCodes.Status403Forbidden)]

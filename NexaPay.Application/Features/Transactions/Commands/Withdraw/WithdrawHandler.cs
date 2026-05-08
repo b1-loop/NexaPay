@@ -1,23 +1,9 @@
-﻿// ============================================================
-// WithdrawHandler.cs
-// NexaPay.Application/Features/Transactions/Commands/Withdraw
-// ============================================================
-// Hanterar uttag från ett konto.
-//
-// Kritisk affärsregel: Overdraft-skydd
-// Saldot får ALDRIG bli negativt.
-// Om användaren försöker ta ut mer än saldot →
-// returnera Result.Failure med ett tydligt meddelande.
-// ============================================================
-
 using AutoMapper;
 using MediatR;
-using Microsoft.Extensions.Logging;
 using NexaPay.Application.Common.Models;
 using NexaPay.Application.DTOs;
-using NexaPay.Domain.Entities;
-using NexaPay.Domain.Enums;
 using NexaPay.Domain.Interfaces;
+using NexaPay.Domain.ValueObjects;
 
 namespace NexaPay.Application.Features.Transactions.Commands.Withdraw
 {
@@ -26,16 +12,13 @@ namespace NexaPay.Application.Features.Transactions.Commands.Withdraw
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
-        private readonly ILogger<WithdrawHandler> _logger;
 
         public WithdrawHandler(
             IUnitOfWork unitOfWork,
-            IMapper mapper,
-            ILogger<WithdrawHandler> logger)
+            IMapper mapper)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
-            _logger = logger;
         }
 
         public async Task<Result<TransactionDto>> Handle(
@@ -44,64 +27,36 @@ namespace NexaPay.Application.Features.Transactions.Commands.Withdraw
         {
             try
             {
-                // Steg 1: Hämta och validera kontot
                 var account = await _unitOfWork.Accounts
-                    .GetByIdAsync(request.AccountId);
+                    .GetByIdAsync(request.AccountId, cancellationToken);
 
                 if (account == null)
-                    return Result<TransactionDto>.Failure(
+                    return Result<TransactionDto>.NotFound(
                         $"Konto med ID {request.AccountId} hittades inte");
 
-                // Personal (IsStaff) kan göra uttag från kunders konton
                 if (!request.IsStaff && account.OwnerId != request.UserId)
-                    return Result<TransactionDto>.Failure(
+                    return Result<TransactionDto>.NotFound(
                         $"Konto med ID {request.AccountId} hittades inte");
 
-                if (!account.IsActive)
-                    return Result<TransactionDto>.Failure(
-                        "Kan inte ta ut pengar från ett inaktivt konto");
-
-                // --------------------------------------------------------
-                // Steg 2: Overdraft-skydd – kritisk affärsregel!
-                // --------------------------------------------------------
-                // Kontrollera att saldot räcker för uttaget
-                // account.Balance < request.Amount = saldot räcker inte
-                if (account.Balance < request.Amount)
-                    return Result<TransactionDto>.Failure(
-                        $"Otillräckligt saldo. " +
-                        $"Tillgängligt saldo: {account.Balance:F2}, " +
-                        $"Begärt belopp: {request.Amount:F2}");
-
-                // Steg 3: Dra av beloppet från saldot
-                account.Balance -= request.Amount;
-                account.UpdatedAt = DateTime.UtcNow;
-
-                // Steg 4: Skapa transaktionspost
-                var transaction = new Transaction
+                if (request.IdempotencyKey.HasValue)
                 {
-                    Id = Guid.NewGuid(),
-                    Amount = request.Amount,
-                    Type = TransactionType.Withdrawal,
-                    Description = request.Description,
-                    BalanceAfterTransaction = account.Balance,
-                    ReceiverAccountId = null,
-                    AccountId = request.AccountId,
-                    CreatedAt = DateTime.UtcNow
-                };
+                    var existing = await _unitOfWork.Transactions
+                        .GetByIdempotencyKeyAsync(request.IdempotencyKey.Value, cancellationToken);
+                    if (existing != null)
+                        return Result<TransactionDto>.Success(_mapper.Map<TransactionDto>(existing));
+                }
 
-                // Steg 5: Spara atomärt
-                _unitOfWork.Accounts.Update(account);
-                await _unitOfWork.Transactions.AddAsync(transaction);
+                var amount = new Money(request.Amount, account.Balance.Currency);
+                var transaction = account.Withdraw(amount, request.Description, request.IdempotencyKey);
+
+                await _unitOfWork.Transactions.AddAsync(transaction, cancellationToken);
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-                var transactionDto = _mapper.Map<TransactionDto>(transaction);
-                return Result<TransactionDto>.Success(transactionDto);
+                return Result<TransactionDto>.Success(_mapper.Map<TransactionDto>(transaction));
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
-                _logger.LogError(ex, "Oväntat fel vid uttag från konto {AccountId}", request.AccountId);
-                return Result<TransactionDto>.Failure(
-                    "Ett oväntat fel uppstod. Försök igen senare.");
+                return Result<TransactionDto>.Failure(ex.Message);
             }
         }
     }

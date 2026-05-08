@@ -32,9 +32,7 @@
 
 namespace NexaPay.Domain.Interfaces
 {
-    // IDisposable gör att vi kan använda "using"-satser
-    // vilket garanterar att resurser frigörs korrekt
-    public interface IUnitOfWork : IDisposable
+    public interface IUnitOfWork
     {
         // --------------------------------------------------------
         // Repositories – åtkomst till alla dataoperationer

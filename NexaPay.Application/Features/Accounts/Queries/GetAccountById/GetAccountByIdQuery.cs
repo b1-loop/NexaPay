@@ -23,6 +23,6 @@ namespace NexaPay.Application.Features.Accounts.Queries.GetAccountById
         public string UserId { get; init; } = string.Empty;
 
         // Om användaren är Admin – kan se alla konton
-        public bool IsAdmin { get; init; }
+        public bool IsStaff { get; init; }
     }
 }

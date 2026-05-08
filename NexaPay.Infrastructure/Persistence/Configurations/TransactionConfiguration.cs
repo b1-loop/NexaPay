@@ -1,11 +1,7 @@
-﻿// ============================================================
-// TransactionConfiguration.cs
-// NexaPay.Infrastructure/Persistence/Configurations
-// ============================================================
-
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using NexaPay.Domain.Entities;
+using NexaPay.Domain.Enums;
 
 namespace NexaPay.Infrastructure.Persistence.Configurations
 {
@@ -14,33 +10,50 @@ namespace NexaPay.Infrastructure.Persistence.Configurations
         public void Configure(EntityTypeBuilder<Transaction> builder)
         {
             builder.ToTable("Transactions");
-
             builder.HasKey(t => t.Id);
 
-            // Belopp – precision 18, 2 decimaler (samma som Balance)
-            builder.Property(t => t.Amount)
-                .IsRequired()
-                .HasPrecision(18, 2);
+            // Amount stored as two columns:
+            //   "Amount"          – decimal (preserves existing column name)
+            //   "Amount_Currency" – currency enum
+            builder.OwnsOne(t => t.Amount, b =>
+            {
+                b.Property(m => m.Amount)
+                    .HasColumnName("Amount")
+                    .IsRequired()
+                    .HasPrecision(18, 2);
 
-            // Transaktionstyp – enum som int
+                b.Property(m => m.Currency)
+                    .HasColumnName("Amount_Currency")
+                    .IsRequired()
+                    .HasDefaultValue(Currency.SEK);
+            });
+
             builder.Property(t => t.Type)
                 .IsRequired();
 
-            // Beskrivning – max 500 tecken
             builder.Property(t => t.Description)
                 .IsRequired()
                 .HasMaxLength(500);
 
-            // Saldo efter transaktionen – precision 18, 2
-            builder.Property(t => t.BalanceAfterTransaction)
-                .IsRequired()
-                .HasPrecision(18, 2);
+            // BalanceAfterTransaction stored as two columns:
+            //   "BalanceAfterTransaction"          – decimal
+            //   "BalanceAfterTransaction_Currency" – currency enum
+            builder.OwnsOne(t => t.BalanceAfterTransaction, b =>
+            {
+                b.Property(m => m.Amount)
+                    .HasColumnName("BalanceAfterTransaction")
+                    .IsRequired()
+                    .HasPrecision(18, 2);
 
-            // ReceiverAccountId – nullable (bara satt vid överföringar)
+                b.Property(m => m.Currency)
+                    .HasColumnName("BalanceAfterTransaction_Currency")
+                    .IsRequired()
+                    .HasDefaultValue(Currency.SEK);
+            });
+
             builder.Property(t => t.ReceiverAccountId)
                 .IsRequired(false);
 
-            // AccountId – Foreign Key till Account
             builder.Property(t => t.AccountId)
                 .IsRequired();
 
@@ -50,15 +63,17 @@ namespace NexaPay.Infrastructure.Persistence.Configurations
             builder.Property(t => t.UpdatedAt)
                 .IsRequired(false);
 
-            // --------------------------------------------------------
-            // Index
-            // --------------------------------------------------------
-            // Index på AccountId – används ofta när vi hämtar
-            // alla transaktioner för ett specifikt konto
-            builder.HasIndex(t => t.AccountId);
+            builder.Property(t => t.IdempotencyKey)
+                .IsRequired(false);
 
-            // Index på CreatedAt – används för sortering i kontoutdrag
+            builder.HasIndex(t => t.AccountId);
             builder.HasIndex(t => t.CreatedAt);
+
+            // Filtered unique index: only non-NULL keys are checked for uniqueness.
+            // NULL (no key supplied) rows are excluded so legacy inserts still work.
+            builder.HasIndex(t => t.IdempotencyKey)
+                .IsUnique()
+                .HasFilter("[IdempotencyKey] IS NOT NULL");
         }
     }
 }

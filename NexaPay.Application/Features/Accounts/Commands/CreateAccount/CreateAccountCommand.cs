@@ -26,17 +26,9 @@ namespace NexaPay.Application.Features.Accounts.Commands.CreateAccount
 {
     public record CreateAccountCommand : IRequest<Result<AccountDto>>
     {
-        // Namnet som användaren ger sitt konto
-        // T.ex. "Mitt sparkonto" eller "Hushållskassan"
         public string AccountName { get; init; } = string.Empty;
-
-        // Typen av konto – Checking, Savings eller ISK
-        // "init" = kan bara sättas vid skapandet, inte ändras efteråt
         public AccountType AccountType { get; init; }
-
-        // ID:t för användaren som äger kontot
-        // Sätts från JWT-token i controllern – inte från klienten direkt
-        // Det är viktigt att vi inte låter klienten bestämma vem som äger kontot
+        public Currency Currency { get; init; } = Currency.SEK;
         public string OwnerId { get; init; } = string.Empty;
     }
 }

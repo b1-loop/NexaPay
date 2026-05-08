@@ -23,7 +23,7 @@ namespace NexaPay.Application.Features.Transactions.Queries
         public string UserId { get; init; } = string.Empty;
 
         // Om användaren är Admin/personal
-        public bool IsAdmin { get; init; }
+        public bool IsStaff { get; init; }
 
         // --------------------------------------------------------
         // Pagineringsparametrar

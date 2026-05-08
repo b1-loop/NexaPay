@@ -32,5 +32,8 @@ namespace NexaPay.Application.Features.Transactions.Commands.Deposit
         // Om den inloggade användaren är personal (Admin, BankManager, Teller, Auditor)
         // Personal hoppar över ägarskapskontrollen och kan göra insättningar åt kunder
         public bool IsStaff { get; init; }
+
+        // Client-supplied UUID (Idempotency-Key header). Null = no deduplication.
+        public Guid? IdempotencyKey { get; init; }
     }
 }

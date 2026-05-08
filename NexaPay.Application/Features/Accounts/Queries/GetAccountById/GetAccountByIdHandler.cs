@@ -35,49 +35,20 @@ namespace NexaPay.Application.Features.Accounts.Queries.GetAccountById
             GetAccountByIdQuery request,
             CancellationToken cancellationToken)
         {
-            try
-            {
-                // --------------------------------------------------------
-                // Steg 1: Hämta kontot från databasen
-                // --------------------------------------------------------
-                var account = await _unitOfWork.Accounts
-                    .GetByIdAsync(request.AccountId);
+            var account = request.IsStaff
+                ? await _unitOfWork.Accounts.GetByIdIncludingClosedAsync(request.AccountId, cancellationToken)
+                : await _unitOfWork.Accounts.GetByIdAsync(request.AccountId, cancellationToken);
 
-                // Om kontot inte finns – returnera Failure
-                // Controllern tolkar detta som 404 Not Found
-                if (account == null)
-                {
-                    return Result<AccountDto>.Failure(
-                        $"Konto med ID {request.AccountId} hittades inte");
-                }
+            if (account == null)
+                return Result<AccountDto>.NotFound(
+                    $"Konto med ID {request.AccountId} hittades inte");
 
-                // --------------------------------------------------------
-                // Steg 2: Kontrollera behörighet (RBAC)
-                // --------------------------------------------------------
-                // En användare får bara se sitt EGET konto
-                // Admin får se vilket konto som helst
-                var isOwner = account.OwnerId == request.UserId;
+            if (!request.IsStaff && account.OwnerId != request.UserId)
+                return Result<AccountDto>.NotFound(
+                    $"Konto med ID {request.AccountId} hittades inte");
 
-                if (!request.IsAdmin && !isOwner)
-                {
-                    // Användaren försöker komma åt någon annans konto!
-                    // Vi returnerar samma fel som "inte hittat" av säkerhetsskäl
-                    // Vi vill inte avslöja att kontot finns men ägs av någon annan
-                    return Result<AccountDto>.Failure(
-                        $"Konto med ID {request.AccountId} hittades inte");
-                }
-
-                // --------------------------------------------------------
-                // Steg 3: Mappa och returnera
-                // --------------------------------------------------------
-                var accountDto = _mapper.Map<AccountDto>(account);
-                return Result<AccountDto>.Success(accountDto);
-            }
-            catch (Exception ex)
-            {
-                return Result<AccountDto>.Failure(
-                    $"Ett fel uppstod: {ex.Message}");
-            }
+            var accountDto = _mapper.Map<AccountDto>(account);
+            return Result<AccountDto>.Success(accountDto);
         }
     }
 }

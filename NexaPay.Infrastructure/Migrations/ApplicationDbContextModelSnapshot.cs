@@ -239,15 +239,8 @@ namespace NexaPay.Infrastructure.Migrations
                     b.Property<int>("AccountType")
                         .HasColumnType("int");
 
-                    b.Property<decimal>("Balance")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
 
                     b.Property<string>("OwnerId")
                         .IsRequired()
@@ -259,6 +252,11 @@ namespace NexaPay.Infrastructure.Migrations
                         .IsRequired()
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("rowversion");
+
+                    b.Property<int>("Status")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
@@ -287,16 +285,21 @@ namespace NexaPay.Infrastructure.Migrations
                         .HasMaxLength(26)
                         .HasColumnType("nvarchar(26)");
 
-                    b.Property<string>("CardNumber")
+                    b.Property<string>("CardToken")
                         .IsRequired()
-                        .HasMaxLength(16)
-                        .HasColumnType("nvarchar(16)");
+                        .HasMaxLength(36)
+                        .HasColumnType("nvarchar(36)");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
                     b.Property<DateOnly>("ExpiryDate")
                         .HasColumnType("date");
+
+                    b.Property<string>("Last4Digits")
+                        .IsRequired()
+                        .HasMaxLength(4)
+                        .HasColumnType("nvarchar(4)");
 
                     b.Property<int>("Status")
                         .HasColumnType("int");
@@ -308,7 +311,7 @@ namespace NexaPay.Infrastructure.Migrations
 
                     b.HasIndex("AccountId");
 
-                    b.HasIndex("CardNumber")
+                    b.HasIndex("CardToken")
                         .IsUnique();
 
                     b.ToTable("Cards", (string)null);
@@ -323,14 +326,6 @@ namespace NexaPay.Infrastructure.Migrations
                     b.Property<Guid>("AccountId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<decimal>("Amount")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("BalanceAfterTransaction")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
@@ -338,6 +333,9 @@ namespace NexaPay.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
+
+                    b.Property<Guid?>("IdempotencyKey")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<Guid?>("ReceiverAccountId")
                         .HasColumnType("uniqueidentifier");
@@ -353,6 +351,10 @@ namespace NexaPay.Infrastructure.Migrations
                     b.HasIndex("AccountId");
 
                     b.HasIndex("CreatedAt");
+
+                    b.HasIndex("IdempotencyKey")
+                        .IsUnique()
+                        .HasFilter("[IdempotencyKey] IS NOT NULL");
 
                     b.ToTable("Transactions", (string)null);
                 });
@@ -408,6 +410,36 @@ namespace NexaPay.Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("NexaPay.Domain.Entities.Account", b =>
+                {
+                    b.OwnsOne("NexaPay.Domain.ValueObjects.Money", "Balance", b1 =>
+                        {
+                            b1.Property<Guid>("AccountId")
+                                .HasColumnType("uniqueidentifier");
+
+                            b1.Property<decimal>("Amount")
+                                .HasPrecision(18, 2)
+                                .HasColumnType("decimal(18,2)")
+                                .HasColumnName("Balance");
+
+                            b1.Property<int>("Currency")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("int")
+                                .HasDefaultValue(1)
+                                .HasColumnName("AccountCurrency");
+
+                            b1.HasKey("AccountId");
+
+                            b1.ToTable("Accounts");
+
+                            b1.WithOwner()
+                                .HasForeignKey("AccountId");
+                        });
+
+                    b.Navigation("Balance")
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("NexaPay.Domain.Entities.Card", b =>
                 {
                     b.HasOne("NexaPay.Domain.Entities.Account", "Account")
@@ -424,10 +456,64 @@ namespace NexaPay.Infrastructure.Migrations
                     b.HasOne("NexaPay.Domain.Entities.Account", "Account")
                         .WithMany("Transactions")
                         .HasForeignKey("AccountId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.OwnsOne("NexaPay.Domain.ValueObjects.Money", "Amount", b1 =>
+                        {
+                            b1.Property<Guid>("TransactionId")
+                                .HasColumnType("uniqueidentifier");
+
+                            b1.Property<decimal>("Amount")
+                                .HasPrecision(18, 2)
+                                .HasColumnType("decimal(18,2)")
+                                .HasColumnName("Amount");
+
+                            b1.Property<int>("Currency")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("int")
+                                .HasDefaultValue(1)
+                                .HasColumnName("Amount_Currency");
+
+                            b1.HasKey("TransactionId");
+
+                            b1.ToTable("Transactions");
+
+                            b1.WithOwner()
+                                .HasForeignKey("TransactionId");
+                        });
+
+                    b.OwnsOne("NexaPay.Domain.ValueObjects.Money", "BalanceAfterTransaction", b1 =>
+                        {
+                            b1.Property<Guid>("TransactionId")
+                                .HasColumnType("uniqueidentifier");
+
+                            b1.Property<decimal>("Amount")
+                                .HasPrecision(18, 2)
+                                .HasColumnType("decimal(18,2)")
+                                .HasColumnName("BalanceAfterTransaction");
+
+                            b1.Property<int>("Currency")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("int")
+                                .HasDefaultValue(1)
+                                .HasColumnName("BalanceAfterTransaction_Currency");
+
+                            b1.HasKey("TransactionId");
+
+                            b1.ToTable("Transactions");
+
+                            b1.WithOwner()
+                                .HasForeignKey("TransactionId");
+                        });
+
                     b.Navigation("Account");
+
+                    b.Navigation("Amount")
+                        .IsRequired();
+
+                    b.Navigation("BalanceAfterTransaction")
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("NexaPay.Domain.Entities.Account", b =>

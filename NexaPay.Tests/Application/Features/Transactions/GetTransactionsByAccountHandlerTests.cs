@@ -8,7 +8,7 @@
 //   1. Lyckad hämtning – returnerar PagedResult med korrekt metadata
 //   2. Konto finns inte
 //   3. Fel ägare – vanlig användare kan inte se annans konto
-//   4. Personal (IsAdmin) kan se alla konton
+//   4. Personal (IsStaff) kan se alla konton
 //   5. Page < 1 normaliseras till 1
 //   6. PageSize > 100 begränsas till 100
 //   7. PageSize < 1 begränsas till 1
@@ -75,19 +75,19 @@ namespace NexaPay.Tests.Application.Features.Transactions
                 .ToList();
 
             MockAccountRepository
-                .Setup(r => r.GetByIdAsync(account.Id))
+                .Setup(r => r.GetByIdAsync(account.Id, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(account);
 
             MockTransactionRepository
                 .Setup(r => r.GetTransactionsByAccountIdPagedAsync(
-                    account.Id, 1, 20))
+                    account.Id, 1, 20, It.IsAny<CancellationToken>()))
                 .ReturnsAsync((transactions, 5));
 
             var query = new GetTransactionsByAccountQuery
             {
                 AccountId = account.Id,
                 UserId = userId,
-                IsAdmin = false,
+                IsStaff = false,
                 Page = 1,
                 PageSize = 20
             };
@@ -125,14 +125,14 @@ namespace NexaPay.Tests.Application.Features.Transactions
         {
             // Arrange
             MockAccountRepository
-                .Setup(r => r.GetByIdAsync(It.IsAny<Guid>()))
+                .Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync((NexaPay.Domain.Entities.Account?)null);
 
             var query = new GetTransactionsByAccountQuery
             {
                 AccountId = Guid.NewGuid(),
                 UserId = "user-123",
-                IsAdmin = false,
+                IsStaff = false,
                 Page = 1,
                 PageSize = 20
             };
@@ -161,14 +161,14 @@ namespace NexaPay.Tests.Application.Features.Transactions
             var account = CreateTestAccount(ownerId: "user-123");
 
             MockAccountRepository
-                .Setup(r => r.GetByIdAsync(account.Id))
+                .Setup(r => r.GetByIdAsync(account.Id, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(account);
 
             var query = new GetTransactionsByAccountQuery
             {
                 AccountId = account.Id,
                 UserId = "hacker-456",
-                IsAdmin = false,
+                IsStaff = false,
                 Page = 1,
                 PageSize = 20
             };
@@ -189,7 +189,7 @@ namespace NexaPay.Tests.Application.Features.Transactions
         [Test]
         [Category("Security")]
         [Description(
-            "Verifierar att personal (IsAdmin=true) kan se " +
+            "Verifierar att personal (IsStaff=true) kan se " +
             "transaktioner för ett konto de inte äger.")]
         public async Task Handle_WhenStaffRequestsAnyAccount_ShouldSucceed()
         {
@@ -197,19 +197,19 @@ namespace NexaPay.Tests.Application.Features.Transactions
             var account = CreateTestAccount(ownerId: "customer-123");
 
             MockAccountRepository
-                .Setup(r => r.GetByIdAsync(account.Id))
+                .Setup(r => r.GetByIdAsync(account.Id, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(account);
 
             MockTransactionRepository
                 .Setup(r => r.GetTransactionsByAccountIdPagedAsync(
-                    account.Id, 1, 20))
+                    account.Id, 1, 20, It.IsAny<CancellationToken>()))
                 .ReturnsAsync((new List<NexaPay.Domain.Entities.Transaction>(), 0));
 
             var query = new GetTransactionsByAccountQuery
             {
                 AccountId = account.Id,
                 UserId = "staff-999",
-                IsAdmin = true,
+                IsStaff = true,
                 Page = 1,
                 PageSize = 20
             };
@@ -239,19 +239,19 @@ namespace NexaPay.Tests.Application.Features.Transactions
             var account = CreateTestAccount(ownerId: userId);
 
             MockAccountRepository
-                .Setup(r => r.GetByIdAsync(account.Id))
+                .Setup(r => r.GetByIdAsync(account.Id, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(account);
 
             MockTransactionRepository
                 .Setup(r => r.GetTransactionsByAccountIdPagedAsync(
-                    account.Id, 1, 20))
+                    account.Id, 1, 20, It.IsAny<CancellationToken>()))
                 .ReturnsAsync((new List<NexaPay.Domain.Entities.Transaction>(), 0));
 
             var query = new GetTransactionsByAccountQuery
             {
                 AccountId = account.Id,
                 UserId = userId,
-                IsAdmin = false,
+                IsStaff = false,
                 Page = 0,
                 PageSize = 20
             };
@@ -283,19 +283,19 @@ namespace NexaPay.Tests.Application.Features.Transactions
             var account = CreateTestAccount(ownerId: userId);
 
             MockAccountRepository
-                .Setup(r => r.GetByIdAsync(account.Id))
+                .Setup(r => r.GetByIdAsync(account.Id, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(account);
 
             MockTransactionRepository
                 .Setup(r => r.GetTransactionsByAccountIdPagedAsync(
-                    account.Id, 1, 100))
+                    account.Id, 1, 100, It.IsAny<CancellationToken>()))
                 .ReturnsAsync((new List<NexaPay.Domain.Entities.Transaction>(), 0));
 
             var query = new GetTransactionsByAccountQuery
             {
                 AccountId = account.Id,
                 UserId = userId,
-                IsAdmin = false,
+                IsStaff = false,
                 Page = 1,
                 PageSize = 9999
             };

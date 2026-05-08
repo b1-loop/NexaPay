@@ -34,42 +34,16 @@ namespace NexaPay.Application.Features.Accounts.Queries.GetAllAccounts
             GetAllAccountsQuery request,
             CancellationToken cancellationToken)
         {
-            try
-            {
-                // --------------------------------------------------------
-                // RBAC – Role-Based Access Control
-                // --------------------------------------------------------
-                // Beroende på om användaren är Admin eller inte
-                // hämtar vi olika data från databasen
+            IEnumerable<Domain.Entities.Account> accounts;
 
-                IEnumerable<Domain.Entities.Account> accounts;
+            if (request.IsStaff)
+                accounts = await _unitOfWork.Accounts.GetAllAccountsIncludingClosedAsync(cancellationToken);
+            else
+                accounts = await _unitOfWork.Accounts
+                    .GetAccountsByOwnerIdAsync(request.UserId, cancellationToken);
 
-                if (request.IsAdmin)
-                {
-                    // Admin ser ALLA konton i systemet
-                    // T.ex. för att övervaka eller hjälpa kunder
-                    accounts = await _unitOfWork.Accounts.GetAllAsync();
-                }
-                else
-                {
-                    // Vanlig användare ser bara SINA EGNA konton
-                    // Vi filtrerar på OwnerId = inloggad användares ID
-                    // Detta är ett kritiskt säkerhetskrav
-                    accounts = await _unitOfWork.Accounts
-                        .GetAccountsByOwnerIdAsync(request.UserId);
-                }
-
-                // Mappa listan av Account → listan av AccountDto
-                // AutoMapper hanterar hela listan automatiskt
-                var accountDtos = _mapper.Map<IEnumerable<AccountDto>>(accounts);
-
-                return Result<IEnumerable<AccountDto>>.Success(accountDtos);
-            }
-            catch (Exception ex)
-            {
-                return Result<IEnumerable<AccountDto>>.Failure(
-                    $"Ett fel uppstod när konton skulle hämtas: {ex.Message}");
-            }
+            var accountDtos = _mapper.Map<IEnumerable<AccountDto>>(accounts);
+            return Result<IEnumerable<AccountDto>>.Success(accountDtos);
         }
     }
 }

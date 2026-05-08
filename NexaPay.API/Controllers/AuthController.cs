@@ -14,6 +14,7 @@ using Microsoft.IdentityModel.JsonWebTokens;
 using NexaPay.API.Extensions;
 using NexaPay.Application.Common.Constants;
 using NexaPay.Application.Common.Interfaces;
+using NexaPay.Application.DTOs;
 using NexaPay.Application.Features.Auth.Commands.Login;
 using NexaPay.Application.Features.Auth.Commands.Register;
 
@@ -39,7 +40,7 @@ namespace NexaPay.API.Controllers
         // POST api/auth/register
         // --------------------------------------------------------
         [HttpPost("register")]
-        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse<AuthDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> Register(
             [FromBody] RegisterRequest request)
@@ -70,7 +71,7 @@ namespace NexaPay.API.Controllers
         // POST api/auth/login
         // --------------------------------------------------------
         [HttpPost("login")]
-        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse<AuthDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> Login(
             [FromBody] LoginRequest request)

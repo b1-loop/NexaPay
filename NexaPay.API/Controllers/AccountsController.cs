@@ -17,10 +17,12 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using NexaPay.API.Extensions;
 using NexaPay.Application.Common.Constants;
+using NexaPay.Application.Common.Models;
 using NexaPay.Application.Features.Accounts.Commands.CreateAccount;
 using NexaPay.Application.Features.Accounts.Commands.DeleteAccount;
 using NexaPay.Application.Features.Accounts.Queries.GetAccountById;
 using NexaPay.Application.Features.Accounts.Queries.GetAllAccounts;
+using NexaPay.Application.DTOs;
 using NexaPay.Domain.Enums;
 
 namespace NexaPay.API.Controllers
@@ -47,7 +49,7 @@ namespace NexaPay.API.Controllers
         // Personal ser alla konton
         // Vanlig User ser bara sina egna
         [HttpGet]
-        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse<IEnumerable<AccountDto>>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> GetAll()
@@ -56,20 +58,20 @@ namespace NexaPay.API.Controllers
                 new GetAllAccountsQuery
                 {
                     UserId = User.GetUserId(),
-                    IsAdmin = User.IsStaff()
+                    IsStaff = User.IsStaff()
                 });
 
             if (result.IsSuccess)
                 return Ok(ApiResponse.Ok(result.Value));
 
-            return BadRequest(ApiResponse.Fail(result.Error));
+            return this.ToErrorResponse(result);
         }
 
         // --------------------------------------------------------
         // GET api/accounts/{id}
         // --------------------------------------------------------
         [HttpGet("{id:guid}")]
-        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse<AccountDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> GetById(Guid id)
@@ -79,13 +81,13 @@ namespace NexaPay.API.Controllers
                 {
                     AccountId = id,
                     UserId = User.GetUserId(),
-                    IsAdmin = User.IsStaff()
+                    IsStaff = User.IsStaff()
                 });
 
             if (result.IsSuccess)
                 return Ok(ApiResponse.Ok(result.Value));
 
-            return NotFound(ApiResponse.Fail(result.Error));
+            return this.ToErrorResponse(result);
         }
 
         // --------------------------------------------------------
@@ -95,7 +97,7 @@ namespace NexaPay.API.Controllers
         // Auditor kan INTE skapa konton (read-only roll)
         [HttpPost]
         [Authorize(Roles = Roles.CanWrite)]
-        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status201Created)]
+        [ProducesResponseType(typeof(ApiResponse<AccountDto>), StatusCodes.Status201Created)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -139,14 +141,14 @@ namespace NexaPay.API.Controllers
                 {
                     AccountId = id,
                     UserId = User.GetUserId(),
-                    IsAdmin = User.IsAdmin()
+                    IsStaff = User.IsStaff()
                 });
 
             if (result.IsSuccess)
                 return Ok(ApiResponse.Ok(
                     message: "Konto stängdes framgångsrikt"));
 
-            return BadRequest(ApiResponse.Fail(result.Error));
+            return this.ToErrorResponse(result);
         }
     }
 

@@ -1,19 +1,5 @@
-// ============================================================
-// ActivateCardHandler.cs
-// NexaPay.Application/Features/Cards/Commands/ActivateCard
-// ============================================================
-// Aktiverar ett bankkort som befinner sig i status Inactive.
-//
-// Affärsregler:
-//   1. Kortet måste finnas
-//   2. Kortet måste tillhöra den inloggade användaren (om inte personal)
-//   3. Endast Inactive-kort kan aktiveras
-//   4. Sätt status till Active och spara
-// ============================================================
-
 using MediatR;
 using NexaPay.Application.Common.Models;
-using NexaPay.Domain.Enums;
 using NexaPay.Domain.Interfaces;
 
 namespace NexaPay.Application.Features.Cards.Commands.ActivateCard
@@ -33,45 +19,31 @@ namespace NexaPay.Application.Features.Cards.Commands.ActivateCard
         {
             try
             {
-                var card = await _unitOfWork.Cards.GetByIdAsync(request.CardId);
+                var card = await _unitOfWork.Cards.GetByIdAsync(request.CardId, cancellationToken);
 
                 if (card == null)
-                    return Result.Failure(
+                    return Result.NotFound(
                         $"Kort med ID {request.CardId} hittades inte");
 
                 if (!request.IsStaff)
                 {
                     var account = await _unitOfWork.Accounts
-                        .GetByIdAsync(card.AccountId);
+                        .GetByIdAsync(card.AccountId, cancellationToken);
 
                     if (account == null || account.OwnerId != request.UserId)
-                        return Result.Failure(
+                        return Result.NotFound(
                             $"Kort med ID {request.CardId} hittades inte");
                 }
 
-                if (card.Status == CardStatus.Active)
-                    return Result.Failure("Kortet är redan aktivt");
+                card.Activate();
 
-                if (card.Status == CardStatus.Blocked)
-                    return Result.Failure(
-                        "Kan inte aktivera ett blockerat kort");
-
-                if (card.Status == CardStatus.Expired)
-                    return Result.Failure(
-                        "Kan inte aktivera ett utgånget kort");
-
-                card.Status = CardStatus.Active;
-                card.UpdatedAt = DateTime.UtcNow;
-
-                _unitOfWork.Cards.Update(card);
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
 
                 return Result.Success();
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
-                return Result.Failure(
-                    $"Ett fel uppstod när kortet skulle aktiveras: {ex.Message}");
+                return Result.Failure(ex.Message);
             }
         }
     }

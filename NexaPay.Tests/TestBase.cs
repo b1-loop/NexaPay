@@ -22,6 +22,7 @@ using NexaPay.Application.Mappings;
 using NexaPay.Domain.Entities;
 using NexaPay.Domain.Enums;
 using NexaPay.Domain.Interfaces;
+using NexaPay.Domain.ValueObjects;
 
 namespace NexaPay.Tests
 {
@@ -121,32 +122,22 @@ namespace NexaPay.Tests
             decimal balance = 1000,
             bool isActive = true)
         {
-            return new Account
+            var account = Account.Open("SE123456789", "Testkonto", AccountType.Checking, ownerId);
+
+            if (isActive)
             {
-                // Nytt unikt ID för varje test
-                Id = Guid.NewGuid(),
+                if (balance > 0)
+                    account.Deposit(new Money(balance, Currency.SEK), "Test initial deposit");
+            }
+            else
+            {
+                // Inactive accounts must have zero balance in the domain.
+                // Tests using isActive:false check the IsActive guard, which
+                // fires before any balance check, so balance=0 is equivalent.
+                account.Close();
+            }
 
-                // Standardkontonummer för tester
-                AccountNumber = "SE123456789",
-
-                // Standardkontonamn
-                AccountName = "Testkonto",
-
-                // Saldo – kan anpassas per test
-                Balance = balance,
-
-                // Standardkontotyp
-                AccountType = AccountType.Checking,
-
-                // Aktiv – kan anpassas per test
-                IsActive = isActive,
-
-                // Ägaren – kan anpassas per test
-                OwnerId = ownerId,
-
-                // Tidsstämpel
-                CreatedAt = DateTime.UtcNow
-            };
+            return account;
         }
 
         // Skapar ett giltigt kort för testning
@@ -154,27 +145,32 @@ namespace NexaPay.Tests
             Guid accountId = default,
             CardStatus status = CardStatus.Active)
         {
-            return new Card
+            var card = new Card
             {
                 Id = Guid.NewGuid(),
-                CardNumber = "4532123456789010",
+                CardToken = Guid.NewGuid().ToString(),
+                Last4Digits = "9010",
                 CardHolderName = "TEST USER",
-
-                // Utgångsdatum 3 år framåt
-                ExpiryDate = DateOnly.FromDateTime(
-                    DateTime.UtcNow.AddYears(3)),
-
-                // Status – kan anpassas per test
-                // T.ex. CardStatus.Blocked för att testa blockerade kort
-                Status = status,
-
-                // Om inget accountId anges – skapa ett nytt
-                AccountId = accountId == default
-                    ? Guid.NewGuid()
-                    : accountId,
-
+                ExpiryDate = DateOnly.FromDateTime(DateTime.UtcNow.AddYears(3)),
+                AccountId = accountId == default ? Guid.NewGuid() : accountId,
                 CreatedAt = DateTime.UtcNow
             };
+
+            switch (status)
+            {
+                case CardStatus.Active:
+                    card.Activate();
+                    break;
+                case CardStatus.Blocked:
+                    card.Block();
+                    break;
+                case CardStatus.Expired:
+                    card.MarkAsExpired();
+                    break;
+                // CardStatus.Inactive is the default — no action needed
+            }
+
+            return card;
         }
 
         // Skapar en giltig transaktion för testning
@@ -182,19 +178,15 @@ namespace NexaPay.Tests
             Guid accountId = default,
             decimal amount = 100)
         {
+            var money = new Money(amount, Currency.SEK);
             return new Transaction
             {
                 Id = Guid.NewGuid(),
-                Amount = amount,
+                Amount = money,
                 Type = TransactionType.Deposit,
                 Description = "Testinsättning",
-                BalanceAfterTransaction = amount,
-
-                // Om inget accountId anges – skapa ett nytt
-                AccountId = accountId == default
-                    ? Guid.NewGuid()
-                    : accountId,
-
+                BalanceAfterTransaction = money,
+                AccountId = accountId == default ? Guid.NewGuid() : accountId,
                 CreatedAt = DateTime.UtcNow
             };
         }

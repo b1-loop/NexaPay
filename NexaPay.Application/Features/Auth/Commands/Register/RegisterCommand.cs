@@ -7,12 +7,13 @@
 // ============================================================
 
 using MediatR;
+using NexaPay.Application.Common.Interfaces;
 using NexaPay.Application.Common.Models;
 using NexaPay.Application.DTOs;
 
 namespace NexaPay.Application.Features.Auth.Commands.Register
 {
-    public record RegisterCommand : IRequest<Result<AuthDto>>
+    public record RegisterCommand : IRequest<Result<AuthDto>>, ISensitiveRequest
     {
         // E-postadressen för den nya användaren
         public string Email { get; init; } = string.Empty;

@@ -29,5 +29,8 @@ namespace NexaPay.Application.Features.Transactions.Commands.Withdraw
         // Om den inloggade användaren är personal
         // Personal kan göra uttag från kunders konton
         public bool IsStaff { get; init; }
+
+        // Client-supplied UUID (Idempotency-Key header). Null = no deduplication.
+        public Guid? IdempotencyKey { get; init; }
     }
 }

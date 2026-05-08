@@ -48,8 +48,7 @@ namespace NexaPay.Tests.Application.Features.Transactions
 
             _handler = new WithdrawHandler(
                 MockUnitOfWork.Object,
-                Mapper,
-                new Mock<ILogger<WithdrawHandler>>().Object);
+                Mapper);
         }
 
         // --------------------------------------------------------
@@ -77,7 +76,7 @@ namespace NexaPay.Tests.Application.Features.Transactions
             };
 
             MockAccountRepository
-                .Setup(r => r.GetByIdAsync(account.Id))
+                .Setup(r => r.GetByIdAsync(account.Id, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(account);
 
             // Act
@@ -131,7 +130,7 @@ namespace NexaPay.Tests.Application.Features.Transactions
             };
 
             MockAccountRepository
-                .Setup(r => r.GetByIdAsync(account.Id))
+                .Setup(r => r.GetByIdAsync(account.Id, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(account);
 
             // Act
@@ -179,7 +178,7 @@ namespace NexaPay.Tests.Application.Features.Transactions
             };
 
             MockAccountRepository
-                .Setup(r => r.GetByIdAsync(account.Id))
+                .Setup(r => r.GetByIdAsync(account.Id, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(account);
 
             // Act
@@ -218,7 +217,7 @@ namespace NexaPay.Tests.Application.Features.Transactions
             };
 
             MockAccountRepository
-                .Setup(r => r.GetByIdAsync(account.Id))
+                .Setup(r => r.GetByIdAsync(account.Id, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(account);
 
             // Act
@@ -262,7 +261,7 @@ namespace NexaPay.Tests.Application.Features.Transactions
             };
 
             MockAccountRepository
-                .Setup(r => r.GetByIdAsync(account.Id))
+                .Setup(r => r.GetByIdAsync(account.Id, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(account);
 
             // Act
@@ -301,7 +300,7 @@ namespace NexaPay.Tests.Application.Features.Transactions
             };
 
             MockAccountRepository
-                .Setup(r => r.GetByIdAsync(It.IsAny<Guid>()))
+                .Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(
                     (NexaPay.Domain.Entities.Account?)null);
 

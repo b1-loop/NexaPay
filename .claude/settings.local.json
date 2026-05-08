@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dotnet run *)",
+      "PowerShell(Stop-Process *)",
+      "Bash(dotnet user-secrets *)",
+      "PowerShell(Get-Process *)",
+      "Bash(git stash *)",
+      "Bash(dotnet build *)",
+      "Bash(dotnet test *)",
+      "Bash(dotnet ef *)",
+      "Bash(Remove-Item *)",
+      "Bash(Select-String -Pattern \"error|Error\")",
+      "Bash(dotnet package *)",
+      "Bash(dotnet add *)",
+      "Bash(dotnet list *)",
+      "Read(//c/tmp/**)",
+      "Read(//mnt/c/Users/haval/.nuget/packages/mediatr/14.1.0/lib/net8.0/**)",
+      "PowerShell($dll = \"$env:USERPROFILE\\\\.nuget\\\\packages\\\\mediatr\\\\14.1.0\\\\lib\\\\net8.0\\\\MediatR.dll\"; $bytes = [System.IO.File]::ReadAllText\\($dll, [System.Text.Encoding]::ASCII\\); $matches = [regex]::Matches\\($bytes, 'RequestHandlerDelegate[^\\\\x00]{0,60}'\\); $matches | Select-Object -First 10 -ExpandProperty Value)"
+    ]
+  }
+}

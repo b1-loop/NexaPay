@@ -10,7 +10,7 @@
 //   - Om användaren är User  → returnera bara EGNA konton
 //
 // Denna logik hanteras i handleren baserat på
-// UserId och IsAdmin som skickas med från controllern.
+// UserId och IsStaff som skickas med från controllern.
 // ============================================================
 
 using MediatR;
@@ -28,6 +28,6 @@ namespace NexaPay.Application.Features.Accounts.Queries.GetAllAccounts
         // Om användaren har Admin-rollen – hämtas från JWT-token
         // true = returnera alla konton
         // false = returnera bara användarens egna konton
-        public bool IsAdmin { get; init; }
+        public bool IsStaff { get; init; }
     }
 }

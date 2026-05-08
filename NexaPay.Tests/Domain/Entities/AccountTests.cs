@@ -1,176 +1,129 @@
-﻿// ============================================================
-// AccountTests.cs – NexaPay.Tests/Domain/Entities
-// ============================================================
-// Testar Account-entitetens egenskaper och standardvärden.
-// ============================================================
-
 using FluentAssertions;
 using NexaPay.Domain.Entities;
 using NexaPay.Domain.Enums;
+using NexaPay.Domain.ValueObjects;
 using NUnit.Framework;
 
 namespace NexaPay.Tests.Domain.Entities
 {
     [TestFixture]
     [Category("Domain")]
-    // [Category] på klassnivå = gäller alla tester i klassen
-    // Alla tester i denna klass kategoriseras som "Domain"
     public class AccountTests
     {
+        private static Money Sek(decimal amount) => new(amount, Currency.SEK);
+
         [Test]
         [Category("Account")]
-        [Category("DefaultValues")]
-        [Description(
-            "Verifierar att ett nytt Account-objekt har korrekta " +
-            "standardvärden – saldo 0, aktivt, inga transaktioner " +
-            "och inga kort.")]
-        public void Account_WhenCreated_ShouldHaveCorrectDefaultValues()
+        public void Account_WhenOpened_ShouldHaveCorrectDefaultValues()
         {
-            // Arrange
-            var account = new Account
-            {
-                Id = Guid.NewGuid(),
-                AccountNumber = "SE123456789",
-                AccountName = "Mitt sparkonto",
-                Balance = 0,
-                AccountType = AccountType.Savings,
-                IsActive = true,
-                OwnerId = "user-123",
-                CreatedAt = DateTime.UtcNow
-            };
+            var account = Account.Open("SE1", "Konto", AccountType.Savings, "user-1");
 
-            // Assert
-            account.Balance.Should().Be(0,
-                "ett nytt konto ska alltid börja med 0 i saldo");
-
-            account.IsActive.Should().BeTrue(
-                "ett nytt konto ska alltid vara aktivt");
-
-            account.AccountType.Should().Be(AccountType.Savings,
-                "kontotypen ska matcha det vi satte");
-
-            account.Transactions.Should().BeEmpty(
-                "ett nytt konto ska inte ha några transaktioner");
-
-            account.Cards.Should().BeEmpty(
-                "ett nytt konto ska inte ha några kort");
+            account.Balance.Amount.Should().Be(0);
+            account.Balance.Currency.Should().Be(Currency.SEK);
+            account.Status.Should().Be(AccountStatus.Open);
+            account.AccountType.Should().Be(AccountType.Savings);
+            account.Transactions.Should().BeEmpty();
+            account.Cards.Should().BeEmpty();
         }
 
         [Test]
         [Category("Account")]
-        [Category("Balance")]
-        [Description(
-            "Verifierar att Account-entiteten INTE skyddar mot " +
-            "negativt saldo – det ansvaret ligger i WithdrawHandler.")]
-        public void Account_WithNegativeBalance_ShouldBeAllowedByEntity()
+        public void Account_Deposit_ShouldIncreaseBalance()
         {
-            // Arrange
-            var account = new Account
-            {
-                Id = Guid.NewGuid(),
-                Balance = -100
-            };
+            var account = Account.Open("SE2", "Konto", AccountType.Checking, "user-1");
 
-            // Assert
-            account.Balance.Should().Be(-100,
-                "entiteten har inget skydd mot negativt saldo");
+            var tx = account.Deposit(Sek(500), "Testinsättning");
+
+            account.Balance.Amount.Should().Be(500);
+            account.Balance.Currency.Should().Be(Currency.SEK);
+            tx.Amount.Amount.Should().Be(500);
+            tx.Type.Should().Be(TransactionType.Deposit);
+            tx.BalanceAfterTransaction.Amount.Should().Be(500);
         }
 
         [Test]
         [Category("Account")]
-        [Category("SoftDelete")]
-        [Description(
-            "Verifierar att ett konto kan markeras som inaktivt " +
-            "och att UpdatedAt sätts korrekt vid soft delete.")]
-        public void Account_WhenDeactivated_IsActiveShouldBeFalse()
+        public void Account_Withdraw_ShouldDecreaseBalance()
         {
-            // Arrange
-            var account = new Account
-            {
-                Id = Guid.NewGuid(),
-                IsActive = true
-            };
+            var account = Account.Open("SE3", "Konto", AccountType.Checking, "user-1");
+            account.Deposit(Sek(1000), "Initial");
 
-            // Act
-            account.IsActive = false;
-            account.UpdatedAt = DateTime.UtcNow;
+            var tx = account.Withdraw(Sek(400), "Uttag");
 
-            // Assert
-            account.IsActive.Should().BeFalse(
-                "ett stängt konto ska vara markerat som inaktivt");
-
-            account.UpdatedAt.Should().NotBeNull(
-                "UpdatedAt ska sättas när kontot stängs");
+            account.Balance.Amount.Should().Be(600);
+            tx.Type.Should().Be(TransactionType.Withdrawal);
         }
 
         [Test]
         [Category("Account")]
-        [Category("Relations")]
-        [Description(
-            "Verifierar att transaktioner kan kopplas till ett konto " +
-            "och att navigationsegenskapen fungerar korrekt.")]
-        public void Account_WithTransactions_ShouldContainThem()
+        public void Account_Withdraw_WhenInsufficientBalance_ShouldThrow()
         {
-            // Arrange
-            var account = new Account
-            {
-                Id = Guid.NewGuid(),
-                Balance = 500
-            };
+            var account = Account.Open("SE4", "Konto", AccountType.Checking, "user-1");
+            account.Deposit(Sek(100), "Initial");
 
-            var transaction = new Transaction
-            {
-                Id = Guid.NewGuid(),
-                Amount = 500,
-                Type = TransactionType.Deposit,
-                Description = "Testinsättning",
-                BalanceAfterTransaction = 500,
-                AccountId = account.Id,
-                CreatedAt = DateTime.UtcNow
-            };
+            var act = () => account.Withdraw(Sek(200), "För stort uttag");
 
-            // Act
-            account.Transactions.Add(transaction);
-
-            // Assert
-            account.Transactions.Should().HaveCount(1,
-                "kontot ska ha exakt en transaktion");
-
-            account.Transactions.First().Amount.Should().Be(500,
-                "transaktionsbeloppet ska vara 500");
+            act.Should().Throw<InvalidOperationException>()
+                .WithMessage("*Otillräckligt saldo*");
         }
 
         [Test]
         [Category("Account")]
-        [Category("Relations")]
-        [Description(
-            "Verifierar att kort kan kopplas till ett konto " +
-            "och att navigationsegenskapen fungerar korrekt.")]
+        public void Account_Deposit_WhenCurrencyMismatch_ShouldThrow()
+        {
+            var account = Account.Open("SE5", "Konto", AccountType.Checking, "user-1", Currency.SEK);
+
+            var act = () => account.Deposit(new Money(100, Currency.EUR), "EUR-insättning");
+
+            act.Should().Throw<InvalidOperationException>()
+                .WithMessage("*valutor*");
+        }
+
+        [Test]
+        [Category("Account")]
+        public void Account_Close_ShouldSetIsActiveToFalse()
+        {
+            var account = Account.Open("SE6", "Konto", AccountType.Checking, "user-1");
+
+            account.Close();
+
+            account.Status.Should().Be(AccountStatus.Closed);
+            account.UpdatedAt.Should().NotBeNull();
+        }
+
+        [Test]
+        [Category("Account")]
+        public void Account_Close_WhenBalanceGreaterThanZero_ShouldThrow()
+        {
+            var account = Account.Open("SE7", "Konto", AccountType.Checking, "user-1");
+            account.Deposit(Sek(100), "Initial");
+
+            var act = () => account.Close();
+
+            act.Should().Throw<InvalidOperationException>()
+                .WithMessage("*saldo*");
+        }
+
+        [Test]
+        [Category("Account")]
         public void Account_WithCards_ShouldContainThem()
         {
-            // Arrange
-            var account = new Account { Id = Guid.NewGuid() };
+            var account = Account.Open("SE8", "Konto", AccountType.Checking, "user-1");
 
             var card = new Card
             {
                 Id = Guid.NewGuid(),
-                CardNumber = "4532123456789010",
+                CardToken = Guid.NewGuid().ToString(),
+                Last4Digits = "9010",
                 CardHolderName = "ANNA SVENSSON",
-                Status = CardStatus.Active,
                 AccountId = account.Id,
                 CreatedAt = DateTime.UtcNow
             };
-
-            // Act
+            card.Activate();
             account.Cards.Add(card);
 
-            // Assert
-            account.Cards.Should().HaveCount(1,
-                "kontot ska ha exakt ett kort");
-
-            account.Cards.First().Status.Should().Be(
-                CardStatus.Active,
-                "kortet ska vara aktivt");
+            account.Cards.Should().HaveCount(1);
+            account.Cards.First().Status.Should().Be(CardStatus.Active);
         }
     }
 }

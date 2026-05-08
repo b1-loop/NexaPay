@@ -76,11 +76,11 @@ namespace NexaPay.Tests.Application.Features.Cards
                 status: CardStatus.Inactive);
 
             MockCardRepository
-                .Setup(r => r.GetByIdAsync(card.Id))
+                .Setup(r => r.GetByIdAsync(card.Id, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(card);
 
             MockAccountRepository
-                .Setup(r => r.GetByIdAsync(account.Id))
+                .Setup(r => r.GetByIdAsync(account.Id, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(account);
 
             var command = new ActivateCardCommand
@@ -125,7 +125,7 @@ namespace NexaPay.Tests.Application.Features.Cards
                 status: CardStatus.Inactive);
 
             MockCardRepository
-                .Setup(r => r.GetByIdAsync(card.Id))
+                .Setup(r => r.GetByIdAsync(card.Id, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(card);
 
             var command = new ActivateCardCommand
@@ -148,7 +148,7 @@ namespace NexaPay.Tests.Application.Features.Cards
                 "kortets status ska vara Active");
 
             MockAccountRepository.Verify(
-                r => r.GetByIdAsync(It.IsAny<Guid>()),
+                r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()),
                 Times.Never,
                 "ägarskapskontrollen ska hoppas över för personal");
         }
@@ -170,11 +170,11 @@ namespace NexaPay.Tests.Application.Features.Cards
                 status: CardStatus.Inactive);
 
             MockCardRepository
-                .Setup(r => r.GetByIdAsync(card.Id))
+                .Setup(r => r.GetByIdAsync(card.Id, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(card);
 
             MockAccountRepository
-                .Setup(r => r.GetByIdAsync(account.Id))
+                .Setup(r => r.GetByIdAsync(account.Id, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(account);
 
             var command = new ActivateCardCommand
@@ -209,7 +209,7 @@ namespace NexaPay.Tests.Application.Features.Cards
         {
             // Arrange
             MockCardRepository
-                .Setup(r => r.GetByIdAsync(It.IsAny<Guid>()))
+                .Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync((NexaPay.Domain.Entities.Card?)null);
 
             var command = new ActivateCardCommand
@@ -250,11 +250,11 @@ namespace NexaPay.Tests.Application.Features.Cards
                 status: CardStatus.Active);
 
             MockCardRepository
-                .Setup(r => r.GetByIdAsync(card.Id))
+                .Setup(r => r.GetByIdAsync(card.Id, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(card);
 
             MockAccountRepository
-                .Setup(r => r.GetByIdAsync(account.Id))
+                .Setup(r => r.GetByIdAsync(account.Id, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(account);
 
             var command = new ActivateCardCommand
@@ -299,11 +299,11 @@ namespace NexaPay.Tests.Application.Features.Cards
                 status: CardStatus.Blocked);
 
             MockCardRepository
-                .Setup(r => r.GetByIdAsync(card.Id))
+                .Setup(r => r.GetByIdAsync(card.Id, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(card);
 
             MockAccountRepository
-                .Setup(r => r.GetByIdAsync(account.Id))
+                .Setup(r => r.GetByIdAsync(account.Id, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(account);
 
             var command = new ActivateCardCommand
@@ -344,11 +344,11 @@ namespace NexaPay.Tests.Application.Features.Cards
                 status: CardStatus.Expired);
 
             MockCardRepository
-                .Setup(r => r.GetByIdAsync(card.Id))
+                .Setup(r => r.GetByIdAsync(card.Id, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(card);
 
             MockAccountRepository
-                .Setup(r => r.GetByIdAsync(account.Id))
+                .Setup(r => r.GetByIdAsync(account.Id, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(account);
 
             var command = new ActivateCardCommand

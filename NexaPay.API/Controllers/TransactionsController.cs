@@ -21,6 +21,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using NexaPay.API.Extensions;
 using NexaPay.Application.Common.Constants;
+using NexaPay.Application.Common.Models;
+using NexaPay.Application.DTOs;
 using NexaPay.Application.Features.Transactions.Commands.Deposit;
 using NexaPay.Application.Features.Transactions.Commands.Transfer;
 using NexaPay.Application.Features.Transactions.Commands.Withdraw;
@@ -44,7 +46,12 @@ namespace NexaPay.API.Controllers
             _mediator = mediator;
         }
 
-        // Hämta inloggad användares ID från JWT-token
+        // Parses the Idempotency-Key request header. Returns null if absent or not a valid GUID.
+        private Guid? GetIdempotencyKey()
+        {
+            Request.Headers.TryGetValue("Idempotency-Key", out var value);
+            return Guid.TryParse(value, out var parsed) ? parsed : null;
+        }
 
         // --------------------------------------------------------
         // GET api/transactions/account/{accountId}
@@ -62,7 +69,7 @@ namespace NexaPay.API.Controllers
         //   hasNextPage   = om det finns fler sidor
         //   hasPreviousPage = om det finns föregående sida
         [HttpGet("account/{accountId:guid}")]
-        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse<PagedResult<TransactionDto>>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> GetByAccount(
@@ -78,7 +85,7 @@ namespace NexaPay.API.Controllers
                 {
                     AccountId = accountId,
                     UserId = User.GetUserId(),
-                    IsAdmin = User.IsStaff(),
+                    IsStaff = User.IsStaff(),
                     // Skicka med pagineringsparametrar från URL
                     Page = page,
                     PageSize = pageSize
@@ -87,7 +94,7 @@ namespace NexaPay.API.Controllers
             if (result.IsSuccess)
                 return Ok(ApiResponse.Ok(result.Value));
 
-            return NotFound(ApiResponse.Fail(result.Error));
+            return this.ToErrorResponse(result);
         }
 
         // --------------------------------------------------------
@@ -96,7 +103,7 @@ namespace NexaPay.API.Controllers
         // Auditor kan INTE göra insättningar – read-only roll
         [HttpPost("deposit")]
         [Authorize(Roles = Roles.CanWrite)]
-        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse<TransactionDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -110,7 +117,8 @@ namespace NexaPay.API.Controllers
                     Amount = request.Amount,
                     Description = request.Description,
                     UserId = User.GetUserId(),
-                    IsStaff = User.IsStaff()
+                    IsStaff = User.IsStaff(),
+                    IdempotencyKey = GetIdempotencyKey()
                 });
 
             if (result.IsSuccess)
@@ -118,7 +126,7 @@ namespace NexaPay.API.Controllers
                     result.Value,
                     "Insättning genomfördes framgångsrikt"));
 
-            return BadRequest(ApiResponse.Fail(result.Error));
+            return this.ToErrorResponse(result);
         }
 
         // --------------------------------------------------------
@@ -127,7 +135,7 @@ namespace NexaPay.API.Controllers
         // Auditor kan INTE göra uttag – read-only roll
         [HttpPost("withdraw")]
         [Authorize(Roles = Roles.CanWrite)]
-        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse<TransactionDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -141,7 +149,8 @@ namespace NexaPay.API.Controllers
                     Amount = request.Amount,
                     Description = request.Description,
                     UserId = User.GetUserId(),
-                    IsStaff = User.IsStaff()
+                    IsStaff = User.IsStaff(),
+                    IdempotencyKey = GetIdempotencyKey()
                 });
 
             if (result.IsSuccess)
@@ -149,7 +158,7 @@ namespace NexaPay.API.Controllers
                     result.Value,
                     "Uttag genomfördes framgångsrikt"));
 
-            return BadRequest(ApiResponse.Fail(result.Error));
+            return this.ToErrorResponse(result);
         }
 
         // --------------------------------------------------------
@@ -159,7 +168,7 @@ namespace NexaPay.API.Controllers
         // Teller och Auditor kan INTE göra överföringar
         [HttpPost("transfer")]
         [Authorize(Roles = Roles.CanTransfer)]
-        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse<TransactionDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -174,7 +183,8 @@ namespace NexaPay.API.Controllers
                     Amount = request.Amount,
                     Description = request.Description,
                     UserId = User.GetUserId(),
-                    IsStaff = User.IsStaff()
+                    IsStaff = User.IsStaff(),
+                    IdempotencyKey = GetIdempotencyKey()
                 });
 
             if (result.IsSuccess)
@@ -182,7 +192,7 @@ namespace NexaPay.API.Controllers
                     result.Value,
                     "Överföring genomfördes framgångsrikt"));
 
-            return BadRequest(ApiResponse.Fail(result.Error));
+            return this.ToErrorResponse(result);
         }
     }
 

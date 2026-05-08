@@ -16,6 +16,7 @@
 using FluentAssertions;
 using Moq;
 using NexaPay.Application.Features.Accounts.Commands.DeleteAccount;
+using NexaPay.Domain.Enums;
 using NUnit.Framework;
 
 namespace NexaPay.Tests.Application.Features.Accounts
@@ -73,14 +74,14 @@ namespace NexaPay.Tests.Application.Features.Accounts
                 balance: 0);
 
             MockAccountRepository
-                .Setup(r => r.GetByIdAsync(account.Id))
+                .Setup(r => r.GetByIdAsync(account.Id, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(account);
 
             var command = new DeleteAccountCommand
             {
                 AccountId = account.Id,
                 UserId = userId,
-                IsAdmin = false
+                IsStaff = false
             };
 
             // Act
@@ -92,8 +93,8 @@ namespace NexaPay.Tests.Application.Features.Accounts
             result.IsSuccess.Should().BeTrue(
                 "ägaren ska kunna stänga ett tomt konto");
 
-            account.IsActive.Should().BeFalse(
-                "kontot ska vara inaktivt efter stängning");
+            account.Status.Should().Be(AccountStatus.Closed,
+                "kontot ska vara Closed efter stängning");
 
             MockUnitOfWork.Verify(
                 u => u.SaveChangesAsync(It.IsAny<CancellationToken>()),
@@ -111,14 +112,14 @@ namespace NexaPay.Tests.Application.Features.Accounts
         {
             // Arrange
             MockAccountRepository
-                .Setup(r => r.GetByIdAsync(It.IsAny<Guid>()))
+                .Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync((NexaPay.Domain.Entities.Account?)null);
 
             var command = new DeleteAccountCommand
             {
                 AccountId = Guid.NewGuid(),
                 UserId = "user-123",
-                IsAdmin = false
+                IsStaff = false
             };
 
             // Act
@@ -151,14 +152,14 @@ namespace NexaPay.Tests.Application.Features.Accounts
                 balance: 0);
 
             MockAccountRepository
-                .Setup(r => r.GetByIdAsync(account.Id))
+                .Setup(r => r.GetByIdAsync(account.Id, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(account);
 
             var command = new DeleteAccountCommand
             {
                 AccountId = account.Id,
                 UserId = "hacker-456",
-                IsAdmin = false
+                IsStaff = false
             };
 
             // Act
@@ -181,7 +182,7 @@ namespace NexaPay.Tests.Application.Features.Accounts
         [Test]
         [Category("Security")]
         [Description(
-            "Verifierar att Admin (IsAdmin=true) kan stänga ett " +
+            "Verifierar att Admin (IsStaff=true) kan stänga ett " +
             "konto även om de inte är ägaren.")]
         public async Task Handle_WhenAdminClosesAnyAccount_ShouldSucceed()
         {
@@ -191,14 +192,14 @@ namespace NexaPay.Tests.Application.Features.Accounts
                 balance: 0);
 
             MockAccountRepository
-                .Setup(r => r.GetByIdAsync(account.Id))
+                .Setup(r => r.GetByIdAsync(account.Id, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(account);
 
             var command = new DeleteAccountCommand
             {
                 AccountId = account.Id,
                 UserId = "admin-999",
-                IsAdmin = true
+                IsStaff = true
             };
 
             // Act
@@ -210,8 +211,8 @@ namespace NexaPay.Tests.Application.Features.Accounts
             result.IsSuccess.Should().BeTrue(
                 "Admin ska kunna stänga vilket konto som helst");
 
-            account.IsActive.Should().BeFalse(
-                "kontot ska vara inaktivt efter Admin-stängning");
+            account.Status.Should().Be(AccountStatus.Closed,
+                "kontot ska vara Closed efter Admin-stängning");
         }
 
         // --------------------------------------------------------
@@ -231,14 +232,14 @@ namespace NexaPay.Tests.Application.Features.Accounts
                 balance: 500);
 
             MockAccountRepository
-                .Setup(r => r.GetByIdAsync(account.Id))
+                .Setup(r => r.GetByIdAsync(account.Id, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(account);
 
             var command = new DeleteAccountCommand
             {
                 AccountId = account.Id,
                 UserId = userId,
-                IsAdmin = false
+                IsStaff = false
             };
 
             // Act
@@ -253,8 +254,8 @@ namespace NexaPay.Tests.Application.Features.Accounts
             result.Error.Should().Contain("saldo",
                 "felmeddelandet ska nämna saldot");
 
-            account.IsActive.Should().BeTrue(
-                "kontot ska fortfarande vara aktivt");
+            account.Status.Should().Be(AccountStatus.Open,
+                "kontot ska fortfarande vara Open");
 
             MockUnitOfWork.Verify(
                 u => u.SaveChangesAsync(It.IsAny<CancellationToken>()),
@@ -280,29 +281,29 @@ namespace NexaPay.Tests.Application.Features.Accounts
             var accountId = account.Id;
 
             MockAccountRepository
-                .Setup(r => r.GetByIdAsync(account.Id))
+                .Setup(r => r.GetByIdAsync(account.Id, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(account);
 
             var command = new DeleteAccountCommand
             {
                 AccountId = accountId,
                 UserId = userId,
-                IsAdmin = false
+                IsStaff = false
             };
 
             // Act
             await _handler.Handle(command, CancellationToken.None);
 
             // Assert – kontot finns fortfarande men är inaktivt
-            MockAccountRepository.Verify(
-                r => r.Delete(It.IsAny<NexaPay.Domain.Entities.Account>()),
-                Times.Never,
-                "kontot ska INTE tas bort fysiskt ur databasen");
+            // (Delete-metoden finns inte längre på IAccountRepository –
+            //  fysisk radering är omöjlig via interfacet)
+            account.Status.Should().Be(AccountStatus.Closed,
+                "kontot ska markeras som Closed via Close(), inte raderas fysiskt");
 
-            MockAccountRepository.Verify(
-                r => r.Update(It.IsAny<NexaPay.Domain.Entities.Account>()),
+            MockUnitOfWork.Verify(
+                u => u.SaveChangesAsync(It.IsAny<CancellationToken>()),
                 Times.Once,
-                "kontot ska uppdateras (IsActive=false), inte raderas");
+                "ändringar ska sparas till databasen");
         }
     }
 }

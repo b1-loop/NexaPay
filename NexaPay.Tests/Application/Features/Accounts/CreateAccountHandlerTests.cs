@@ -48,8 +48,7 @@ namespace NexaPay.Tests.Application.Features.Accounts
 
             _handler = new CreateAccountHandler(
                 MockUnitOfWork.Object,
-                Mapper,
-                Mock.Of<ILogger<CreateAccountHandler>>());
+                Mapper);
         }
 
         // --------------------------------------------------------
@@ -86,8 +85,8 @@ namespace NexaPay.Tests.Application.Features.Accounts
             result.Value.AccountType.Should().Be("Savings",
                 "kontotypen ska mappas från enum till sträng i DTO");
 
-            result.Value.IsActive.Should().BeTrue(
-                "ett nytt konto ska alltid vara aktivt");
+            result.Value.Status.Should().Be("Open",
+                "ett nytt konto ska alltid ha status Open");
 
             MockUnitOfWork.Verify(
                 u => u.SaveChangesAsync(It.IsAny<CancellationToken>()),
@@ -156,7 +155,8 @@ namespace NexaPay.Tests.Application.Features.Accounts
 
             MockAccountRepository.Verify(
                 r => r.AddAsync(
-                    It.IsAny<NexaPay.Domain.Entities.Account>()),
+                    It.IsAny<NexaPay.Domain.Entities.Account>(),
+                    It.IsAny<CancellationToken>()),
                 Times.AtLeastOnce,
                 "AddAsync ska anropas för att lägga till kontot");
         }

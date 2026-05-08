@@ -72,8 +72,7 @@ namespace NexaPay.Tests.Application.Features.Transactions
             // Skapa en ny handler för varje test
             _handler = new TransferHandler(
                 MockUnitOfWork.Object,
-                Mapper,
-                new Mock<ILogger<TransferHandler>>().Object);
+                Mapper);
         }
 
         // --------------------------------------------------------
@@ -114,11 +113,11 @@ namespace NexaPay.Tests.Application.Features.Transactions
 
             // Konfigurera mocken för båda kontona
             MockAccountRepository
-                .Setup(r => r.GetByIdAsync(fromAccount.Id))
+                .Setup(r => r.GetByIdAsync(fromAccount.Id, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(fromAccount);
 
             MockAccountRepository
-                .Setup(r => r.GetByIdAsync(toAccount.Id))
+                .Setup(r => r.GetByIdAsync(toAccount.Id, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(toAccount);
 
             // Act
@@ -140,11 +139,11 @@ namespace NexaPay.Tests.Application.Features.Transactions
                 "transaktionstypen ska vara Transfer");
 
             // Verifiera att avsändarens saldo minskade
-            fromAccount.Balance.Should().Be(700,
+            fromAccount.Balance.Amount.Should().Be(700,
                 "avsändarens saldo ska vara 1000 - 300 = 700");
 
             // Verifiera att mottagarens saldo ökade
-            toAccount.Balance.Should().Be(800,
+            toAccount.Balance.Amount.Should().Be(800,
                 "mottagarens saldo ska vara 500 + 300 = 800");
 
             // Verifiera att SaveChangesAsync anropades exakt en gång
@@ -159,7 +158,8 @@ namespace NexaPay.Tests.Application.Features.Transactions
             // En för avsändaren och en för mottagaren
             MockTransactionRepository.Verify(
                 t => t.AddAsync(
-                    It.IsAny<NexaPay.Domain.Entities.Transaction>()),
+                    It.IsAny<NexaPay.Domain.Entities.Transaction>(),
+                    It.IsAny<CancellationToken>()),
                 Times.Exactly(2),
                 "Två transaktionsposter ska skapas – " +
                 "en för avsändaren och en för mottagaren");
@@ -192,11 +192,11 @@ namespace NexaPay.Tests.Application.Features.Transactions
             };
 
             MockAccountRepository
-                .Setup(r => r.GetByIdAsync(fromAccount.Id))
+                .Setup(r => r.GetByIdAsync(fromAccount.Id, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(fromAccount);
 
             MockAccountRepository
-                .Setup(r => r.GetByIdAsync(toAccount.Id))
+                .Setup(r => r.GetByIdAsync(toAccount.Id, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(toAccount);
 
             // Act
@@ -251,11 +251,11 @@ namespace NexaPay.Tests.Application.Features.Transactions
             };
 
             MockAccountRepository
-                .Setup(r => r.GetByIdAsync(fromAccount.Id))
+                .Setup(r => r.GetByIdAsync(fromAccount.Id, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(fromAccount);
 
             MockAccountRepository
-                .Setup(r => r.GetByIdAsync(toAccount.Id))
+                .Setup(r => r.GetByIdAsync(toAccount.Id, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(toAccount);
 
             // Act
@@ -271,10 +271,10 @@ namespace NexaPay.Tests.Application.Features.Transactions
                 "felmeddelandet ska nämna saldot");
 
             // Saldona ska vara oförändrade
-            fromAccount.Balance.Should().Be(100,
+            fromAccount.Balance.Amount.Should().Be(100,
                 "avsändarens saldo ska vara oförändrat");
 
-            toAccount.Balance.Should().Be(500,
+            toAccount.Balance.Amount.Should().Be(500,
                 "mottagarens saldo ska vara oförändrat");
 
             MockUnitOfWork.Verify(
@@ -305,7 +305,7 @@ namespace NexaPay.Tests.Application.Features.Transactions
 
             // Mocken returnerar null = kontot finns inte
             MockAccountRepository
-                .Setup(r => r.GetByIdAsync(It.IsAny<Guid>()))
+                .Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(
                     (NexaPay.Domain.Entities.Account?)null);
 
@@ -350,13 +350,14 @@ namespace NexaPay.Tests.Application.Features.Transactions
 
             // Avsändarkontot finns
             MockAccountRepository
-                .Setup(r => r.GetByIdAsync(fromAccount.Id))
+                .Setup(r => r.GetByIdAsync(fromAccount.Id, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(fromAccount);
 
             // Mottagarkontot finns INTE
             MockAccountRepository
                 .Setup(r => r.GetByIdAsync(
-                    It.Is<Guid>(id => id != fromAccount.Id)))
+                    It.Is<Guid>(id => id != fromAccount.Id),
+                    It.IsAny<CancellationToken>()))
                 .ReturnsAsync(
                     (NexaPay.Domain.Entities.Account?)null);
 
@@ -404,11 +405,11 @@ namespace NexaPay.Tests.Application.Features.Transactions
             };
 
             MockAccountRepository
-                .Setup(r => r.GetByIdAsync(fromAccount.Id))
+                .Setup(r => r.GetByIdAsync(fromAccount.Id, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(fromAccount);
 
             MockAccountRepository
-                .Setup(r => r.GetByIdAsync(toAccount.Id))
+                .Setup(r => r.GetByIdAsync(toAccount.Id, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(toAccount);
 
             // Act
@@ -456,11 +457,11 @@ namespace NexaPay.Tests.Application.Features.Transactions
             };
 
             MockAccountRepository
-                .Setup(r => r.GetByIdAsync(fromAccount.Id))
+                .Setup(r => r.GetByIdAsync(fromAccount.Id, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(fromAccount);
 
             MockAccountRepository
-                .Setup(r => r.GetByIdAsync(toAccount.Id))
+                .Setup(r => r.GetByIdAsync(toAccount.Id, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(toAccount);
 
             // Act
@@ -510,11 +511,11 @@ namespace NexaPay.Tests.Application.Features.Transactions
             };
 
             MockAccountRepository
-                .Setup(r => r.GetByIdAsync(fromAccount.Id))
+                .Setup(r => r.GetByIdAsync(fromAccount.Id, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(fromAccount);
 
             MockAccountRepository
-                .Setup(r => r.GetByIdAsync(toAccount.Id))
+                .Setup(r => r.GetByIdAsync(toAccount.Id, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(toAccount);
 
             // Act
@@ -526,10 +527,10 @@ namespace NexaPay.Tests.Application.Features.Transactions
             result.IsSuccess.Should().BeTrue(
                 "man ska kunna överföra exakt hela saldot");
 
-            fromAccount.Balance.Should().Be(0,
+            fromAccount.Balance.Amount.Should().Be(0,
                 "avsändarens saldo ska vara 0 efter överföringen");
 
-            toAccount.Balance.Should().Be(500,
+            toAccount.Balance.Amount.Should().Be(500,
                 "mottagarens saldo ska vara 500 efter överföringen");
         }
     }

@@ -15,7 +15,8 @@
 
 using MediatR;
 using Microsoft.Extensions.Logging;
-using System.Diagnostics; // Stopwatch för att mäta tid
+using NexaPay.Application.Common.Interfaces;
+using System.Diagnostics;
 
 namespace NexaPay.Application.Common.Behaviors
 {
@@ -43,15 +44,18 @@ namespace NexaPay.Application.Common.Behaviors
             RequestHandlerDelegate<TResponse> next, // Nästa steg i pipeline
             CancellationToken cancellationToken)
         {
-            // Hämta requestens typnamn för logging (t.ex. "DepositCommand")
             var requestName = typeof(TRequest).Name;
+            var isSensitive = request is ISensitiveRequest;
 
-            // Logga att vi börjat behandla requesten
-            // LogInformation = normal information (inte fel, inte varning)
-            _logger.LogInformation(
-                "NexaPay: Hanterar request {@RequestName} {@Request}",
-                requestName,
-                request); // Loggar hela request-objektet med alla properties
+            if (isSensitive)
+                _logger.LogInformation(
+                    "NexaPay: Hanterar request {@RequestName} [känslig – detaljer utelämnade]",
+                    requestName);
+            else
+                _logger.LogInformation(
+                    "NexaPay: Hanterar request {@RequestName} {@Request}",
+                    requestName,
+                    request);
 
             // Starta en stopwatch för att mäta hur lång tid det tar
             var stopwatch = Stopwatch.StartNew();
@@ -71,15 +75,19 @@ namespace NexaPay.Application.Common.Behaviors
 
                 var elapsedMilliseconds = stopwatch.ElapsedMilliseconds;
 
-                // Om requesten tog mer än 500ms – logga en varning
-                // Det kan indikera ett prestandaproblem (långsam databasfråga osv.)
                 if (elapsedMilliseconds > 500)
                 {
-                    _logger.LogWarning(
-                        "NexaPay: Långsam request {@RequestName} ({@ElapsedMilliseconds}ms) {@Request}",
-                        requestName,
-                        elapsedMilliseconds,
-                        request);
+                    if (isSensitive)
+                        _logger.LogWarning(
+                            "NexaPay: Långsam request {@RequestName} ({@ElapsedMilliseconds}ms) [känslig – detaljer utelämnade]",
+                            requestName,
+                            elapsedMilliseconds);
+                    else
+                        _logger.LogWarning(
+                            "NexaPay: Långsam request {@RequestName} ({@ElapsedMilliseconds}ms) {@Request}",
+                            requestName,
+                            elapsedMilliseconds,
+                            request);
                 }
                 else
                 {

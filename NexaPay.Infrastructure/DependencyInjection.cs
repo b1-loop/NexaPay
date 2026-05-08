@@ -129,7 +129,14 @@ namespace NexaPay.Infrastructure
             // på inkommande requests
             var jwtKey = configuration["Jwt:Key"]
                 ?? throw new InvalidOperationException(
-                    "JWT-nyckeln saknas i konfigurationen");
+                    "JWT-nyckeln saknas i konfigurationen (Jwt:Key).");
+
+            var jwtKeyBytes = Encoding.UTF8.GetBytes(jwtKey);
+            if (jwtKeyBytes.Length < 32)
+                throw new InvalidOperationException(
+                    $"JWT-nyckeln är för kort ({jwtKeyBytes.Length} bytes). " +
+                    "HS256 kräver minst 32 bytes (256 bitar). " +
+                    "Sätt en längre nyckel i Jwt:Key (appsettings eller miljövariabel).");
 
             services.AddAuthentication(options =>
             {
@@ -158,8 +165,7 @@ namespace NexaPay.Infrastructure
 
                     // Validera signaturen med vår hemliga nyckel
                     ValidateIssuerSigningKey = true,
-                    IssuerSigningKey = new SymmetricSecurityKey(
-                        Encoding.UTF8.GetBytes(jwtKey)),
+                    IssuerSigningKey = new SymmetricSecurityKey(jwtKeyBytes),
 
                     // Tillåt inte tokens som gått ut
                     // ClockSkew = hur mycket tidsskillnad vi tolererar

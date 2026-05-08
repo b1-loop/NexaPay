@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using NexaPay.Domain.Entities;
+using NexaPay.Domain.Enums;
 
 namespace NexaPay.Infrastructure.Persistence
 {
@@ -42,9 +43,10 @@ namespace NexaPay.Infrastructure.Persistence
             modelBuilder.ApplyConfigurationsFromAssembly(
                 typeof(ApplicationDbContext).Assembly);
 
-            // Global filter – visa bara aktiva konton
+            // Global filter – dölj stängda konton för vanliga queries.
+            // Admin/Auditor-queries anropar IgnoreQueryFilters() för full synlighet.
             modelBuilder.Entity<Account>()
-                .HasQueryFilter(a => a.IsActive);
+                .HasQueryFilter(a => a.Status != AccountStatus.Closed);
         }
     }
 }

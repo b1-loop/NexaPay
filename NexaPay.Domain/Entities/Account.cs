@@ -1,80 +1,180 @@
-﻿// ============================================================
-// Account.cs – NexaPay.Domain/Entities
-// ============================================================
-// Representerar ett bankkonto i NexaPay.
-// Ärver från BaseEntity vilket ger oss Id, CreatedAt, UpdatedAt.
-//
-// Relationer:
-//   - En Account tillhör en användare (via OwnerId)
-//   - En Account kan ha många Transactions
-//   - En Account kan ha många Cards
-// ============================================================
-
 using NexaPay.Domain.Enums;
+using NexaPay.Domain.Events;
+using NexaPay.Domain.ValueObjects;
 
 namespace NexaPay.Domain.Entities
 {
-    public class Account : BaseEntity // Ärver Id, CreatedAt, UpdatedAt
+    public class Account : BaseEntity
     {
-        // --------------------------------------------------------
-        // Grundläggande information om kontot
-        // --------------------------------------------------------
+        private Account() { }
 
-        // Kontonummer – ett läsbart nummer för användaren
-        // T.ex. "SE1234567890" – genereras när kontot skapas
-        public string AccountNumber { get; set; } = string.Empty;
-
-        // Kontonamn – ett smeknamn som användaren ger kontot
-        // T.ex. "Mitt sparkonto" eller "Hushållskassan"
+        public string AccountNumber { get; private set; } = string.Empty;
         public string AccountName { get; set; } = string.Empty;
-
-        // Aktuellt saldo på kontot
-        // "decimal" används för pengar – aldrig "double" eller "float"
-        // eftersom de kan ge avrundningsfel (t.ex. 0.1 + 0.2 = 0.30000000000000004)
-        // decimal är exakt och perfekt för finansiella beräkningar
-        public decimal Balance { get; set; }
-
-        // Typ av konto – Checking, Savings eller ISK
-        // Lagras som ett heltal i databasen men visas som text i C#
+        public Money Balance { get; private set; } = Money.Zero(Currency.SEK);
         public AccountType AccountType { get; set; }
-
-        // Om kontot är aktivt eller stängt
-        // false = stängt konto, true = aktivt konto
-        public bool IsActive { get; set; } = true; // Nytt konto är alltid aktivt
-
-        // --------------------------------------------------------
-        // Koppling till användaren (Foreign Key)
-        // --------------------------------------------------------
-
-        // ID:t för användaren som äger detta konto
-        // "string" eftersom ASP.NET Identity använder string som användar-ID
-        // Detta är en Foreign Key – pekar på användartabellen
+        public AccountStatus Status { get; private set; } = AccountStatus.Open;
         public string OwnerId { get; set; } = string.Empty;
 
-        // --------------------------------------------------------
-        // Navigationsegenskaper (Relations)
-        // --------------------------------------------------------
-        // Navigationsegenskaper används av Entity Framework för att
-        // ladda relaterad data. De lagras INTE i Account-tabellen –
-        // de är bara C#-objekt som EF fyller i när vi inkluderar dem.
-        // Vi initierar dem som tomma listor för att undvika null-fel.
-
-        // Alla transaktioner som tillhör detta konto
-        // En Account kan ha 0 till många Transactions
-        public ICollection<Transaction> Transactions { get; set; }
-            = new List<Transaction>();
-
-        // Alla kort som är kopplade till detta konto
-        // En Account kan ha 0 till många Cards
-        public ICollection<Card> Cards { get; set; }
-            = new List<Card>();
-
-        // --------------------------------------------------------
-        // Optimistisk concurrency – skydd mot parallella uppdateringar
-        // --------------------------------------------------------
-        // SQL Server uppdaterar denna automatiskt vid varje UPDATE.
-        // EF Core inkluderar den i WHERE-klausulen vid sparning.
-        // Om versionen inte stämmer → DbUpdateConcurrencyException.
+        public ICollection<Transaction> Transactions { get; set; } = new List<Transaction>();
+        public ICollection<Card> Cards { get; set; } = new List<Card>();
         public byte[] RowVersion { get; set; } = [];
+
+        public static Account Open(
+            string accountNumber,
+            string accountName,
+            AccountType accountType,
+            string ownerId,
+            Currency currency = Currency.SEK)
+        {
+            return new Account
+            {
+                Id = Guid.NewGuid(),
+                AccountNumber = accountNumber,
+                AccountName = accountName,
+                AccountType = accountType,
+                OwnerId = ownerId,
+                Balance = Money.Zero(currency),
+                CreatedAt = DateTime.UtcNow
+            };
+        }
+
+        public Transaction Deposit(Money amount, string description, Guid? idempotencyKey = null)
+        {
+            if (Status != AccountStatus.Open)
+                throw new InvalidOperationException(
+                    $"Kan inte sätta in pengar på ett {Status.ToString().ToLower()} konto");
+
+            Balance = Balance + amount;
+            UpdatedAt = DateTime.UtcNow;
+
+            RaiseDomainEvent(new MoneyDeposited(Id, OwnerId, amount, Balance, DateTime.UtcNow));
+
+            return new Transaction
+            {
+                Id = Guid.NewGuid(),
+                Amount = amount,
+                Type = TransactionType.Deposit,
+                Description = description,
+                BalanceAfterTransaction = Balance,
+                AccountId = Id,
+                IdempotencyKey = idempotencyKey,
+                CreatedAt = DateTime.UtcNow
+            };
+        }
+
+        public Transaction Withdraw(Money amount, string description, Guid? idempotencyKey = null)
+        {
+            if (Status != AccountStatus.Open)
+                throw new InvalidOperationException(
+                    $"Kan inte ta ut pengar från ett {Status.ToString().ToLower()} konto");
+
+            if (Balance < amount)
+                throw new InvalidOperationException(
+                    $"Otillräckligt saldo. Tillgängligt saldo: {Balance}, Begärt belopp: {amount}");
+
+            Balance = Balance - amount;
+            UpdatedAt = DateTime.UtcNow;
+
+            RaiseDomainEvent(new MoneyWithdrawn(Id, OwnerId, amount, Balance, DateTime.UtcNow));
+
+            return new Transaction
+            {
+                Id = Guid.NewGuid(),
+                Amount = amount,
+                Type = TransactionType.Withdrawal,
+                Description = description,
+                BalanceAfterTransaction = Balance,
+                AccountId = Id,
+                IdempotencyKey = idempotencyKey,
+                CreatedAt = DateTime.UtcNow
+            };
+        }
+
+        public (Transaction FromTransaction, Transaction ToTransaction) TransferTo(
+            Money amount,
+            string description,
+            Account receiver,
+            Guid? idempotencyKey = null)
+        {
+            if (Status != AccountStatus.Open)
+                throw new InvalidOperationException($"Avsändarkontot är {Status.ToString().ToLower()}");
+
+            if (receiver.Status != AccountStatus.Open)
+                throw new InvalidOperationException($"Mottagarkontot är {receiver.Status.ToString().ToLower()}");
+
+            if (Balance < amount)
+                throw new InvalidOperationException(
+                    $"Otillräckligt saldo. Tillgängligt: {Balance}, Begärt: {amount}");
+
+            Balance = Balance - amount;
+            UpdatedAt = DateTime.UtcNow;
+
+            receiver.Balance = receiver.Balance + amount;
+            receiver.UpdatedAt = DateTime.UtcNow;
+
+            RaiseDomainEvent(new MoneyTransferred(Id, receiver.Id, OwnerId, amount, DateTime.UtcNow));
+
+            var fromTransaction = new Transaction
+            {
+                Id = Guid.NewGuid(),
+                Amount = amount,
+                Type = TransactionType.Transfer,
+                Description = $"Överföring till konto: {description}",
+                BalanceAfterTransaction = Balance,
+                ReceiverAccountId = receiver.Id,
+                AccountId = Id,
+                IdempotencyKey = idempotencyKey,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            var toTransaction = new Transaction
+            {
+                Id = Guid.NewGuid(),
+                Amount = amount,
+                Type = TransactionType.Transfer,
+                Description = $"Överföring från konto: {description}",
+                BalanceAfterTransaction = receiver.Balance,
+                AccountId = receiver.Id,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            return (fromTransaction, toTransaction);
+        }
+
+        public void Freeze()
+        {
+            if (Status == AccountStatus.Closed)
+                throw new InvalidOperationException("Kan inte frysa ett stängt konto");
+            if (Status == AccountStatus.Frozen)
+                throw new InvalidOperationException("Kontot är redan fryst");
+
+            Status = AccountStatus.Frozen;
+            UpdatedAt = DateTime.UtcNow;
+        }
+
+        public void Unfreeze()
+        {
+            if (Status != AccountStatus.Frozen)
+                throw new InvalidOperationException("Kontot är inte fryst");
+
+            Status = AccountStatus.Open;
+            UpdatedAt = DateTime.UtcNow;
+        }
+
+        public void Close()
+        {
+            if (Status == AccountStatus.Closed)
+                throw new InvalidOperationException("Kontot är redan stängt");
+
+            if (Balance.Amount > 0)
+                throw new InvalidOperationException(
+                    $"Kontot kan inte stängas eftersom det har ett saldo på {Balance}. " +
+                    "Töm kontot innan du stänger det.");
+
+            Status = AccountStatus.Closed;
+            UpdatedAt = DateTime.UtcNow;
+
+            RaiseDomainEvent(new AccountClosed(Id, OwnerId, DateTime.UtcNow));
+        }
     }
 }

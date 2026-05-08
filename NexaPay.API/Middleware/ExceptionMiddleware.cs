@@ -9,12 +9,17 @@
 // HTML-felsida vid exceptions – inte bra för ett API!
 //
 // Mappning av exceptions till HTTP-statuskoder:
-//   ValidationException → 400 Bad Request
-//   NotFoundException   → 404 Not Found
-//   Övriga exceptions   → 500 Internal Server Error
+//   ValidationException  → 400 Bad Request
+//   UnauthorizedAccess   → 403 Forbidden
+//   ConcurrencyException → 409 Conflict
+//   Övriga exceptions    → 500 Internal Server Error
+//
+// Not-found och business-rule-fel hanteras via Result<T>.ErrorType
+// i handlers och mappas till 404/400 av controllers via ToErrorResponse().
 // ============================================================
 
 using NexaPay.Application.Common.Exceptions;
+using NexaPay.Domain.Exceptions;
 using System.Net;
 using System.Text.Json;
 
@@ -62,18 +67,6 @@ namespace NexaPay.API.Middleware
                     "Valideringsfel",
                     ex.Errors);
             }
-            catch (NotFoundException ex)
-            {
-                // NotFoundException kastas när en resurs inte hittas
-                // HTTP 404 Not Found
-                _logger.LogWarning(
-                    "Resurs hittades inte: {Message}", ex.Message);
-
-                await HandleExceptionAsync(
-                    context,
-                    HttpStatusCode.NotFound,
-                    ex.Message);
-            }
             catch (UnauthorizedAccessException ex)
             {
                 // Kastas vid behörighetsfel
@@ -84,6 +77,18 @@ namespace NexaPay.API.Middleware
                 await HandleExceptionAsync(
                     context,
                     HttpStatusCode.Forbidden,
+                    ex.Message);
+            }
+            catch (ConcurrencyException ex)
+            {
+                // Kastas av UnitOfWork när DbUpdateConcurrencyException inträffar
+                // HTTP 409 Conflict – resursen ändrades av en annan begäran
+                _logger.LogWarning(
+                    "Konkurrensproblem: {Message}", ex.Message);
+
+                await HandleExceptionAsync(
+                    context,
+                    HttpStatusCode.Conflict,
                     ex.Message);
             }
             catch (Exception ex)

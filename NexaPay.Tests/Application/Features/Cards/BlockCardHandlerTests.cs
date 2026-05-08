@@ -69,7 +69,7 @@ namespace NexaPay.Tests.Application.Features.Cards
             var card = CreateTestCard(status: CardStatus.Active);
 
             MockCardRepository
-                .Setup(r => r.GetByIdAsync(card.Id))
+                .Setup(r => r.GetByIdAsync(card.Id, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(card);
 
             var command = new BlockCardCommand
@@ -109,7 +109,7 @@ namespace NexaPay.Tests.Application.Features.Cards
         {
             // Arrange
             MockCardRepository
-                .Setup(r => r.GetByIdAsync(It.IsAny<Guid>()))
+                .Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync((NexaPay.Domain.Entities.Card?)null);
 
             var command = new BlockCardCommand
@@ -147,7 +147,7 @@ namespace NexaPay.Tests.Application.Features.Cards
             var card = CreateTestCard(status: CardStatus.Blocked);
 
             MockCardRepository
-                .Setup(r => r.GetByIdAsync(card.Id))
+                .Setup(r => r.GetByIdAsync(card.Id, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(card);
 
             var command = new BlockCardCommand
@@ -188,7 +188,7 @@ namespace NexaPay.Tests.Application.Features.Cards
             var card = CreateTestCard(status: CardStatus.Expired);
 
             MockCardRepository
-                .Setup(r => r.GetByIdAsync(card.Id))
+                .Setup(r => r.GetByIdAsync(card.Id, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(card);
 
             var command = new BlockCardCommand

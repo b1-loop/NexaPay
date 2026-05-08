@@ -28,18 +28,9 @@ namespace NexaPay.Application.Features.Auth.Commands.Login
             LoginCommand request,
             CancellationToken cancellationToken)
         {
-            try
-            {
-                // Delegera till AuthService i Infrastructure
-                return await _authService.LoginAsync(
-                    request.Email,
-                    request.Password);
-            }
-            catch (Exception ex)
-            {
-                return Result<AuthDto>.Failure(
-                    $"Ett fel uppstod vid inloggning: {ex.Message}");
-            }
+            return await _authService.LoginAsync(
+                request.Email,
+                request.Password);
         }
     }
 }

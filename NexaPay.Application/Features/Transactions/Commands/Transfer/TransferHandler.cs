@@ -1,31 +1,9 @@
-﻿// ============================================================
-// TransferHandler.cs
-// NexaPay.Application/Features/Transactions/Commands/Transfer
-// ============================================================
-// Hanterar överföring av pengar mellan två konton.
-//
-// BUGGFIX: Tidigare uppdaterades kontona innan alla
-// affärsregler var verifierade. Det innebar att
-// SaveChangesAsync kunde anropas även vid fel.
-//
-// KORREKT flöde:
-//   1. Hämta och VALIDERA alla konton (ingen uppdatering än!)
-//   2. Kör ALLA affärsregler (ägare, saldo, aktiv)
-//   3. Uppdatera kontona FÖRST när allt är verifierat
-//   4. Spara atomärt via Unit of Work
-//
-// Unit of Work garanterar att ALLA operationer lyckas
-// eller att INGEN av dem sparas – atomärt!
-// ============================================================
-
 using AutoMapper;
 using MediatR;
-using Microsoft.Extensions.Logging;
 using NexaPay.Application.Common.Models;
 using NexaPay.Application.DTOs;
-using NexaPay.Domain.Entities;
-using NexaPay.Domain.Enums;
 using NexaPay.Domain.Interfaces;
+using NexaPay.Domain.ValueObjects;
 
 namespace NexaPay.Application.Features.Transactions.Commands.Transfer
 {
@@ -34,16 +12,13 @@ namespace NexaPay.Application.Features.Transactions.Commands.Transfer
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
-        private readonly ILogger<TransferHandler> _logger;
 
         public TransferHandler(
             IUnitOfWork unitOfWork,
-            IMapper mapper,
-            ILogger<TransferHandler> logger)
+            IMapper mapper)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
-            _logger = logger;
         }
 
         public async Task<Result<TransactionDto>> Handle(
@@ -52,143 +27,50 @@ namespace NexaPay.Application.Features.Transactions.Commands.Transfer
         {
             try
             {
-                // --------------------------------------------------------
-                // FAS 1: VALIDERING
-                // Hämta och validera ALLT innan vi ändrar något!
-                // Inga uppdateringar sker i denna fas.
-                // --------------------------------------------------------
-
-                // Steg 1: Hämta avsändarkontot
                 var fromAccount = await _unitOfWork.Accounts
-                    .GetByIdAsync(request.FromAccountId);
+                    .GetByIdAsync(request.FromAccountId, cancellationToken);
 
-                // Kontot måste finnas
                 if (fromAccount == null)
-                    return Result<TransactionDto>.Failure(
-                        $"Avsändarkonto med ID " +
-                        $"{request.FromAccountId} hittades inte");
+                    return Result<TransactionDto>.NotFound(
+                        $"Avsändarkonto med ID {request.FromAccountId} hittades inte");
 
-                // Steg 2: Kontrollera ägarskap DIREKT
-                // Personal (IsStaff) kan överföra från kunders konton
-                // Vanliga användare kan bara överföra från sina egna konton
                 if (!request.IsStaff && fromAccount.OwnerId != request.UserId)
-                    return Result<TransactionDto>.Failure(
-                        $"Avsändarkonto med ID " +
-                        $"{request.FromAccountId} hittades inte");
-                // Vi returnerar samma fel som "inte hittat" av säkerhetsskäl
-                // – avslöjar inte att kontot finns men ägs av någon annan
+                    return Result<TransactionDto>.NotFound(
+                        $"Avsändarkonto med ID {request.FromAccountId} hittades inte");
 
-                // Steg 3: Kontrollera att avsändarkontot är aktivt
-                if (!fromAccount.IsActive)
-                    return Result<TransactionDto>.Failure(
-                        "Avsändarkontot är inaktivt");
-
-                // Steg 4: Hämta mottagarkontot
                 var toAccount = await _unitOfWork.Accounts
-                    .GetByIdAsync(request.ToAccountId);
+                    .GetByIdAsync(request.ToAccountId, cancellationToken);
 
                 if (toAccount == null)
-                    return Result<TransactionDto>.Failure(
-                        $"Mottagarkonto med ID " +
-                        $"{request.ToAccountId} hittades inte");
+                    return Result<TransactionDto>.NotFound(
+                        $"Mottagarkonto med ID {request.ToAccountId} hittades inte");
 
-                // Steg 5: Kontrollera att mottagarkontot är aktivt
-                if (!toAccount.IsActive)
-                    return Result<TransactionDto>.Failure(
-                        "Mottagarkontot är inaktivt");
-
-                // Steg 6: Overdraft-skydd
-                // Kontrollera saldot INNAN vi uppdaterar något
-                if (fromAccount.Balance < request.Amount)
-                    return Result<TransactionDto>.Failure(
-                        $"Otillräckligt saldo. " +
-                        $"Tillgängligt: {fromAccount.Balance:C}, " +
-                        $"Begärt: {request.Amount:C}");
-
-                // --------------------------------------------------------
-                // FAS 2: UPPDATERING
-                // Alla valideringar har passerat – nu är det säkert
-                // att uppdatera kontona och skapa transaktioner.
-                // --------------------------------------------------------
-
-                // Steg 7: Uppdatera saldona
-                // Dra av från avsändaren
-                fromAccount.Balance -= request.Amount;
-                fromAccount.UpdatedAt = DateTime.UtcNow;
-
-                // Lägg till hos mottagaren
-                toAccount.Balance += request.Amount;
-                toAccount.UpdatedAt = DateTime.UtcNow;
-
-                // Steg 8: Skapa transaktionspost för avsändaren
-                // Denna post visar uttaget från avsändarens perspektiv
-                var fromTransaction = new Transaction
+                if (request.IdempotencyKey.HasValue)
                 {
-                    Id = Guid.NewGuid(),
-                    Amount = request.Amount,
-                    Type = TransactionType.Transfer,
-                    Description = $"Överföring till konto: " +
-                                  $"{request.Description}",
-                    // Saldot EFTER överföringen
-                    BalanceAfterTransaction = fromAccount.Balance,
-                    // Peka ut mottagarkontot för historiken
-                    ReceiverAccountId = request.ToAccountId,
-                    AccountId = request.FromAccountId,
-                    CreatedAt = DateTime.UtcNow
-                };
+                    var existing = await _unitOfWork.Transactions
+                        .GetByIdempotencyKeyAsync(request.IdempotencyKey.Value, cancellationToken);
+                    if (existing != null)
+                        return Result<TransactionDto>.Success(_mapper.Map<TransactionDto>(existing));
+                }
 
-                // Steg 9: Skapa transaktionspost för mottagaren
-                // Denna post visar insättningen från mottagarens perspektiv
-                var toTransaction = new Transaction
-                {
-                    Id = Guid.NewGuid(),
-                    Amount = request.Amount,
-                    Type = TransactionType.Transfer,
-                    Description = $"Överföring från konto: " +
-                                  $"{request.Description}",
-                    BalanceAfterTransaction = toAccount.Balance,
-                    ReceiverAccountId = null,
-                    AccountId = request.ToAccountId,
-                    CreatedAt = DateTime.UtcNow
-                };
+                var amount = new Money(request.Amount, fromAccount.Balance.Currency);
 
-                // --------------------------------------------------------
-                // FAS 3: SPARA ATOMÄRT via Unit of Work
-                // --------------------------------------------------------
-                // Alla fyra operationer sparas i EN databastransaktion:
-                //   1. Uppdatera avsändarkontots saldo
-                //   2. Uppdatera mottagarkontots saldo
-                //   3. Spara avsändarens transaktionspost
-                //   4. Spara mottagarens transaktionspost
-                //
-                // Om NÅGOT av dessa misslyckas → rullar ALLT tillbaka
-                // Ingen förlorar pengar!
+                var (fromTransaction, toTransaction) = fromAccount.TransferTo(
+                    amount,
+                    request.Description,
+                    toAccount,
+                    request.IdempotencyKey);
 
-                // Markera båda kontona som uppdaterade
-                _unitOfWork.Accounts.Update(fromAccount);
-                _unitOfWork.Accounts.Update(toAccount);
-
-                // Lägg till båda transaktionsposterna
-                await _unitOfWork.Transactions.AddAsync(fromTransaction);
-                await _unitOfWork.Transactions.AddAsync(toTransaction);
-
-                // Spara ALLT i en enda databastransaktion
+                await _unitOfWork.Transactions.AddAsync(fromTransaction, cancellationToken);
+                await _unitOfWork.Transactions.AddAsync(toTransaction, cancellationToken);
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-                // --------------------------------------------------------
-                // FAS 4: RETURNERA RESULTAT
-                // --------------------------------------------------------
-                // Returnera avsändarens transaktionspost som bekräftelse
-                var transactionDto = _mapper
-                    .Map<TransactionDto>(fromTransaction);
-
-                return Result<TransactionDto>.Success(transactionDto);
+                return Result<TransactionDto>.Success(
+                    _mapper.Map<TransactionDto>(fromTransaction));
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
-                _logger.LogError(ex, "Oväntat fel vid överföring från konto {FromAccountId}", request.FromAccountId);
-                return Result<TransactionDto>.Failure(
-                    "Ett oväntat fel uppstod. Försök igen senare.");
+                return Result<TransactionDto>.Failure(ex.Message);
             }
         }
     }

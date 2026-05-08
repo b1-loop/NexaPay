@@ -54,15 +54,13 @@ namespace NexaPay.Tests.Application.Features.Cards
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(1);
 
-            // Kortnummer är alltid ledigt – inga kollisioner i tester
             MockCardRepository
-                .Setup(r => r.GetByCardNumberAsync(It.IsAny<string>()))
+                .Setup(r => r.GetByCardTokenAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync((NexaPay.Domain.Entities.Card?)null);
 
             _handler = new CreateCardHandler(
                 MockUnitOfWork.Object,
-                Mapper,
-                new Mock<ILogger<CreateCardHandler>>().Object);
+                Mapper);
         }
 
         // --------------------------------------------------------
@@ -80,7 +78,7 @@ namespace NexaPay.Tests.Application.Features.Cards
             var account = CreateTestAccount(ownerId: userId);
 
             MockAccountRepository
-                .Setup(r => r.GetByIdAsync(account.Id))
+                .Setup(r => r.GetByIdAsync(account.Id, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(account);
 
             var command = new CreateCardCommand
@@ -107,6 +105,9 @@ namespace NexaPay.Tests.Application.Features.Cards
             result.Value.Card.MaskedCardNumber.Should().Contain("****",
                 "kortnumret ska vara maskerat i svaret");
 
+            result.Value.CardNumber.Should().HaveLength(16,
+                "fullständigt kortnummer ska returneras en gång och aldrig lagras");
+
             result.Value.Cvv.Should().HaveLength(3,
                 "CVV ska vara 3 siffror och returneras en gång vid skapande");
 
@@ -126,7 +127,7 @@ namespace NexaPay.Tests.Application.Features.Cards
         {
             // Arrange
             MockAccountRepository
-                .Setup(r => r.GetByIdAsync(It.IsAny<Guid>()))
+                .Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync((NexaPay.Domain.Entities.Account?)null);
 
             var command = new CreateCardCommand
@@ -164,7 +165,7 @@ namespace NexaPay.Tests.Application.Features.Cards
             var account = CreateTestAccount(ownerId: "user-123");
 
             MockAccountRepository
-                .Setup(r => r.GetByIdAsync(account.Id))
+                .Setup(r => r.GetByIdAsync(account.Id, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(account);
 
             var command = new CreateCardCommand
@@ -207,7 +208,7 @@ namespace NexaPay.Tests.Application.Features.Cards
             var account = CreateTestAccount(ownerId: customerId);
 
             MockAccountRepository
-                .Setup(r => r.GetByIdAsync(account.Id))
+                .Setup(r => r.GetByIdAsync(account.Id, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(account);
 
             var command = new CreateCardCommand
@@ -249,7 +250,7 @@ namespace NexaPay.Tests.Application.Features.Cards
                 isActive: false);
 
             MockAccountRepository
-                .Setup(r => r.GetByIdAsync(account.Id))
+                .Setup(r => r.GetByIdAsync(account.Id, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(account);
 
             var command = new CreateCardCommand
@@ -291,15 +292,16 @@ namespace NexaPay.Tests.Application.Features.Cards
             var account = CreateTestAccount(ownerId: userId);
 
             MockAccountRepository
-                .Setup(r => r.GetByIdAsync(account.Id))
+                .Setup(r => r.GetByIdAsync(account.Id, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(account);
 
             NexaPay.Domain.Entities.Card? savedCard = null;
 
             MockCardRepository
                 .Setup(r => r.AddAsync(
-                    It.IsAny<NexaPay.Domain.Entities.Card>()))
-                .Callback<NexaPay.Domain.Entities.Card>(c => savedCard = c);
+                    It.IsAny<NexaPay.Domain.Entities.Card>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback<NexaPay.Domain.Entities.Card, CancellationToken>((c, _) => savedCard = c);
 
             var command = new CreateCardCommand
             {

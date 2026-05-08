@@ -59,8 +59,7 @@ namespace NexaPay.Tests.Application.Features.Auth
 
             _handler = new RegisterHandler(
                 _mockAuthService.Object,
-                _mockAppSettings.Object,
-                new Mock<ILogger<RegisterHandler>>().Object);
+                _mockAppSettings.Object);
         }
 
         // --------------------------------------------------------

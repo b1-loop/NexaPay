@@ -26,6 +26,6 @@ namespace NexaPay.Application.Features.Accounts.Commands.DeleteAccount
         public string UserId { get; init; } = string.Empty;
 
         // Om användaren är Admin – kan stänga vilket konto som helst
-        public bool IsAdmin { get; init; }
+        public bool IsStaff { get; init; }
     }
 }

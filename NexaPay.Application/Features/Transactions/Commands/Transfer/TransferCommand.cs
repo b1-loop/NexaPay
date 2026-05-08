@@ -40,5 +40,8 @@ namespace NexaPay.Application.Features.Transactions.Commands.Transfer
         // Om den inloggade användaren är personal (Admin, BankManager)
         // Teller är inte tillåten för Transfer – se TransactionsController
         public bool IsStaff { get; init; }
+
+        // Client-supplied UUID (Idempotency-Key header). Null = no deduplication.
+        public Guid? IdempotencyKey { get; init; }
     }
 }

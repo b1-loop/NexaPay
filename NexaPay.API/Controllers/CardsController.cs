@@ -15,6 +15,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using NexaPay.API.Extensions;
 using NexaPay.Application.Common.Constants;
+using NexaPay.Application.Common.Models;
 using NexaPay.Application.Features.Cards.Commands.ActivateCard;
 using NexaPay.Application.Features.Cards.Commands.BlockCard;
 using NexaPay.Application.DTOs;
@@ -43,7 +44,7 @@ namespace NexaPay.API.Controllers
         // GET api/cards/account/{accountId}
         // --------------------------------------------------------
         [HttpGet("account/{accountId:guid}")]
-        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse<IEnumerable<CardDto>>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> GetByAccount(Guid accountId)
@@ -53,13 +54,13 @@ namespace NexaPay.API.Controllers
                 {
                     AccountId = accountId,
                     UserId = User.GetUserId(),
-                    IsAdmin = User.IsStaff()
+                    IsStaff = User.IsStaff()
                 });
 
             if (result.IsSuccess)
                 return Ok(ApiResponse.Ok(result.Value));
 
-            return NotFound(ApiResponse.Fail(result.Error));
+            return this.ToErrorResponse(result);
         }
 
         // --------------------------------------------------------
@@ -68,7 +69,7 @@ namespace NexaPay.API.Controllers
         // Auditor kan INTE skapa kort – read-only roll
         [HttpPost]
         [Authorize(Roles = Roles.CanWrite)]
-        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse<CreateCardResponse>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -89,7 +90,7 @@ namespace NexaPay.API.Controllers
                     result.Value,
                     "Kort skapades framgångsrikt"));
 
-            return BadRequest(ApiResponse.Fail(result.Error));
+            return this.ToErrorResponse(result);
         }
 
         // --------------------------------------------------------
@@ -116,7 +117,7 @@ namespace NexaPay.API.Controllers
                 return Ok(ApiResponse.Ok(
                     message: "Kort aktiverades framgångsrikt"));
 
-            return BadRequest(ApiResponse.Fail(result.Error));
+            return this.ToErrorResponse(result);
         }
 
         // --------------------------------------------------------
@@ -145,7 +146,7 @@ namespace NexaPay.API.Controllers
                 return Ok(ApiResponse.Ok(
                     message: "Kort blockerades framgångsrikt"));
 
-            return BadRequest(ApiResponse.Fail(result.Error));
+            return this.ToErrorResponse(result);
         }
     }
 

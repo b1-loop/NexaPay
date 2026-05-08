@@ -21,6 +21,6 @@ namespace NexaPay.Application.Features.Cards.Queries.GetCardsByAccount
         public string UserId { get; init; } = string.Empty;
 
         // Om användaren är Admin – kan se alla kontons kort
-        public bool IsAdmin { get; init; }
+        public bool IsStaff { get; init; }
     }
 }

@@ -17,10 +17,15 @@ namespace NexaPay.Infrastructure.Persistence.Configurations
 
             builder.HasKey(c => c.Id);
 
-            // Kortnummer – 16 siffror
-            builder.Property(c => c.CardNumber)
+            // Opaque token som ersätter PAN i databasen
+            builder.Property(c => c.CardToken)
                 .IsRequired()
-                .HasMaxLength(16);
+                .HasMaxLength(36);
+
+            // Sista 4 siffror av PAN – för visning ("**** **** **** 9010")
+            builder.Property(c => c.Last4Digits)
+                .IsRequired()
+                .HasMaxLength(4);
 
             // Kortinnehavarens namn – max 26 tecken (kortstandard)
             builder.Property(c => c.CardHolderName)
@@ -48,8 +53,8 @@ namespace NexaPay.Infrastructure.Persistence.Configurations
             // --------------------------------------------------------
             // Index
             // --------------------------------------------------------
-            // Unikt index på kortnummer
-            builder.HasIndex(c => c.CardNumber)
+            // Unikt index på token – tar rollen av den gamla PAN-index
+            builder.HasIndex(c => c.CardToken)
                 .IsUnique();
 
             // Index för snabb hämtning av alla kort per konto

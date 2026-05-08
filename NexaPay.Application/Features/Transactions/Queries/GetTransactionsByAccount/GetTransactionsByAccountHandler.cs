@@ -34,70 +34,40 @@ namespace NexaPay.Application.Features.Transactions.Queries
             GetTransactionsByAccountQuery request,
             CancellationToken cancellationToken)
         {
-            try
-            {
-                // ------------------------------------------------
-                // Steg 1: Validera pagineringsparametrar
-                // ------------------------------------------------
-                // Page måste vara minst 1
-                var page = Math.Max(1, request.Page);
+            var page = Math.Max(1, request.Page);
+            var pageSize = Math.Clamp(request.PageSize, 1, 100);
 
-                // PageSize måste vara mellan 1 och 100
-                // Vi begränsar till max 100 för att förhindra
-                // att någon hämtar för mycket data på en gång
-                var pageSize = Math.Clamp(request.PageSize, 1, 100);
+            var account = await _unitOfWork.Accounts
+                .GetByIdAsync(request.AccountId, cancellationToken);
 
-                // ------------------------------------------------
-                // Steg 2: Kontrollera konto och behörighet
-                // ------------------------------------------------
-                var account = await _unitOfWork.Accounts
-                    .GetByIdAsync(request.AccountId);
+            if (account == null)
+                return Result<PagedResult<TransactionDto>>.NotFound(
+                    $"Konto med ID {request.AccountId} hittades inte");
 
-                if (account == null)
-                    return Result<PagedResult<TransactionDto>>.Failure(
-                        $"Konto med ID {request.AccountId} " +
-                        $"hittades inte");
+            var isOwner = account.OwnerId == request.UserId;
 
-                var isOwner = account.OwnerId == request.UserId;
+            if (!request.IsStaff && !isOwner)
+                return Result<PagedResult<TransactionDto>>.NotFound(
+                    $"Konto med ID {request.AccountId} hittades inte");
 
-                if (!request.IsAdmin && !isOwner)
-                    return Result<PagedResult<TransactionDto>>.Failure(
-                        $"Konto med ID {request.AccountId} " +
-                        $"hittades inte");
+            var (transactions, totalCount) = await _unitOfWork
+                .Transactions
+                .GetTransactionsByAccountIdPagedAsync(
+                    request.AccountId,
+                    page,
+                    pageSize,
+                    cancellationToken);
 
-                // ------------------------------------------------
-                // Steg 3: Hämta paginerade transaktioner
-                // ------------------------------------------------
-                // GetTransactionsByAccountIdPagedAsync returnerar
-                // en tuple med transaktioner och totalt antal
-                var (transactions, totalCount) = await _unitOfWork
-                    .Transactions
-                    .GetTransactionsByAccountIdPagedAsync(
-                        request.AccountId,
-                        page,
-                        pageSize);
+            var transactionDtos = _mapper
+                .Map<IEnumerable<TransactionDto>>(transactions);
 
-                // ------------------------------------------------
-                // Steg 4: Mappa och returnera
-                // ------------------------------------------------
-                var transactionDtos = _mapper
-                    .Map<IEnumerable<TransactionDto>>(transactions);
+            var pagedResult = PagedResult<TransactionDto>.Create(
+                items: transactionDtos,
+                totalCount: totalCount,
+                page: page,
+                pageSize: pageSize);
 
-                // Skapa PagedResult med all pagineringsinformation
-                var pagedResult = PagedResult<TransactionDto>.Create(
-                    items: transactionDtos,
-                    totalCount: totalCount,
-                    page: page,
-                    pageSize: pageSize);
-
-                return Result<PagedResult<TransactionDto>>
-                    .Success(pagedResult);
-            }
-            catch (Exception ex)
-            {
-                return Result<PagedResult<TransactionDto>>.Failure(
-                    $"Ett fel uppstod: {ex.Message}");
-            }
+            return Result<PagedResult<TransactionDto>>.Success(pagedResult);
         }
     }
 }

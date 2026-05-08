@@ -1,26 +1,20 @@
-﻿// ============================================================
-// ITransactionRepository.cs – NexaPay.Domain/Interfaces
-// ============================================================
-// Specifikt interface för Transaction-operationer.
-// Uppdaterad med paginerad metod för transaktionshistorik.
-// ============================================================
-
-using NexaPay.Domain.Enums;
 using NexaPay.Domain.Entities;
+using NexaPay.Domain.Enums;
 
 namespace NexaPay.Domain.Interfaces
 {
-    public interface ITransactionRepository : IRepository<Transaction>
+    public interface ITransactionRepository
     {
-        Task<(IEnumerable<Transaction> Transactions, int TotalCount)>
-            GetTransactionsByAccountIdPagedAsync(
-                Guid accountId,
-                int page,
-                int pageSize);
-
-        // Hämta transaktioner filtrerade på typ
+        Task AddAsync(Transaction transaction, CancellationToken cancellationToken = default);
+        Task<Transaction?> GetByIdempotencyKeyAsync(Guid idempotencyKey, CancellationToken cancellationToken = default);
+        Task<(IEnumerable<Transaction> Transactions, int TotalCount)> GetTransactionsByAccountIdPagedAsync(
+            Guid accountId,
+            int page,
+            int pageSize,
+            CancellationToken cancellationToken = default);
         Task<IEnumerable<Transaction>> GetTransactionsByTypeAsync(
             Guid accountId,
-            TransactionType type);
+            TransactionType type,
+            CancellationToken cancellationToken = default);
     }
 }

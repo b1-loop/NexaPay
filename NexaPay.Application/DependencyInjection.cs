@@ -75,6 +75,11 @@ namespace NexaPay.Application
                     typeof(IPipelineBehavior<,>),
                     typeof(ValidationBehavior<,>));
 
+                // ConcurrencyRetryBehavior – försöker igen vid DbUpdateConcurrencyException
+                cfg.AddBehavior(
+                    typeof(IPipelineBehavior<,>),
+                    typeof(ConcurrencyRetryBehavior<,>));
+
                 // AuditBehavior – körs sist, efter validering
                 // Auditerar bara kommandon som passerat valideringen
                 cfg.AddBehavior(
