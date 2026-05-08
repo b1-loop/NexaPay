@@ -225,9 +225,9 @@ Korrekt konfigurerat med JWT Bearer-stöd och inlindat i `if (app.Environment.Is
 | Prioritet | # | Problem | Fil | Åtgärd |
 |-----------|---|---------|-----|--------|
 | ~~HÖG~~ | ~~3~~ | ~~Kontolåsning fungerar inte~~ | ~~`AuthService.cs:LoginAsync`~~ | ✅ **Åtgärdat** – `IsLockedOutAsync` kontrolleras före lösenord, `AccessFailedAsync` anropas vid fel, `ResetAccessFailedCountAsync` vid lyckad inloggning. 5 nya tester (Test 6–10 i `AuthServiceTests`). |
-| HÖG | 1 | `ex.Message` exponeras i 7 catch-block | Se tabell i §3 | Ersätt med generisk text + `ILogger` |
-| MEDEL | 2 | `Random.Shared` för kortnummer/CVV | `CreateCardHandler.cs:137–152` | Byt till `RandomNumberGenerator.GetInt32()` |
-| MEDEL | 4 | `CreateCardHandler` saknar IsStaff-bypass | `CreateCardCommand.cs`, `CreateCardHandler.cs:55`, `CardsController.cs:80` | Lägg till `IsStaff` i kommandot, skicka det från controllern, lägg till `if (!request.IsStaff && ...)` i handlens ägarskapscheck |
+| ~~HÖG~~ | ~~1~~ | ~~`ex.Message` exponeras i 7 catch-block~~ | ~~Se tabell i §3~~ | ✅ **Åtgärdat** – `ILogger<T>` injicerat i alla 5 klasser. Catch-block loggar med `LogError(ex, ...)` och returnerar generisk text. |
+| ~~MEDEL~~ | ~~2~~ | ~~`Random.Shared` för kortnummer/CVV~~ | ~~`CreateCardHandler.cs`~~ | ✅ **Åtgärdat** – `RandomNumberGenerator.GetInt32()` används för kryptografisk slump. |
+| ~~MEDEL~~ | ~~4~~ | ~~`CreateCardHandler` saknar IsStaff-bypass~~ | ~~`CreateCardCommand.cs`, `CreateCardHandler.cs`, `CardsController.cs`~~ | ✅ **Åtgärdat** – `IsStaff` tillagt i kommandot, skickas från controllern, ägarskapscheck använder `if (!request.IsStaff && ...)`. Ny test 6 i `CreateCardHandlerTests`. |
 | MEDEL | – | Integrationstester | `NexaPay.Tests` | Lägg till `WebApplicationFactory`-baserade tester |
 | LÅG | 7 | Ingen token-revokering | `JwtService.cs`, `AuthController.cs` | Lägg till `POST /logout` + en in-memory eller Redis-baserad denylist för `Jti` |
 | LÅG | 8 | `double.Parse` utan felhantering | `JwtService.cs:102` | Byt till `double.TryParse` med fallback |

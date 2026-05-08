@@ -12,6 +12,7 @@
 
 using AutoMapper;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using NexaPay.Application.Common.Models;
 using NexaPay.Application.DTOs;
 using NexaPay.Domain.Entities;
@@ -25,11 +26,16 @@ namespace NexaPay.Application.Features.Transactions.Commands.Withdraw
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
+        private readonly ILogger<WithdrawHandler> _logger;
 
-        public WithdrawHandler(IUnitOfWork unitOfWork, IMapper mapper)
+        public WithdrawHandler(
+            IUnitOfWork unitOfWork,
+            IMapper mapper,
+            ILogger<WithdrawHandler> logger)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
+            _logger = logger;
         }
 
         public async Task<Result<TransactionDto>> Handle(
@@ -94,8 +100,9 @@ namespace NexaPay.Application.Features.Transactions.Commands.Withdraw
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Oväntat fel vid uttag från konto {AccountId}", request.AccountId);
                 return Result<TransactionDto>.Failure(
-                    $"Ett fel uppstod vid uttaget: {ex.Message}");
+                    "Ett oväntat fel uppstod. Försök igen senare.");
             }
         }
     }

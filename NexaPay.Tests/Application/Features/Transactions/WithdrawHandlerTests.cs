@@ -6,6 +6,7 @@
 // ============================================================
 
 using FluentAssertions;
+using Microsoft.Extensions.Logging;
 using Moq;
 using NexaPay.Application.Features.Transactions.Commands.Withdraw;
 using NUnit.Framework;
@@ -47,7 +48,8 @@ namespace NexaPay.Tests.Application.Features.Transactions
 
             _handler = new WithdrawHandler(
                 MockUnitOfWork.Object,
-                Mapper);
+                Mapper,
+                new Mock<ILogger<WithdrawHandler>>().Object);
         }
 
         // --------------------------------------------------------

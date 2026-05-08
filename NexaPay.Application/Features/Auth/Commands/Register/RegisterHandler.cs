@@ -1,4 +1,5 @@
 using MediatR;
+using Microsoft.Extensions.Logging;
 using NexaPay.Application.Common.Constants;
 using NexaPay.Application.Common.Interfaces;
 using NexaPay.Application.Common.Models;
@@ -11,11 +12,16 @@ namespace NexaPay.Application.Features.Auth.Commands.Register
     {
         private readonly IAuthService _authService;
         private readonly IAppSettings _appSettings;
+        private readonly ILogger<RegisterHandler> _logger;
 
-        public RegisterHandler(IAuthService authService, IAppSettings appSettings)
+        public RegisterHandler(
+            IAuthService authService,
+            IAppSettings appSettings,
+            ILogger<RegisterHandler> logger)
         {
             _authService = authService;
             _appSettings = appSettings;
+            _logger = logger;
         }
 
         public async Task<Result<AuthDto>> Handle(
@@ -40,8 +46,9 @@ namespace NexaPay.Application.Features.Auth.Commands.Register
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Oväntat fel vid registrering för e-post {Email}", request.Email);
                 return Result<AuthDto>.Failure(
-                    $"Ett fel uppstod vid registrering: {ex.Message}");
+                    "Ett oväntat fel uppstod. Försök igen senare.");
             }
         }
     }

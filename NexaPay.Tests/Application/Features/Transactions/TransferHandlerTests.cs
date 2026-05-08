@@ -22,6 +22,7 @@
 // ============================================================
 
 using FluentAssertions;
+using Microsoft.Extensions.Logging;
 using Moq;
 using NexaPay.Application.Features.Transactions.Commands.Transfer;
 using NUnit.Framework;
@@ -71,7 +72,8 @@ namespace NexaPay.Tests.Application.Features.Transactions
             // Skapa en ny handler för varje test
             _handler = new TransferHandler(
                 MockUnitOfWork.Object,
-                Mapper);
+                Mapper,
+                new Mock<ILogger<TransferHandler>>().Object);
         }
 
         // --------------------------------------------------------

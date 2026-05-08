@@ -7,6 +7,7 @@
 
 using FluentAssertions;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Logging;
 using Moq;
 using NexaPay.Application.Common.Constants;
 using NexaPay.Infrastructure.Identity;
@@ -57,7 +58,8 @@ namespace NexaPay.Tests.Infrastructure.Identity
             _authService = new AuthService(
                 _mockUserManager.Object,
                 _mockRoleManager.Object,
-                _mockJwtService.Object);
+                _mockJwtService.Object,
+                new Mock<ILogger<AuthService>>().Object);
         }
 
         // --------------------------------------------------------

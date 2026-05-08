@@ -17,6 +17,7 @@
 
 using AutoMapper;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using NexaPay.Application.Common.Models;
 using NexaPay.Application.DTOs;
 using NexaPay.Domain.Entities;
@@ -30,11 +31,16 @@ namespace NexaPay.Application.Features.Transactions.Commands.Deposit
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
+        private readonly ILogger<DepositHandler> _logger;
 
-        public DepositHandler(IUnitOfWork unitOfWork, IMapper mapper)
+        public DepositHandler(
+            IUnitOfWork unitOfWork,
+            IMapper mapper,
+            ILogger<DepositHandler> logger)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
+            _logger = logger;
         }
 
         public async Task<Result<TransactionDto>> Handle(
@@ -117,8 +123,9 @@ namespace NexaPay.Application.Features.Transactions.Commands.Deposit
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Oväntat fel vid insättning på konto {AccountId}", request.AccountId);
                 return Result<TransactionDto>.Failure(
-                    $"Ett fel uppstod vid insättningen: {ex.Message}");
+                    "Ett oväntat fel uppstod. Försök igen senare.");
             }
         }
     }

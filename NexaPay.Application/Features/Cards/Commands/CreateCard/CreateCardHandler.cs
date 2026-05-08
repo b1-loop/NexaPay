@@ -13,11 +13,13 @@
 
 using AutoMapper;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using NexaPay.Application.Common.Models;
 using NexaPay.Application.DTOs;
 using NexaPay.Domain.Entities;
 using NexaPay.Domain.Enums;
 using NexaPay.Domain.Interfaces;
+using System.Security.Cryptography;
 
 namespace NexaPay.Application.Features.Cards.Commands.CreateCard
 {
@@ -26,11 +28,16 @@ namespace NexaPay.Application.Features.Cards.Commands.CreateCard
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
+        private readonly ILogger<CreateCardHandler> _logger;
 
-        public CreateCardHandler(IUnitOfWork unitOfWork, IMapper mapper)
+        public CreateCardHandler(
+            IUnitOfWork unitOfWork,
+            IMapper mapper,
+            ILogger<CreateCardHandler> logger)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
+            _logger = logger;
         }
 
         public async Task<Result<CreateCardResponse>> Handle(
@@ -50,9 +57,9 @@ namespace NexaPay.Application.Features.Cards.Commands.CreateCard
                     return Result<CreateCardResponse>.Failure(
                         $"Konto med ID {request.AccountId} hittades inte");
 
-                // Kontot måste tillhöra den inloggade användaren
-                // Vi vill inte att någon skapar kort på andras konton
-                if (account.OwnerId != request.UserId)
+                // Personal kan skapa kort åt alla kunder
+                // Vanliga användare kan bara skapa kort på sina egna konton
+                if (!request.IsStaff && account.OwnerId != request.UserId)
                     return Result<CreateCardResponse>.Failure(
                         $"Konto med ID {request.AccountId} hittades inte");
 
@@ -122,8 +129,9 @@ namespace NexaPay.Application.Features.Cards.Commands.CreateCard
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Oväntat fel vid kortskapning för konto {AccountId}", request.AccountId);
                 return Result<CreateCardResponse>.Failure(
-                    $"Ett fel uppstod när kortet skulle skapas: {ex.Message}");
+                    "Ett oväntat fel uppstod. Försök igen senare.");
             }
         }
 
@@ -131,25 +139,21 @@ namespace NexaPay.Application.Features.Cards.Commands.CreateCard
         // Hjälpmetoder för att generera kortdata
         // --------------------------------------------------------
 
-        // Genererar ett 16-siffrigt kortnummer
-        // Format: fyra grupper om fyra siffror
-        // T.ex. "4532123456789010"
+        // Genererar ett 16-siffrigt kortnummer med kryptografisk slump
+        // Format: 4 + 3 siffror + tre grupper om 4 siffror = 16 siffror totalt
         private static string GenerateCardNumber()
         {
-            // Börja med 4 – Visa-kort börjar alltid med 4
-            var part1 = $"4{Random.Shared.Next(100, 999)}";
-            var part2 = Random.Shared.Next(1000, 9999).ToString();
-            var part3 = Random.Shared.Next(1000, 9999).ToString();
-            var part4 = Random.Shared.Next(1000, 9999).ToString();
+            var part1 = $"4{RandomNumberGenerator.GetInt32(100, 1000)}";
+            var part2 = RandomNumberGenerator.GetInt32(1000, 10000).ToString();
+            var part3 = RandomNumberGenerator.GetInt32(1000, 10000).ToString();
+            var part4 = RandomNumberGenerator.GetInt32(1000, 10000).ToString();
             return $"{part1}{part2}{part3}{part4}";
         }
 
-        // Genererar en 3-siffrig CVV-kod
-        // T.ex. "123" eller "456"
+        // Genererar en 3-siffrig CVV-kod med kryptografisk slump
         private static string GenerateCVV()
         {
-            // Next(100, 999) ger alltid ett 3-siffrigt tal
-            return Random.Shared.Next(100, 1000).ToString();
+            return RandomNumberGenerator.GetInt32(100, 1000).ToString();
         }
     }
 }

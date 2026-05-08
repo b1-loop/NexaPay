@@ -13,6 +13,7 @@
 // ============================================================
 
 using FluentAssertions;
+using Microsoft.Extensions.Logging;
 using Moq;
 using NexaPay.Application.Features.Cards.Commands.CreateCard;
 using NexaPay.Domain.Enums;
@@ -60,7 +61,8 @@ namespace NexaPay.Tests.Application.Features.Cards
 
             _handler = new CreateCardHandler(
                 MockUnitOfWork.Object,
-                Mapper);
+                Mapper,
+                new Mock<ILogger<CreateCardHandler>>().Object);
         }
 
         // --------------------------------------------------------
@@ -149,14 +151,14 @@ namespace NexaPay.Tests.Application.Features.Cards
         }
 
         // --------------------------------------------------------
-        // Test 3: Fel ägare
+        // Test 3: Fel ägare (IsStaff = false)
         // --------------------------------------------------------
         [Test]
         [Category("Security")]
         [Description(
-            "Verifierar att en användare inte kan skapa kort på " +
-            "ett konto som tillhör någon annan.")]
-        public async Task Handle_WhenWrongOwner_ShouldReturnFailure()
+            "Verifierar att en vanlig användare inte kan skapa kort " +
+            "på ett konto som tillhör någon annan.")]
+        public async Task Handle_WhenWrongOwnerAndNotStaff_ShouldReturnFailure()
         {
             // Arrange
             var account = CreateTestAccount(ownerId: "user-123");
@@ -169,7 +171,8 @@ namespace NexaPay.Tests.Application.Features.Cards
             {
                 AccountId = account.Id,
                 CardHolderName = "Hacker Person",
-                UserId = "hacker-456"
+                UserId = "hacker-456",
+                IsStaff = false
             };
 
             // Act
@@ -184,6 +187,50 @@ namespace NexaPay.Tests.Application.Features.Cards
             MockUnitOfWork.Verify(
                 u => u.SaveChangesAsync(It.IsAny<CancellationToken>()),
                 Times.Never);
+        }
+
+        // --------------------------------------------------------
+        // Test 6: Personal kan skapa kort åt kunder (IsStaff = true)
+        // --------------------------------------------------------
+        [Test]
+        [Category("Security")]
+        [Category("Staff")]
+        [Description(
+            "Verifierar att personal (Teller, BankManager, Admin) " +
+            "kan skapa kort på ett konto som tillhör en kund, " +
+            "även om de inte är ägaren.")]
+        public async Task Handle_WhenStaffCreatesCardForCustomer_ShouldSucceed()
+        {
+            // Arrange
+            var customerId = "customer-123";
+            var staffId = "staff-456";
+            var account = CreateTestAccount(ownerId: customerId);
+
+            MockAccountRepository
+                .Setup(r => r.GetByIdAsync(account.Id))
+                .ReturnsAsync(account);
+
+            var command = new CreateCardCommand
+            {
+                AccountId = account.Id,
+                CardHolderName = "Kund Kundsson",
+                UserId = staffId,
+                IsStaff = true
+            };
+
+            // Act
+            var result = await _handler.Handle(
+                command,
+                CancellationToken.None);
+
+            // Assert
+            result.IsSuccess.Should().BeTrue(
+                "personal ska kunna skapa kort åt kunder");
+
+            MockUnitOfWork.Verify(
+                u => u.SaveChangesAsync(It.IsAny<CancellationToken>()),
+                Times.Once,
+                "kortet ska sparas");
         }
 
         // --------------------------------------------------------

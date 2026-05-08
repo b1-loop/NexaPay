@@ -6,6 +6,7 @@
 // ============================================================
 
 using FluentAssertions;
+using Microsoft.Extensions.Logging;
 using Moq;
 using NexaPay.Application.Features.Transactions.Commands.Deposit;
 using NUnit.Framework;
@@ -47,7 +48,8 @@ namespace NexaPay.Tests.Application.Features.Transactions
 
             _handler = new DepositHandler(
                 MockUnitOfWork.Object,
-                Mapper);
+                Mapper,
+                new Mock<ILogger<DepositHandler>>().Object);
         }
 
         // --------------------------------------------------------

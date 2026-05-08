@@ -9,6 +9,7 @@
 // ============================================================
 
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Logging;
 using NexaPay.Application.Common.Constants;
 using NexaPay.Application.Common.Interfaces;
 using NexaPay.Application.Common.Models;
@@ -21,15 +22,18 @@ namespace NexaPay.Infrastructure.Identity
         private readonly UserManager<IdentityUser> _userManager;
         private readonly RoleManager<IdentityRole> _roleManager;
         private readonly IJwtService _jwtService;
+        private readonly ILogger<AuthService> _logger;
 
         public AuthService(
             UserManager<IdentityUser> userManager,
             RoleManager<IdentityRole> roleManager,
-            IJwtService jwtService)
+            IJwtService jwtService,
+            ILogger<AuthService> logger)
         {
             _userManager = userManager;
             _roleManager = roleManager;
             _jwtService = jwtService;
+            _logger = logger;
         }
 
         // --------------------------------------------------------
@@ -101,8 +105,9 @@ namespace NexaPay.Infrastructure.Identity
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Oväntat fel vid registrering för e-post {Email}", email);
                 return Result<AuthDto>.Failure(
-                    $"Ett fel uppstod vid registrering: {ex.Message}");
+                    "Ett oväntat fel uppstod. Försök igen senare.");
             }
         }
 
@@ -160,8 +165,9 @@ namespace NexaPay.Infrastructure.Identity
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Oväntat fel vid inloggning för e-post {Email}", email);
                 return Result<AuthDto>.Failure(
-                    $"Ett fel uppstod vid inloggning: {ex.Message}");
+                    "Ett oväntat fel uppstod. Försök igen senare.");
             }
         }
 

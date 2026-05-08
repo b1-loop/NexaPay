@@ -26,5 +26,8 @@ namespace NexaPay.Application.Features.Cards.Commands.CreateCard
         // Den inloggade användarens ID – för behörighetskontroll
         // Vi kontrollerar att kontot faktiskt tillhör denna användare
         public string UserId { get; init; } = string.Empty;
+
+        // Personal (Teller, BankManager, Admin) kan skapa kort åt kunder
+        public bool IsStaff { get; init; }
     }
 }

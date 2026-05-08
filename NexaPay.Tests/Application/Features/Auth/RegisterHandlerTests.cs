@@ -13,6 +13,7 @@
 // ============================================================
 
 using FluentAssertions;
+using Microsoft.Extensions.Logging;
 using Moq;
 using NexaPay.Application.Common.Constants;
 using NexaPay.Application.Common.Interfaces;
@@ -58,7 +59,8 @@ namespace NexaPay.Tests.Application.Features.Auth
 
             _handler = new RegisterHandler(
                 _mockAuthService.Object,
-                _mockAppSettings.Object);
+                _mockAppSettings.Object,
+                new Mock<ILogger<RegisterHandler>>().Object);
         }
 
         // --------------------------------------------------------

@@ -20,6 +20,7 @@
 
 using AutoMapper;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using NexaPay.Application.Common.Models;
 using NexaPay.Application.DTOs;
 using NexaPay.Domain.Entities;
@@ -33,11 +34,16 @@ namespace NexaPay.Application.Features.Transactions.Commands.Transfer
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
+        private readonly ILogger<TransferHandler> _logger;
 
-        public TransferHandler(IUnitOfWork unitOfWork, IMapper mapper)
+        public TransferHandler(
+            IUnitOfWork unitOfWork,
+            IMapper mapper,
+            ILogger<TransferHandler> logger)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
+            _logger = logger;
         }
 
         public async Task<Result<TransactionDto>> Handle(
@@ -180,10 +186,9 @@ namespace NexaPay.Application.Features.Transactions.Commands.Transfer
             }
             catch (Exception ex)
             {
-                // Fånga oväntade fel
-                // T.ex. databasfel, nätverksavbrott osv.
+                _logger.LogError(ex, "Oväntat fel vid överföring från konto {FromAccountId}", request.FromAccountId);
                 return Result<TransactionDto>.Failure(
-                    $"Ett fel uppstod vid överföringen: {ex.Message}");
+                    "Ett oväntat fel uppstod. Försök igen senare.");
             }
         }
     }

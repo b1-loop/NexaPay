@@ -77,7 +77,8 @@ namespace NexaPay.API.Controllers
                 {
                     AccountId = request.AccountId,
                     CardHolderName = request.CardHolderName,
-                    UserId = GetUserId()
+                    UserId = GetUserId(),
+                    IsStaff = IsStaff()
                 });
 
             if (result.IsSuccess)
