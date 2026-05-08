@@ -122,12 +122,25 @@ namespace NexaPay.Infrastructure.Identity
                     return Result<AuthDto>.Failure(
                         "Felaktig e-post eller lösenord");
 
+                // Kontrollera lockout innan lösenordsverifiering
+                if (await _userManager.IsLockedOutAsync(user))
+                    return Result<AuthDto>.Failure(
+                        "Kontot är tillfälligt låst. Försök igen senare.");
+
                 var passwordValid = await _userManager
                     .CheckPasswordAsync(user, password);
 
                 if (!passwordValid)
+                {
+                    // Öka räknaren för misslyckade försök
+                    // Vid 5 misslyckanden låses kontot i 15 minuter
+                    await _userManager.AccessFailedAsync(user);
                     return Result<AuthDto>.Failure(
                         "Felaktig e-post eller lösenord");
+                }
+
+                // Återställ räknaren vid lyckad inloggning
+                await _userManager.ResetAccessFailedCountAsync(user);
 
                 var roles = await _userManager.GetRolesAsync(user);
                 var role = roles.FirstOrDefault() ?? Roles.User;

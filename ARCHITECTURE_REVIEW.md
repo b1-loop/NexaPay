@@ -224,7 +224,7 @@ Korrekt konfigurerat med JWT Bearer-stöd och inlindat i `if (app.Environment.Is
 
 | Prioritet | # | Problem | Fil | Åtgärd |
 |-----------|---|---------|-----|--------|
-| HÖG | 3 | Kontolåsning fungerar inte | `AuthService.cs:LoginAsync` | Lägg till `await _userManager.AccessFailedAsync(user)` vid misslyckat lösenord och `await _userManager.ResetAccessFailedCountAsync(user)` vid lyckat |
+| ~~HÖG~~ | ~~3~~ | ~~Kontolåsning fungerar inte~~ | ~~`AuthService.cs:LoginAsync`~~ | ✅ **Åtgärdat** – `IsLockedOutAsync` kontrolleras före lösenord, `AccessFailedAsync` anropas vid fel, `ResetAccessFailedCountAsync` vid lyckad inloggning. 5 nya tester (Test 6–10 i `AuthServiceTests`). |
 | HÖG | 1 | `ex.Message` exponeras i 7 catch-block | Se tabell i §3 | Ersätt med generisk text + `ILogger` |
 | MEDEL | 2 | `Random.Shared` för kortnummer/CVV | `CreateCardHandler.cs:137–152` | Byt till `RandomNumberGenerator.GetInt32()` |
 | MEDEL | 4 | `CreateCardHandler` saknar IsStaff-bypass | `CreateCardCommand.cs`, `CreateCardHandler.cs:55`, `CardsController.cs:80` | Lägg till `IsStaff` i kommandot, skicka det från controllern, lägg till `if (!request.IsStaff && ...)` i handlens ägarskapscheck |

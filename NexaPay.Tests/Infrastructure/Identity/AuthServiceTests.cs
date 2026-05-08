@@ -291,7 +291,9 @@ namespace NexaPay.Tests.Infrastructure.Identity
         [Category("HappyPath")]
         [Description(
             "Verifierar att en lyckad inloggning returnerar " +
-            "en AuthDto med token, email och roll.")]
+            "en AuthDto med token, email och roll. " +
+            "ResetAccessFailedCountAsync ska anropas för att " +
+            "nollställa räknaren för misslyckade försök.")]
         public async Task LoginAsync_WhenValidCredentials_ShouldReturnSuccess()
         {
             // Arrange
@@ -309,9 +311,18 @@ namespace NexaPay.Tests.Infrastructure.Identity
                 .Setup(u => u.FindByEmailAsync(email))
                 .ReturnsAsync(user);
 
+            // Kontot är INTE låst
+            _mockUserManager
+                .Setup(u => u.IsLockedOutAsync(user))
+                .ReturnsAsync(false);
+
             _mockUserManager
                 .Setup(u => u.CheckPasswordAsync(user, password))
                 .ReturnsAsync(true);
+
+            _mockUserManager
+                .Setup(u => u.ResetAccessFailedCountAsync(user))
+                .ReturnsAsync(IdentityResult.Success);
 
             _mockUserManager
                 .Setup(u => u.GetRolesAsync(user))
@@ -337,6 +348,11 @@ namespace NexaPay.Tests.Infrastructure.Identity
                 j => j.GenerateToken(user.Id, email, Roles.BankManager),
                 Times.Once,
                 "GenerateToken ska anropas med rätt parametrar");
+
+            _mockUserManager.Verify(
+                u => u.ResetAccessFailedCountAsync(user),
+                Times.Once,
+                "räknaren för misslyckade försök ska nollställas vid lyckad inloggning");
         }
 
         // --------------------------------------------------------
@@ -346,7 +362,8 @@ namespace NexaPay.Tests.Infrastructure.Identity
         [Category("Login")]
         [Category("Security")]
         [Description(
-            "Verifierar att inloggning misslyckas med fel lösenord " +
+            "Verifierar att inloggning misslyckas med fel lösenord, " +
+            "att AccessFailedAsync anropas för att öka lockout-räknaren, " +
             "och att ingen token genereras.")]
         public async Task LoginAsync_WhenWrongPassword_ShouldReturnFailure()
         {
@@ -362,11 +379,20 @@ namespace NexaPay.Tests.Infrastructure.Identity
                 .Setup(u => u.FindByEmailAsync(email))
                 .ReturnsAsync(user);
 
+            // Kontot är INTE låst
+            _mockUserManager
+                .Setup(u => u.IsLockedOutAsync(user))
+                .ReturnsAsync(false);
+
             // Lösenordskontrollen MISSLYCKAS
             _mockUserManager
                 .Setup(u => u.CheckPasswordAsync(
                     user, It.IsAny<string>()))
                 .ReturnsAsync(false);
+
+            _mockUserManager
+                .Setup(u => u.AccessFailedAsync(user))
+                .ReturnsAsync(IdentityResult.Success);
 
             // Act
             var result = await _authService.LoginAsync(
@@ -383,6 +409,12 @@ namespace NexaPay.Tests.Infrastructure.Identity
                     It.IsAny<string>()),
                 Times.Never,
                 "ingen token ska genereras vid misslyckad inloggning");
+
+            // Kritisk verifiering: räknaren för misslyckade försök ska ökas
+            _mockUserManager.Verify(
+                u => u.AccessFailedAsync(user),
+                Times.Once,
+                "AccessFailedAsync ska anropas för att öka lockout-räknaren");
         }
 
         // --------------------------------------------------------
@@ -416,6 +448,101 @@ namespace NexaPay.Tests.Infrastructure.Identity
                 Times.Never,
                 "CheckPasswordAsync ska inte anropas om " +
                 "användaren inte finns");
+        }
+
+        // --------------------------------------------------------
+        // Test 9: Inloggning misslyckas – kontot är låst
+        // --------------------------------------------------------
+        [Test]
+        [Category("Login")]
+        [Category("Security")]
+        [Description(
+            "Verifierar att inloggning misslyckas direkt när kontot " +
+            "är låst, utan att lösenordet kontrolleras eller " +
+            "AccessFailedAsync anropas.")]
+        public async Task LoginAsync_WhenAccountIsLockedOut_ShouldReturnFailure()
+        {
+            // Arrange
+            var email = "locked@nexapay.com";
+            var user = new IdentityUser
+            {
+                Email = email,
+                UserName = email
+            };
+
+            _mockUserManager
+                .Setup(u => u.FindByEmailAsync(email))
+                .ReturnsAsync(user);
+
+            // Kontot ÄR låst
+            _mockUserManager
+                .Setup(u => u.IsLockedOutAsync(user))
+                .ReturnsAsync(true);
+
+            // Act
+            var result = await _authService.LoginAsync(email, "Test123!");
+
+            // Assert
+            result.IsFailure.Should().BeTrue(
+                "inloggning ska misslyckas när kontot är låst");
+
+            result.Error.Should().Contain("låst",
+                "felmeddelandet ska informera om att kontot är låst");
+
+            // Lösenordet ska inte kontrolleras när kontot är låst
+            _mockUserManager.Verify(
+                u => u.CheckPasswordAsync(
+                    It.IsAny<IdentityUser>(),
+                    It.IsAny<string>()),
+                Times.Never,
+                "lösenordet ska inte kontrolleras när kontot är låst");
+
+            // AccessFailedAsync ska inte anropas – kontot är redan låst
+            _mockUserManager.Verify(
+                u => u.AccessFailedAsync(It.IsAny<IdentityUser>()),
+                Times.Never,
+                "AccessFailedAsync ska inte anropas när kontot redan är låst");
+        }
+
+        // --------------------------------------------------------
+        // Test 10: ResetAccessFailedCount anropas INTE vid misslyckat lösenord
+        // --------------------------------------------------------
+        [Test]
+        [Category("Login")]
+        [Category("Security")]
+        [Description(
+            "Verifierar att räknaren för misslyckade försök INTE " +
+            "nollställs vid fel lösenord – den ska öka, inte nollställas.")]
+        public async Task LoginAsync_WhenWrongPassword_ShouldNotResetFailedCount()
+        {
+            // Arrange
+            var email = "test@nexapay.com";
+            var user = new IdentityUser { Email = email, UserName = email };
+
+            _mockUserManager
+                .Setup(u => u.FindByEmailAsync(email))
+                .ReturnsAsync(user);
+
+            _mockUserManager
+                .Setup(u => u.IsLockedOutAsync(user))
+                .ReturnsAsync(false);
+
+            _mockUserManager
+                .Setup(u => u.CheckPasswordAsync(user, It.IsAny<string>()))
+                .ReturnsAsync(false);
+
+            _mockUserManager
+                .Setup(u => u.AccessFailedAsync(user))
+                .ReturnsAsync(IdentityResult.Success);
+
+            // Act
+            await _authService.LoginAsync(email, "FelLösenord!");
+
+            // Assert
+            _mockUserManager.Verify(
+                u => u.ResetAccessFailedCountAsync(It.IsAny<IdentityUser>()),
+                Times.Never,
+                "räknaren ska inte nollställas vid fel lösenord");
         }
     }
 }
