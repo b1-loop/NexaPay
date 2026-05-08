@@ -68,13 +68,16 @@ API ──→ Infrastructure ──→ Domain + Application
 - JWT-validering med Issuer, Audience, Lifetime och `ClockSkew = TimeSpan.Zero`
 - JWT-nyckel och connection string lagras i User Secrets (dev) / miljövariabler (prod) – aldrig i källkod
 - ASP.NET Identity med starka lösenordskrav: 8+ tecken, versaler, gemener, siffror, specialtecken
-- Kontolåsning konfigurerad: 5 misslyckade försök → 15 minuters lockout (se dock §3 – fungerar ej fullt ut)
+- Kontolåsning: 5 misslyckade försök → 15 minuters lockout – `IsLockedOutAsync` + `AccessFailedAsync` + `ResetAccessFailedCountAsync` korrekt implementerat i `AuthService.LoginAsync`
 - RBAC med 5 väldefinierade roller och tydlig rollhierarki
 - Domänbaserad rollbegränsning vid registrering
 - Rate limiting på `AuthController`: max 5 requests/minut per IP → 429 Too Many Requests
 - Optimistisk concurrency via `RowVersion` på `Account` – förhindrar race conditions vid parallella transaktioner
 - Ägarskapsvalidering i handlers: ägare-check sker INNAN data ändras
 - Kortnummer maskeras i `CardDto` (`**** **** **** 9010`) – CVV returneras en gång vid skapande, lagras aldrig
+- Catch-block loggar via `ILogger<T>` och returnerar generiska felmeddelanden – inget `ex.Message` exponeras mot klient
+- Kortnummer och CVV genereras med `RandomNumberGenerator.GetInt32()` (CSPRNG)
+- Personal (`IsStaff`) kan skapa kort åt kunder via `CreateCardHandler`
 - `ExceptionMiddleware` returnerar generiska felmeddelanden på 500-fel som når middleware
 - Överföring tre-fas: validera allt → uppdatera → spara atomärt
 
@@ -103,28 +106,14 @@ Korrekt konfigurerat med JWT Bearer-stöd och inlindat i `if (app.Environment.Is
 
 ## 3. Säkerhetsproblem
 
-### MEDEL
+### MEDEL – alla åtgärdade ✅
 
-| # | Problem | Fil | Detalj |
-|---|---------|-----|--------|
-| 1 | `ex.Message` exponeras i catch-block | Flera handlers | Interna exception-meddelanden (DB-fel, sökvägar) skickas till klienten via `Result.Failure($"... {ex.Message}")`. Dessa går **inte** via `ExceptionMiddleware` utan returneras direkt i JSON-svaret. |
-| 2 | Icke-kryptografisk slumpgenerator | `CreateCardHandler.cs` | Kortnummer och CVV genereras med `Random.Shared.Next()` – inte en CSPRNG. Ska använda `RandomNumberGenerator` från `System.Security.Cryptography`. |
-| 3 | Kontolåsning enforced inte på misslyckade inloggningar | `AuthService.cs:LoginAsync` | `CheckPasswordAsync` triggar **inte** `AccessFailedAsync`. Räknaren för misslyckade inloggningar ökas aldrig → 15-minuters lockout aktiveras aldrig oavsett inställning. Kräver antingen `SignInManager.PasswordSignInAsync` eller manuellt anrop av `_userManager.AccessFailedAsync(user)`. Rate limiting (5 req/min per IP) ger delvis skydd men blockerar per IP, inte per konto. |
-| 4 | `CreateCardHandler` saknar `IsStaff`-bypass | `CreateCardHandler.cs:55`, `CreateCardCommand.cs` | Kommandot har inget `IsStaff`-fält. Ägarskapskontrollen `account.OwnerId != request.UserId` har inget undantag för personal. Teller och BankManager kan **inte** skapa kort åt kunder, trots att `Roles.CanWrite` tillåter dem på endpoint-nivå. Inkonsekvent med `DepositHandler` och `WithdrawHandler` som har `IsStaff`-bypass. |
-
-**Filer som exponerar `ex.Message`:**
-
-| Fil | Rad | Kontext |
-|-----|-----|---------|
-| `TransferHandler.cs` | 186 | `$"Ett fel uppstod vid överföringen: {ex.Message}"` |
-| `DepositHandler.cs` | 121 | `$"Ett fel uppstod vid insättningen: {ex.Message}"` |
-| `WithdrawHandler.cs` | 98 | `$"Ett fel uppstod vid uttaget: {ex.Message}"` |
-| `CreateCardHandler.cs` | 126 | `$"Ett fel uppstod när kortet skulle skapas: {ex.Message}"` |
-| `AuthService.cs` | 104 | `$"Ett fel uppstod vid registrering: {ex.Message}"` |
-| `AuthService.cs` | 150 | `$"Ett fel uppstod vid inloggning: {ex.Message}"` |
-| `RegisterHandler.cs` | 43 | `$"Ett fel uppstod vid registrering: {ex.Message}"` |
-
-**Fix för alla:** Ersätt `ex.Message` med en generisk text och logga ex via `ILogger`.
+| # | Problem | Status | Åtgärd |
+|---|---------|--------|--------|
+| 1 | `ex.Message` exponerades i 7 catch-block | ✅ Åtgärdat | `ILogger<T>` injicerat i `DepositHandler`, `WithdrawHandler`, `TransferHandler`, `CreateCardHandler`, `RegisterHandler`, `AuthService`. Catch-block loggar `LogError(ex, ...)` och returnerar generisk text till klienten. |
+| 2 | `Random.Shared` för kortnummer/CVV | ✅ Åtgärdat | `CreateCardHandler` använder nu `RandomNumberGenerator.GetInt32()` (CSPRNG). |
+| 3 | Kontolåsning enforced inte vid inloggning | ✅ Åtgärdat | `AuthService.LoginAsync` anropar nu `IsLockedOutAsync` före lösenordskontroll, `AccessFailedAsync` vid fel lösenord och `ResetAccessFailedCountAsync` vid lyckad inloggning. |
+| 4 | `CreateCardHandler` saknade `IsStaff`-bypass | ✅ Åtgärdat | `IsStaff` tillagt i `CreateCardCommand`, skickas från `CardsController`, ägarskapscheck använder `if (!request.IsStaff && ...)`. |
 
 ### LÅG
 
@@ -158,7 +147,7 @@ Korrekt konfigurerat med JWT Bearer-stöd och inlindat i `if (app.Environment.Is
 | `WithdrawHandlerTests` | Flera | Uttag, overdraft-skydd |
 | `TransferHandlerTests` | 8 | Happy path, fel ägare, insufficient balance, saknade konton, inaktiva konton, exakt saldo |
 | `AccountTests` | Flera | Domänentitet |
-| `AuthServiceTests` | 8 | Registrering (5 scenarion), inloggning (3 scenarion) |
+| `AuthServiceTests` | 10 | Registrering (5 scenarion), inloggning (5 scenarion inkl. lockout, AccessFailed, Reset) |
 | `RegisterHandlerTests` | 8 | Domänbaserad rollbegränsning – alla kombinationer av domän och roll |
 | `CreateAccountValidatorTests` | 9 | Tom, för kort, för lång, exakt min/max, ogiltig typ, tom OwnerId, alla typer |
 | `DepositValidatorTests` | Flera | Belopp, beskrivning |
@@ -166,7 +155,7 @@ Korrekt konfigurerat med JWT Bearer-stöd och inlindat i `if (app.Environment.Is
 | `TransferValidatorTests` | Flera | Från/till konton, belopp, självöverföring |
 | `BlockCardHandlerTests` | 4 | Happy path, ej funnet, redan blockerat, utgånget |
 | `ActivateCardHandlerTests` | 7 | Happy path, IsStaff, fel ägare, ej funnet, redan aktivt, blockerat, utgånget |
-| `CreateCardHandlerTests` | 5 | Happy path, ej funnet, fel ägare, inaktivt konto, Inactive-status |
+| `CreateCardHandlerTests` | 6 | Happy path, ej funnet, fel ägare (ej staff), inaktivt konto, Inactive-status, staff skapar åt kund |
 | `DeleteAccountHandlerTests` | 6 | Happy path, ej funnet, fel ägare, Admin override, saldo > 0, soft delete |
 | `GetTransactionsByAccountHandlerTests` | 6 | Happy path, ej funnet, fel ägare, IsAdmin, Page=0→1, PageSize>100→100 |
 | `RegisterValidatorTests` | 14 | E-post, lösenordskrav (4 regler), ogiltig roll, alla 5 giltiga roller |
@@ -176,8 +165,8 @@ Korrekt konfigurerat med JWT Bearer-stöd och inlindat i `if (app.Environment.Is
 
 | Saknas | Prioritet | Kommentar |
 |--------|-----------|-----------|
-| Test som verifierar att lockout faktiskt triggas | HÖG | `AuthServiceTests` mockerar bort Identity – det fångar inte att `AccessFailedAsync` aldrig anropas |
-| Test för `IsStaff`-bypass i `CreateCardHandler` | MEDEL | Täcks inte – avslöjar det bugg som beskrivs i §3 |
+| ~~Test som verifierar att lockout triggas~~ | ~~HÖG~~ | ✅ Åtgärdat – Test 7, 9, 10 i `AuthServiceTests` verifierar `AccessFailedAsync`, lockout-kontroll och att reset inte sker vid fel lösenord |
+| ~~Test för `IsStaff`-bypass i `CreateCardHandler`~~ | ~~MEDEL~~ | ✅ Åtgärdat – Test 6 i `CreateCardHandlerTests` täcker staff-bypass |
 | Integrationstester (`WebApplicationFactory`) | MEDEL | Testar hela HTTP-flödet end-to-end inkl. rate limiting och auth middleware |
 
 ### Testarkitekturen är bra
@@ -213,10 +202,10 @@ Korrekt konfigurerat med JWT Bearer-stöd och inlindat i `if (app.Environment.Is
 |--------|-------|-----------|
 | Arkitektur | 9/10 | Clean Architecture korrekt, rätt beroendeflöde, bra mönster |
 | Kodkvalitet | 7/10 | Async genomgående, bra namngivning – men duplicerad logik och `Transaction`-mutabilitet drar ned |
-| Säkerhet | 6/10 | JWT, CVV, lösenord, rate limiting och concurrency på plats – men `ex.Message`, `Random.Shared`, icke-fungerande lockout och saknad token-revokering är reella brister |
-| Funktionalitet | 8/10 | Alla CRUD-flöden, kortaktivering, domänbaserad rollbegränsning – `CreateCard` saknar staff-bypass |
-| Testning | 8/10 | ~130 tester, bred täckning – kvarståenede: lockout-test, staff-card-test, integrationstester |
-| Produktionsklar | 6/10 | Fundamentet är solitt men problemen i §3 behöver åtgärdas |
+| Säkerhet | 8/10 | Alla MEDEL-problem åtgärdade – CSPRNG, lockout, `ex.Message`, IsStaff. Kvar: token-revokering, AllowedHosts, audit log |
+| Funktionalitet | 9/10 | Alla CRUD-flöden, kortaktivering, domänbaserad rollbegränsning, staff kan skapa kort åt kunder |
+| Testning | 9/10 | 133 tester, bred täckning inkl. lockout och staff-bypass – kvar: integrationstester |
+| Produktionsklar | 7/10 | Säkerhetsfundamentet solitt – kvar: token-revokering, audit log, AllowedHosts |
 
 ---
 
