@@ -1,0 +1,55 @@
+using MediatR;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using NexaPay.Application.Common.Constants;
+using NexaPay.Application.Features.Auth.Commands.Register;
+
+namespace NexaPay.API.Controllers
+{
+    [ApiController]
+    [Route("api/[controller]")]
+    [Authorize(Roles = Roles.Admin)]
+    public class AdminController : ControllerBase
+    {
+        private readonly IMediator _mediator;
+
+        public AdminController(IMediator mediator)
+        {
+            _mediator = mediator;
+        }
+
+        // --------------------------------------------------------
+        // POST api/admin/users
+        // --------------------------------------------------------
+        // Skapar ett konto med valfri roll.
+        // Kräver Admin-token.
+        // Personalroller (Admin, BankManager, Teller, Auditor)
+        // kräver fortfarande @nexapay.com-epost (hanteras av RegisterHandler).
+        [HttpPost("users")]
+        public async Task<IActionResult> CreateUser(
+            [FromBody] AdminCreateUserRequest request)
+        {
+            var result = await _mediator.Send(
+                new RegisterCommand
+                {
+                    Email = request.Email,
+                    Password = request.Password,
+                    Role = request.Role
+                });
+
+            if (result.IsSuccess)
+                return Ok(ApiResponse.Ok(
+                    result.Value,
+                    $"Användare skapad med rollen {request.Role}"));
+
+            return BadRequest(ApiResponse.Fail(result.Error));
+        }
+    }
+
+    public record AdminCreateUserRequest
+    {
+        public string Email { get; init; } = string.Empty;
+        public string Password { get; init; } = string.Empty;
+        public string Role { get; init; } = Roles.User;
+    }
+}

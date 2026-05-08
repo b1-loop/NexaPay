@@ -135,19 +135,76 @@ namespace NexaPay.Tests.Integration.Auth
         }
 
         // --------------------------------------------------------
-        // Test 7: Personalroll kräver @nexapay.com-e-post
+        // Test 7: Personalroll avvisas på publik endpoint
         // --------------------------------------------------------
         [Test]
-        public async Task Register_StaffRoleWithExternalEmail_Returns400()
+        public async Task Register_StaffRoleOnPublicEndpoint_Returns400()
         {
             var response = await Client.PostAsJsonAsync("/api/auth/register", new
             {
-                email = $"user_{Guid.NewGuid()}@gmail.com",
+                email = $"user_{Guid.NewGuid()}@nexapay.com",
                 password = "Test123!",
                 role = "Admin"
             });
 
             response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        }
+
+        // --------------------------------------------------------
+        // Test 8: Admin kan skapa personalanvändare
+        // --------------------------------------------------------
+        [Test]
+        public async Task AdminCreateUser_WithValidStaffRole_Returns200()
+        {
+            var adminToken = await CreateAndLoginAsAdminAsync();
+            SetBearerToken(adminToken);
+
+            var response = await Client.PostAsJsonAsync("/api/admin/users", new
+            {
+                email = $"teller_{Guid.NewGuid()}@nexapay.com",
+                password = "Staff123!",
+                role = "Teller"
+            });
+
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+        }
+
+        // --------------------------------------------------------
+        // Test 9: Admin kräver @nexapay.com för personalroller
+        // --------------------------------------------------------
+        [Test]
+        public async Task AdminCreateUser_StaffRoleWithExternalEmail_Returns400()
+        {
+            var adminToken = await CreateAndLoginAsAdminAsync();
+            SetBearerToken(adminToken);
+
+            var response = await Client.PostAsJsonAsync("/api/admin/users", new
+            {
+                email = $"teller_{Guid.NewGuid()}@gmail.com",
+                password = "Staff123!",
+                role = "Teller"
+            });
+
+            response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        }
+
+        // --------------------------------------------------------
+        // Test 10: Icke-admin kan inte använda admin-endpoint
+        // --------------------------------------------------------
+        [Test]
+        public async Task AdminCreateUser_WithoutAdminRole_Returns403()
+        {
+            var userToken = await RegisterAndLoginAsync($"user_{Guid.NewGuid()}@test.com");
+            SetBearerToken(userToken);
+
+            var response = await Client.PostAsJsonAsync("/api/admin/users", new
+            {
+                email = $"teller_{Guid.NewGuid()}@nexapay.com",
+                password = "Staff123!",
+                role = "Teller"
+            });
+
+            response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
         }
     }
 }

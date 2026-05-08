@@ -1,3 +1,6 @@
+using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.DependencyInjection;
+using NexaPay.Application.Common.Constants;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -20,7 +23,7 @@ namespace NexaPay.Tests.Integration
             Client = Factory.CreateClient();
         }
 
-        // Registrera och logga in – returnera JWT-token
+        // Registrera och logga in som User – returnera JWT-token
         protected async Task<string> RegisterAndLoginAsync(
             string email,
             string password = "Test123!",
@@ -32,6 +35,41 @@ namespace NexaPay.Tests.Integration
                 password,
                 role
             });
+
+            var loginResponse = await Client.PostAsJsonAsync("/api/auth/login", new
+            {
+                email,
+                password
+            });
+
+            var body = await loginResponse.Content.ReadAsStringAsync();
+            var doc = JsonDocument.Parse(body);
+            return doc.RootElement
+                .GetProperty("data")
+                .GetProperty("token")
+                .GetString()!;
+        }
+
+        // Skapar en Admin-användare direkt i databasen (kringgår API)
+        // och returnerar en giltig Admin JWT-token.
+        // Används för att testa Admin-skyddade endpoints.
+        protected async Task<string> CreateAndLoginAsAdminAsync(
+            string email = "admin@nexapay.com",
+            string password = "Admin123!")
+        {
+            using var scope = Factory.Services.CreateScope();
+            var userManager = scope.ServiceProvider
+                .GetRequiredService<UserManager<IdentityUser>>();
+
+            var user = new IdentityUser
+            {
+                UserName = email,
+                Email = email,
+                EmailConfirmed = true
+            };
+
+            await userManager.CreateAsync(user, password);
+            await userManager.AddToRoleAsync(user, Roles.Admin);
 
             var loginResponse = await Client.PostAsJsonAsync("/api/auth/login", new
             {

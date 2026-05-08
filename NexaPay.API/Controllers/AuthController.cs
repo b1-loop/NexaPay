@@ -39,13 +39,18 @@ namespace NexaPay.API.Controllers
         public async Task<IActionResult> Register(
             [FromBody] RegisterRequest request)
         {
+            // Personalroller skapas bara av Admin via POST /api/admin/users
+            if (request.Role != Roles.User)
+                return BadRequest(ApiResponse.Fail(
+                    "Personalroller kan inte registreras via denna endpoint. " +
+                    "Kontakta en Admin."));
+
             var result = await _mediator.Send(
                 new RegisterCommand
                 {
                     Email = request.Email,
                     Password = request.Password,
-                    // Skicka roll direkt istället för bool isAdmin
-                    Role = request.Role
+                    Role = Roles.User
                 });
 
             if (result.IsSuccess)
