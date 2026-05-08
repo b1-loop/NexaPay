@@ -1,0 +1,153 @@
+using FluentAssertions;
+using NUnit.Framework;
+using System.Net;
+using System.Net.Http.Json;
+
+namespace NexaPay.Tests.Integration.Auth
+{
+    [TestFixture]
+    [Category("Integration")]
+    [Category("Auth")]
+    public class AuthIntegrationTests : ApiIntegrationTestBase
+    {
+        // --------------------------------------------------------
+        // Test 1: Registrering returnerar token
+        // --------------------------------------------------------
+        [Test]
+        public async Task Register_WithValidData_Returns200WithToken()
+        {
+            var response = await Client.PostAsJsonAsync("/api/auth/register", new
+            {
+                email = $"user_{Guid.NewGuid()}@test.com",
+                password = "Test123!",
+                role = "User"
+            });
+
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            var body = await response.Content.ReadAsStringAsync();
+            body.Should().Contain("token");
+        }
+
+        // --------------------------------------------------------
+        // Test 2: Registrering med e-post som redan finns → 400
+        // --------------------------------------------------------
+        [Test]
+        public async Task Register_WithDuplicateEmail_Returns400()
+        {
+            var email = $"dup_{Guid.NewGuid()}@test.com";
+
+            await Client.PostAsJsonAsync("/api/auth/register", new
+            {
+                email,
+                password = "Test123!",
+                role = "User"
+            });
+
+            var response = await Client.PostAsJsonAsync("/api/auth/register", new
+            {
+                email,
+                password = "Test123!",
+                role = "User"
+            });
+
+            response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        }
+
+        // --------------------------------------------------------
+        // Test 3: Inloggning med korrekta uppgifter → 200 med token
+        // --------------------------------------------------------
+        [Test]
+        public async Task Login_WithValidCredentials_Returns200WithToken()
+        {
+            var email = $"login_{Guid.NewGuid()}@test.com";
+            await Client.PostAsJsonAsync("/api/auth/register", new
+            {
+                email,
+                password = "Test123!",
+                role = "User"
+            });
+
+            var response = await Client.PostAsJsonAsync("/api/auth/login", new
+            {
+                email,
+                password = "Test123!"
+            });
+
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            var body = await response.Content.ReadAsStringAsync();
+            body.Should().Contain("token");
+        }
+
+        // --------------------------------------------------------
+        // Test 4: Inloggning med fel lösenord → 401
+        // --------------------------------------------------------
+        [Test]
+        public async Task Login_WithWrongPassword_Returns401()
+        {
+            var email = $"wrong_{Guid.NewGuid()}@test.com";
+            await Client.PostAsJsonAsync("/api/auth/register", new
+            {
+                email,
+                password = "Test123!",
+                role = "User"
+            });
+
+            var response = await Client.PostAsJsonAsync("/api/auth/login", new
+            {
+                email,
+                password = "FelLösenord!"
+            });
+
+            response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        }
+
+        // --------------------------------------------------------
+        // Test 5: Skyddad endpoint utan token → 401
+        // --------------------------------------------------------
+        [Test]
+        public async Task ProtectedEndpoint_WithoutToken_Returns401()
+        {
+            ClearToken();
+            var response = await Client.GetAsync("/api/accounts");
+            response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        }
+
+        // --------------------------------------------------------
+        // Test 6: Logout återkallar token – efterföljande request → 401
+        // --------------------------------------------------------
+        [Test]
+        public async Task Logout_RevokesToken_SubsequentRequestReturns401()
+        {
+            var token = await RegisterAndLoginAsync($"logout_{Guid.NewGuid()}@test.com");
+            SetBearerToken(token);
+
+            // Verifiera att token fungerar före logout
+            var before = await Client.GetAsync("/api/accounts");
+            before.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            // Logga ut
+            var logoutResponse = await Client.PostAsync("/api/auth/logout", null);
+            logoutResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            // Samma token ska nu ge 401
+            var after = await Client.GetAsync("/api/accounts");
+            after.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        }
+
+        // --------------------------------------------------------
+        // Test 7: Personalroll kräver @nexapay.com-e-post
+        // --------------------------------------------------------
+        [Test]
+        public async Task Register_StaffRoleWithExternalEmail_Returns400()
+        {
+            var response = await Client.PostAsJsonAsync("/api/auth/register", new
+            {
+                email = $"user_{Guid.NewGuid()}@gmail.com",
+                password = "Test123!",
+                role = "Admin"
+            });
+
+            response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        }
+    }
+}

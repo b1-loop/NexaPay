@@ -11,13 +11,13 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NexaPay.API.Extensions;
 using NexaPay.Application.Common.Constants;
 using NexaPay.Application.Features.Cards.Commands.ActivateCard;
 using NexaPay.Application.Features.Cards.Commands.BlockCard;
 using NexaPay.Application.DTOs;
 using NexaPay.Application.Features.Cards.Commands.CreateCard;
 using NexaPay.Application.Features.Cards.Queries.GetCardsByAccount;
-using System.Security.Claims;
 
 namespace NexaPay.API.Controllers
 {
@@ -33,15 +33,6 @@ namespace NexaPay.API.Controllers
             _mediator = mediator;
         }
 
-        private string GetUserId() =>
-            User.FindFirstValue(ClaimTypes.NameIdentifier)
-            ?? string.Empty;
-
-        private bool IsStaff() =>
-            User.IsInRole(Roles.Admin) ||
-            User.IsInRole(Roles.BankManager) ||
-            User.IsInRole(Roles.Teller) ||
-            User.IsInRole(Roles.Auditor);
 
         // --------------------------------------------------------
         // GET api/cards/account/{accountId}
@@ -53,8 +44,8 @@ namespace NexaPay.API.Controllers
                 new GetCardsByAccountQuery
                 {
                     AccountId = accountId,
-                    UserId = GetUserId(),
-                    IsAdmin = IsStaff()
+                    UserId = User.GetUserId(),
+                    IsAdmin = User.IsStaff()
                 });
 
             if (result.IsSuccess)
@@ -77,8 +68,8 @@ namespace NexaPay.API.Controllers
                 {
                     AccountId = request.AccountId,
                     CardHolderName = request.CardHolderName,
-                    UserId = GetUserId(),
-                    IsStaff = IsStaff()
+                    UserId = User.GetUserId(),
+                    IsStaff = User.IsStaff()
                 });
 
             if (result.IsSuccess)
@@ -101,8 +92,8 @@ namespace NexaPay.API.Controllers
                 new ActivateCardCommand
                 {
                     CardId = id,
-                    UserId = GetUserId(),
-                    IsStaff = IsStaff()
+                    UserId = User.GetUserId(),
+                    IsStaff = User.IsStaff()
                 });
 
             if (result.IsSuccess)
@@ -127,7 +118,7 @@ namespace NexaPay.API.Controllers
                 {
                     CardId = id,
                     Reason = request.Reason,
-                    AdminId = GetUserId()
+                    AdminId = User.GetUserId()
                 });
 
             if (result.IsSuccess)

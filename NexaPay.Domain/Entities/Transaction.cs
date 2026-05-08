@@ -23,20 +23,20 @@ namespace NexaPay.Domain.Entities
         // Beloppet för transaktionen
         // Alltid positivt – typen (Deposit/Withdrawal) avgör riktningen
         // decimal används för exakta finansiella beräkningar
-        public decimal Amount { get; set; }
+        public decimal Amount { get; init; }
 
         // Typ av transaktion – Deposit, Withdrawal eller Transfer
         // Avgör vilken affärslogik som tillämpas
-        public TransactionType Type { get; set; }
+        public TransactionType Type { get; init; }
 
         // En beskrivning av transaktionen
         // T.ex. "Insättning från Swedbank" eller "Överföring till sparkonto"
-        public string Description { get; set; } = string.Empty;
+        public string Description { get; init; } = string.Empty;
 
         // Saldot på kontot EFTER att transaktionen genomförts
         // Detta lagras för att enkelt kunna visa saldohistorik
         // utan att behöva räkna om alla transaktioner varje gång
-        public decimal BalanceAfterTransaction { get; set; }
+        public decimal BalanceAfterTransaction { get; init; }
 
         // --------------------------------------------------------
         // För överföringar – vilket konto fick pengarna?
@@ -45,7 +45,7 @@ namespace NexaPay.Domain.Entities
         // Om TransactionType är Transfer – vilket konto fick pengarna?
         // Null om det är en vanlig insättning eller uttag
         // "?" betyder att värdet är nullable
-        public Guid? ReceiverAccountId { get; set; }
+        public Guid? ReceiverAccountId { get; init; }
 
         // --------------------------------------------------------
         // Foreign Key – koppling till Account
@@ -53,7 +53,7 @@ namespace NexaPay.Domain.Entities
 
         // ID:t för det konto som transaktionen tillhör
         // T.ex. kontot som pengarna drogs ifrån
-        public Guid AccountId { get; set; }
+        public Guid AccountId { get; init; }
 
         // --------------------------------------------------------
         // Navigationsegenskaper

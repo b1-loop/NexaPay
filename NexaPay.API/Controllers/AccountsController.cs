@@ -13,13 +13,13 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NexaPay.API.Extensions;
 using NexaPay.Application.Common.Constants;
 using NexaPay.Application.Features.Accounts.Commands.CreateAccount;
 using NexaPay.Application.Features.Accounts.Commands.DeleteAccount;
 using NexaPay.Application.Features.Accounts.Queries.GetAccountById;
 using NexaPay.Application.Features.Accounts.Queries.GetAllAccounts;
 using NexaPay.Domain.Enums;
-using System.Security.Claims;
 
 namespace NexaPay.API.Controllers
 {
@@ -35,19 +35,6 @@ namespace NexaPay.API.Controllers
             _mediator = mediator;
         }
 
-        private string GetUserId() =>
-            User.FindFirstValue(ClaimTypes.NameIdentifier)
-            ?? string.Empty;
-
-        // Kontrollera om användaren är personal (ej vanlig User)
-        // Personal kan se alla konton
-        private bool IsStaff() =>
-            User.IsInRole(Roles.Admin) ||
-            User.IsInRole(Roles.BankManager) ||
-            User.IsInRole(Roles.Teller) ||
-            User.IsInRole(Roles.Auditor);
-
-        private bool IsAdmin() => User.IsInRole(Roles.Admin);
 
         // --------------------------------------------------------
         // GET api/accounts
@@ -60,10 +47,8 @@ namespace NexaPay.API.Controllers
             var result = await _mediator.Send(
                 new GetAllAccountsQuery
                 {
-                    UserId = GetUserId(),
-                    // IsAdmin = true gör att handleren returnerar alla konton
-                    // Vi använder IsStaff() för att inkludera all personal
-                    IsAdmin = IsStaff()
+                    UserId = User.GetUserId(),
+                    IsAdmin = User.IsStaff()
                 });
 
             if (result.IsSuccess)
@@ -82,8 +67,8 @@ namespace NexaPay.API.Controllers
                 new GetAccountByIdQuery
                 {
                     AccountId = id,
-                    UserId = GetUserId(),
-                    IsAdmin = IsStaff()
+                    UserId = User.GetUserId(),
+                    IsAdmin = User.IsStaff()
                 });
 
             if (result.IsSuccess)
@@ -107,7 +92,7 @@ namespace NexaPay.API.Controllers
                 {
                     AccountName = request.AccountName,
                     AccountType = request.AccountType,
-                    OwnerId = GetUserId()
+                    OwnerId = User.GetUserId()
                 });
 
             if (result.IsSuccess)
@@ -134,8 +119,8 @@ namespace NexaPay.API.Controllers
                 new DeleteAccountCommand
                 {
                     AccountId = id,
-                    UserId = GetUserId(),
-                    IsAdmin = IsAdmin()
+                    UserId = User.GetUserId(),
+                    IsAdmin = User.IsAdmin()
                 });
 
             if (result.IsSuccess)

@@ -14,10 +14,12 @@
 // ============================================================
 
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.Extensions.Primitives;
 using NexaPay.Application.Common.Interfaces;
 using NexaPay.Domain.Interfaces;
 using NexaPay.Infrastructure.Identity;
@@ -94,6 +96,12 @@ namespace NexaPay.Infrastructure
             services.AddScoped<IAuthService, AuthService>();
 
             // --------------------------------------------------------
+            // Token Denylist – in-memory revokering av JWT-tokens
+            // --------------------------------------------------------
+            // Singleton för att överleva enskilda requests
+            services.AddSingleton<ITokenDenylist, InMemoryTokenDenylist>();
+
+            // --------------------------------------------------------
             // JWT-autentisering
             // --------------------------------------------------------
             // Konfigurerar ASP.NET Core att validera JWT-tokens
@@ -136,6 +144,21 @@ namespace NexaPay.Infrastructure
                     // ClockSkew = hur mycket tidsskillnad vi tolererar
                     // mellan server och klient – sätts till 0 för strikthet
                     ClockSkew = TimeSpan.Zero
+                };
+
+                // Kontrollera denylist vid varje validerad token
+                options.Events = new JwtBearerEvents
+                {
+                    OnTokenValidated = context =>
+                    {
+                        var denylist = context.HttpContext.RequestServices
+                            .GetRequiredService<ITokenDenylist>();
+                        var jti = context.Principal?
+                            .FindFirst(JwtRegisteredClaimNames.Jti)?.Value;
+                        if (jti != null && denylist.IsRevoked(jti))
+                            context.Fail("Token har återkallats.");
+                        return Task.CompletedTask;
+                    }
                 };
             });
 

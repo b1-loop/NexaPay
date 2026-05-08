@@ -50,7 +50,11 @@ namespace NexaPay.API
                 //   2. Kör alla väntande migrationer
                 // Det är säkert att köra flera gånger –
                 // redan körda migrationer hoppas över
-                await context.Database.MigrateAsync();
+                // InMemory-databas (används i integrationstester) stödjer inte migrationer
+                if (context.Database.ProviderName == "Microsoft.EntityFrameworkCore.InMemory")
+                    await context.Database.EnsureCreatedAsync();
+                else
+                    await context.Database.MigrateAsync();
 
                 // ------------------------------------------------
                 // Steg 2: Seed roller

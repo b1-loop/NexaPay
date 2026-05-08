@@ -99,8 +99,8 @@ namespace NexaPay.Infrastructure.Identity
                 // Expires = token slutar gälla efter X timmar
                 // Vi läser antalet timmar från konfigurationen
                 expires: DateTime.UtcNow.AddHours(
-                    double.Parse(
-                        _configuration["Jwt:ExpiryHours"] ?? "24")),
+                    double.TryParse(_configuration["Jwt:ExpiryHours"], out var hours)
+                        ? hours : 24),
 
                 // Signeringsuppgifterna vi skapade ovan
                 signingCredentials: credentials

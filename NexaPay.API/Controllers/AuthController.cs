@@ -6,9 +6,13 @@
 // ============================================================
 
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.IdentityModel.JsonWebTokens;
+using NexaPay.API.Extensions;
 using NexaPay.Application.Common.Constants;
+using NexaPay.Application.Common.Interfaces;
 using NexaPay.Application.Features.Auth.Commands.Login;
 using NexaPay.Application.Features.Auth.Commands.Register;
 
@@ -20,10 +24,12 @@ namespace NexaPay.API.Controllers
     public class AuthController : ControllerBase
     {
         private readonly IMediator _mediator;
+        private readonly ITokenDenylist _tokenDenylist;
 
-        public AuthController(IMediator mediator)
+        public AuthController(IMediator mediator, ITokenDenylist tokenDenylist)
         {
             _mediator = mediator;
+            _tokenDenylist = tokenDenylist;
         }
 
         // --------------------------------------------------------
@@ -70,6 +76,28 @@ namespace NexaPay.API.Controllers
                     "Inloggning lyckades"));
 
             return Unauthorized(ApiResponse.Fail(result.Error));
+        }
+
+        // --------------------------------------------------------
+        // POST api/auth/logout
+        // --------------------------------------------------------
+        // Återkallar den aktuella JWT-token via denylist.
+        // Alla efterföljande requests med samma token avvisas med 401.
+        [HttpPost("logout")]
+        [Authorize]
+        [DisableRateLimiting]
+        public IActionResult Logout()
+        {
+            var jti = User.FindFirst(JwtRegisteredClaimNames.Jti)?.Value;
+            var expClaim = User.FindFirst(JwtRegisteredClaimNames.Exp)?.Value;
+
+            if (jti != null && long.TryParse(expClaim, out var expUnix))
+            {
+                var expiry = DateTimeOffset.FromUnixTimeSeconds(expUnix).UtcDateTime;
+                _tokenDenylist.Revoke(jti, expiry);
+            }
+
+            return Ok(ApiResponse.Ok(message: "Utloggning lyckades"));
         }
     }
 

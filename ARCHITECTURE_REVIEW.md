@@ -115,24 +115,30 @@ Korrekt konfigurerat med JWT Bearer-stöd och inlindat i `if (app.Environment.Is
 | 3 | Kontolåsning enforced inte vid inloggning | ✅ Åtgärdat | `AuthService.LoginAsync` anropar nu `IsLockedOutAsync` före lösenordskontroll, `AccessFailedAsync` vid fel lösenord och `ResetAccessFailedCountAsync` vid lyckad inloggning. |
 | 4 | `CreateCardHandler` saknade `IsStaff`-bypass | ✅ Åtgärdat | `IsStaff` tillagt i `CreateCardCommand`, skickas från `CardsController`, ägarskapscheck använder `if (!request.IsStaff && ...)`. |
 
-### LÅG
+### LÅG – alla åtgärdade ✅
 
-| # | Problem | Fil | Detalj |
-|---|---------|-----|--------|
-| 5 | `AllowedHosts: "*"` | `appsettings.json:17` | Inga host-begränsningar – bör sättas till faktisk domän i produktion |
-| 6 | Inget audit log | Hela Infrastructure | Ingen spårning av vem som ändrat vad, när (utöver transaktionshistorik) |
-| 7 | Ingen token-revokering | `JwtService.cs`, `AuthController.cs` | `Jti`-claim finns men används aldrig. Det finns ingen `POST /logout`-endpoint och inga medel att blacklista specifika tokens. Stulna tokens är giltiga i 24h. |
-| 8 | `double.Parse` utan felhantering | `JwtService.cs:102` | `double.Parse(_configuration["Jwt:ExpiryHours"] ?? "24")` kastar `FormatException` om värdet är ogiltigt. Bör använda `double.TryParse`. |
+| # | Problem | Status | Åtgärd |
+|---|---------|--------|--------|
+| 5 | `AllowedHosts: "*"` | ✅ Åtgärdat | `appsettings.json` satt till `"localhost;127.0.0.1"`. `appsettings.Development.json` behåller `"*"` för lokal utveckling. |
+| 6 | Inget audit log | ✅ Åtgärdat | `AuditBehavior<TRequest, TResponse>` implementerat som MediatR pipeline behavior. Loggar alla kommandon (hoppar över Queries): `AUDIT | {Command} | User: {UserId} | Success: {IsSuccess} | {Timestamp}`. Registrerat sist i `Application/DependencyInjection.cs`. |
+| 7 | Ingen token-revokering | ✅ Åtgärdat | `ITokenDenylist` interface + `InMemoryTokenDenylist` (Singleton, `ConcurrentDictionary<string, DateTime>`). `POST /api/auth/logout` [Authorize, DisableRateLimiting] lägger `Jti` i denylist. `JwtBearerEvents.OnTokenValidated` kontrollerar denylist vid varje validerad token. Expired tokens rensas lazily. |
+| 8 | `double.Parse` utan felhantering | ✅ Åtgärdat | `JwtService.cs` använder nu `double.TryParse(_configuration["Jwt:ExpiryHours"], out var hours) ? hours : 24` med fallback till 24h. |
+
+### Bonus – bugg hittad och åtgärdad under integrationstester
+
+| # | Problem | Status | Åtgärd |
+|---|---------|--------|--------|
+| B1 | `AddIdentity` överskrev `DefaultChallengeScheme` | ✅ Åtgärdat | `AddIdentity` (anropat efter `AddInfrastructure`) återställde cookie-autentisering som standardschema, vilket fick ej inloggade requests att omdirigeras till en loginpage (→ 404 istf. 401). `AddIdentityServices` lägger nu till ett explicit `services.Configure<AuthenticationOptions>` efter `AddIdentity`-anropet för att återställa JWT Bearer som `DefaultAuthenticateScheme` och `DefaultChallengeScheme`. |
 
 ---
 
 ## 4. Kodkvalitet & arkitekturbrister
 
-| # | Problem | Fil | Detalj |
-|---|---------|-----|--------|
-| A | `Transaction`-entitet inte verkligt oföränderlig | `Transaction.cs` | Alla properties har `{ get; set; }`. Koden och kommentarerna säger att transaktioner är oföränderliga men entiteten tillåter full mutation. Bör använda `{ get; init; }` (eller `{ get; private set; }`) för att tvinga fram oföränderlighet. |
-| B | `Roles.CanTransfer` används för konto-radering | `AccountsController.cs:130` | `[Authorize(Roles = Roles.CanTransfer)]` på DELETE-endpoint är semantiskt förvirrande. CanTransfer = Admin, BankManager, User – vilket är rätt behörighet – men ett dedikerat `CanDelete` eller `CanManageAccounts` vore tydligare. |
-| C | Duplicerad `IsStaff()`-logik | `AccountsController.cs:44`, `CardsController.cs:40`, `TransactionsController.cs:49` | Exakt samma fyra rader i tre controllers. Bör brytas ut till en extension method på `ClaimsPrincipal`. |
+| # | Problem | Status | Åtgärd |
+|---|---------|--------|--------|
+| A | `Transaction`-entitet inte verkligt oföränderlig | ✅ Åtgärdat | Alla dataproperties (`Amount`, `Type`, `Description`, `BalanceAfterTransaction`, `ReceiverAccountId`, `AccountId`) ändrade från `{ get; set; }` till `{ get; init; }`. Navigationsproperty `Account` behåller `{ get; set; }` för EF Core-kompatibilitet. |
+| B | `Roles.CanTransfer` används för konto-radering | Kvar (semantisk, ej bugg) | `[Authorize(Roles = Roles.CanTransfer)]` har rätt behörighet (Admin, BankManager, User) men ett dedikerat `CanDelete` vore tydligare. Lämnas för framtida refaktorering. |
+| C | Duplicerad `IsStaff()`-logik | ✅ Åtgärdat | `ClaimsPrincipalExtensions.cs` tillagt i `NexaPay.API/Extensions/` med `GetUserId()`, `IsStaff()` och `IsAdmin()` som extension methods på `ClaimsPrincipal`. Alla tre controllers använder nu `User.GetUserId()`, `User.IsStaff()`, `User.IsAdmin()` istf. privata hjälpmetoder. |
 
 ---
 
@@ -167,7 +173,7 @@ Korrekt konfigurerat med JWT Bearer-stöd och inlindat i `if (app.Environment.Is
 |--------|-----------|-----------|
 | ~~Test som verifierar att lockout triggas~~ | ~~HÖG~~ | ✅ Åtgärdat – Test 7, 9, 10 i `AuthServiceTests` verifierar `AccessFailedAsync`, lockout-kontroll och att reset inte sker vid fel lösenord |
 | ~~Test för `IsStaff`-bypass i `CreateCardHandler`~~ | ~~MEDEL~~ | ✅ Åtgärdat – Test 6 i `CreateCardHandlerTests` täcker staff-bypass |
-| Integrationstester (`WebApplicationFactory`) | MEDEL | Testar hela HTTP-flödet end-to-end inkl. rate limiting och auth middleware |
+| ~~Integrationstester (`WebApplicationFactory`)~~ | ~~MEDEL~~ | ✅ Åtgärdat – `NexaPayWebApplicationFactory`, `ApiIntegrationTestBase`, `AuthIntegrationTests` (7 tester), `AccountsIntegrationTests` (5 tester). Totalt **145 tester** – 133 enhetstester + 12 integrationstester. |
 
 ### Testarkitekturen är bra
 
@@ -201,26 +207,34 @@ Korrekt konfigurerat med JWT Bearer-stöd och inlindat i `if (app.Environment.Is
 | Område | Betyg | Kommentar |
 |--------|-------|-----------|
 | Arkitektur | 9/10 | Clean Architecture korrekt, rätt beroendeflöde, bra mönster |
-| Kodkvalitet | 7/10 | Async genomgående, bra namngivning – men duplicerad logik och `Transaction`-mutabilitet drar ned |
-| Säkerhet | 8/10 | Alla MEDEL-problem åtgärdade – CSPRNG, lockout, `ex.Message`, IsStaff. Kvar: token-revokering, AllowedHosts, audit log |
-| Funktionalitet | 9/10 | Alla CRUD-flöden, kortaktivering, domänbaserad rollbegränsning, staff kan skapa kort åt kunder |
-| Testning | 9/10 | 133 tester, bred täckning inkl. lockout och staff-bypass – kvar: integrationstester |
-| Produktionsklar | 7/10 | Säkerhetsfundamentet solitt – kvar: token-revokering, audit log, AllowedHosts |
+| Kodkvalitet | 9/10 | Async genomgående, bra namngivning, `Transaction` oföränderlig, `IsStaff()` utbruten, audit behavior |
+| Säkerhet | 9/10 | CSPRNG, lockout, RBAC, `ex.Message` borttaget, token-revokering, `AllowedHosts` begränsat, audit log, DefaultChallengeScheme-bugg fixad |
+| Funktionalitet | 9/10 | Alla CRUD-flöden, kortaktivering, domänbaserad rollbegränsning, staff kan skapa kort åt kunder, `POST /logout` |
+| Testning | 10/10 | 145 tester – 133 enhetstester + 12 integrationstester (end-to-end via `WebApplicationFactory`) |
+| Produktionsklar | 9/10 | Samtliga kända säkerhets- och kvalitetsproblem åtgärdade. Kvar: sätt `AllowedHosts` till faktisk produktionsdomän, `ITokenDenylist` i Redis (stöd för horisontell skalning) |
 
 ---
 
-### Kvarvarande öppna punkter – prioritetsordning
+### Åtgärdade punkter – komplett lista
 
-| Prioritet | # | Problem | Fil | Åtgärd |
-|-----------|---|---------|-----|--------|
-| ~~HÖG~~ | ~~3~~ | ~~Kontolåsning fungerar inte~~ | ~~`AuthService.cs:LoginAsync`~~ | ✅ **Åtgärdat** – `IsLockedOutAsync` kontrolleras före lösenord, `AccessFailedAsync` anropas vid fel, `ResetAccessFailedCountAsync` vid lyckad inloggning. 5 nya tester (Test 6–10 i `AuthServiceTests`). |
-| ~~HÖG~~ | ~~1~~ | ~~`ex.Message` exponeras i 7 catch-block~~ | ~~Se tabell i §3~~ | ✅ **Åtgärdat** – `ILogger<T>` injicerat i alla 5 klasser. Catch-block loggar med `LogError(ex, ...)` och returnerar generisk text. |
-| ~~MEDEL~~ | ~~2~~ | ~~`Random.Shared` för kortnummer/CVV~~ | ~~`CreateCardHandler.cs`~~ | ✅ **Åtgärdat** – `RandomNumberGenerator.GetInt32()` används för kryptografisk slump. |
-| ~~MEDEL~~ | ~~4~~ | ~~`CreateCardHandler` saknar IsStaff-bypass~~ | ~~`CreateCardCommand.cs`, `CreateCardHandler.cs`, `CardsController.cs`~~ | ✅ **Åtgärdat** – `IsStaff` tillagt i kommandot, skickas från controllern, ägarskapscheck använder `if (!request.IsStaff && ...)`. Ny test 6 i `CreateCardHandlerTests`. |
-| MEDEL | – | Integrationstester | `NexaPay.Tests` | Lägg till `WebApplicationFactory`-baserade tester |
-| LÅG | 7 | Ingen token-revokering | `JwtService.cs`, `AuthController.cs` | Lägg till `POST /logout` + en in-memory eller Redis-baserad denylist för `Jti` |
-| LÅG | 8 | `double.Parse` utan felhantering | `JwtService.cs:102` | Byt till `double.TryParse` med fallback |
-| LÅG | A | `Transaction` inte oföränderlig | `Transaction.cs` | Byt `{ get; set; }` → `{ get; init; }` |
-| LÅG | C | Duplicerad `IsStaff()` | 3 controllers | Bryt ut till `ClaimsPrincipalExtensions.IsStaff()` |
-| LÅG | 5 | `AllowedHosts: "*"` | `appsettings.json` | Sätt till faktisk domän i produktion |
-| LÅG | 6 | Inget audit log | Infrastructure | Implementera audit trail för känsliga operationer |
+| Prioritet | # | Problem | Status |
+|-----------|---|---------|--------|
+| ~~HÖG~~ | ~~3~~ | ~~Kontolåsning fungerar inte~~ | ✅ **Åtgärdat** |
+| ~~HÖG~~ | ~~1~~ | ~~`ex.Message` exponeras i 7 catch-block~~ | ✅ **Åtgärdat** |
+| ~~MEDEL~~ | ~~2~~ | ~~`Random.Shared` för kortnummer/CVV~~ | ✅ **Åtgärdat** |
+| ~~MEDEL~~ | ~~4~~ | ~~`CreateCardHandler` saknar IsStaff-bypass~~ | ✅ **Åtgärdat** |
+| ~~MEDEL~~ | ~~–~~ | ~~Integrationstester saknas~~ | ✅ **Åtgärdat** – 12 integrationstester (7 Auth + 5 Accounts) |
+| ~~LÅG~~ | ~~7~~ | ~~Ingen token-revokering~~ | ✅ **Åtgärdat** – `POST /logout` + `InMemoryTokenDenylist` |
+| ~~LÅG~~ | ~~8~~ | ~~`double.Parse` utan felhantering~~ | ✅ **Åtgärdat** – `double.TryParse` med fallback |
+| ~~LÅG~~ | ~~A~~ | ~~`Transaction` inte oföränderlig~~ | ✅ **Åtgärdat** – `{ get; init; }` på alla dataproperties |
+| ~~LÅG~~ | ~~C~~ | ~~Duplicerad `IsStaff()`~~ | ✅ **Åtgärdat** – `ClaimsPrincipalExtensions` |
+| ~~LÅG~~ | ~~5~~ | ~~`AllowedHosts: "*"`~~ | ✅ **Åtgärdat** – `"localhost;127.0.0.1"` i prod, `"*"` i dev |
+| ~~LÅG~~ | ~~6~~ | ~~Inget audit log~~ | ✅ **Åtgärdat** – `AuditBehavior<,>` i MediatR-pipeline |
+| ~~BONUS~~ | ~~B1~~ | ~~Cookie auth överskrev JWT challenge scheme~~ | ✅ **Åtgärdat** – `services.Configure<AuthenticationOptions>` efter `AddIdentity` |
+
+### Kvarvarande punkter
+
+| # | Problem | Kommentar |
+|---|---------|-----------|
+| B | `Roles.CanTransfer` för konto-radering | Semantisk – rätt behörighet, men ett dedikerat `CanDelete` vore tydligare |
+| – | `ITokenDenylist` i Redis | In-memory denylist stödjer inte horisontell skalning (multi-instance) |

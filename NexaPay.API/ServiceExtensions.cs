@@ -43,6 +43,17 @@ namespace NexaPay.API
             .AddEntityFrameworkStores<ApplicationDbContext>()
             .AddDefaultTokenProviders();
 
+            // AddIdentity sätter DefaultChallengeScheme till cookie-autentisering,
+            // vilket gör att oskyddade anrop omdirigeras till en inloggningssida (→ 404).
+            // Vi återställer till JWT Bearer så att 401 returneras korrekt.
+            services.Configure<Microsoft.AspNetCore.Authentication.AuthenticationOptions>(options =>
+            {
+                options.DefaultAuthenticateScheme =
+                    Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerDefaults.AuthenticationScheme;
+                options.DefaultChallengeScheme =
+                    Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerDefaults.AuthenticationScheme;
+            });
+
             return services;
         }
 

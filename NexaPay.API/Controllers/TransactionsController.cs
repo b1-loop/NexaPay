@@ -17,12 +17,12 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NexaPay.API.Extensions;
 using NexaPay.Application.Common.Constants;
 using NexaPay.Application.Features.Transactions.Commands.Deposit;
 using NexaPay.Application.Features.Transactions.Commands.Transfer;
 using NexaPay.Application.Features.Transactions.Commands.Withdraw;
 using NexaPay.Application.Features.Transactions.Queries.GetTransactionsByAccount;
-using System.Security.Claims;
 
 namespace NexaPay.API.Controllers
 {
@@ -40,17 +40,6 @@ namespace NexaPay.API.Controllers
         }
 
         // Hämta inloggad användares ID från JWT-token
-        private string GetUserId() =>
-            User.FindFirstValue(ClaimTypes.NameIdentifier)
-            ?? string.Empty;
-
-        // Kontrollera om användaren är personal
-        // Personal kan se alla konton och transaktioner
-        private bool IsStaff() =>
-            User.IsInRole(Roles.Admin) ||
-            User.IsInRole(Roles.BankManager) ||
-            User.IsInRole(Roles.Teller) ||
-            User.IsInRole(Roles.Auditor);
 
         // --------------------------------------------------------
         // GET api/transactions/account/{accountId}
@@ -80,8 +69,8 @@ namespace NexaPay.API.Controllers
                 new GetTransactionsByAccountQuery
                 {
                     AccountId = accountId,
-                    UserId = GetUserId(),
-                    IsAdmin = IsStaff(),
+                    UserId = User.GetUserId(),
+                    IsAdmin = User.IsStaff(),
                     // Skicka med pagineringsparametrar från URL
                     Page = page,
                     PageSize = pageSize
@@ -108,8 +97,8 @@ namespace NexaPay.API.Controllers
                     AccountId = request.AccountId,
                     Amount = request.Amount,
                     Description = request.Description,
-                    UserId = GetUserId(),
-                    IsStaff = IsStaff()
+                    UserId = User.GetUserId(),
+                    IsStaff = User.IsStaff()
                 });
 
             if (result.IsSuccess)
@@ -135,8 +124,8 @@ namespace NexaPay.API.Controllers
                     AccountId = request.AccountId,
                     Amount = request.Amount,
                     Description = request.Description,
-                    UserId = GetUserId(),
-                    IsStaff = IsStaff()
+                    UserId = User.GetUserId(),
+                    IsStaff = User.IsStaff()
                 });
 
             if (result.IsSuccess)
@@ -164,8 +153,8 @@ namespace NexaPay.API.Controllers
                     ToAccountId = request.ToAccountId,
                     Amount = request.Amount,
                     Description = request.Description,
-                    UserId = GetUserId(),
-                    IsStaff = IsStaff()
+                    UserId = User.GetUserId(),
+                    IsStaff = User.IsStaff()
                 });
 
             if (result.IsSuccess)

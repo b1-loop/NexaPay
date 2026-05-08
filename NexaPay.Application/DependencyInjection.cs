@@ -74,6 +74,12 @@ namespace NexaPay.Application
                 cfg.AddBehavior(
                     typeof(IPipelineBehavior<,>),
                     typeof(ValidationBehavior<,>));
+
+                // AuditBehavior – körs sist, efter validering
+                // Auditerar bara kommandon som passerat valideringen
+                cfg.AddBehavior(
+                    typeof(IPipelineBehavior<,>),
+                    typeof(AuditBehavior<,>));
             });
 
             // Returnera services för method chaining
