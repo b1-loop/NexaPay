@@ -81,16 +81,20 @@ API ──→ Infrastructure ──→ Domain + Application
 - `ExceptionMiddleware` returnerar generiska felmeddelanden på 500-fel som når middleware
 - Överföring tre-fas: validera allt → uppdatera → spara atomärt
 
-### Domänbaserad rollbegränsning – registrering
+### Registrering – två endpoints med olika behörighet
 
-`POST /register` är publik men personalroller kräver en `@nexapay.com`-e-postadress. Logiken sitter i `RegisterHandler` och domänen läses från konfiguration (`StaffDomain` i `appsettings.json`).
+| Endpoint | Skydd | Tillåtna roller |
+|----------|-------|----------------|
+| `POST /api/auth/register` | Publik | Endast `User` – personalroller avvisas med 400 |
+| `POST /api/admin/users` | JWT Admin | Alla roller (`Admin`, `BankManager`, `Teller`, `Auditor`, `User`) |
 
-| E-postdomän | Begärd roll | Resultat |
-|-------------|-------------|----------|
-| `@nexapay.com` | Admin, BankManager, Teller, Auditor | ✅ Tillåtet |
-| `@nexapay.com` | User | ✅ Tillåtet |
-| Annan domän | Admin, BankManager, Teller, Auditor | ❌ Explicit fel |
-| Annan domän | User | ✅ Tillåtet |
+Personalroller via `POST /api/admin/users` kräver fortfarande `@nexapay.com`-epost (enforced av `RegisterHandler`).
+
+| E-postdomän | Begärd roll | Via publik endpoint | Via admin endpoint |
+|-------------|-------------|--------------------|--------------------|
+| Vad som helst | `User` | ✅ Tillåtet | ✅ Tillåtet |
+| Vad som helst | Personalroll | ❌ 400 | ❌ 400 |
+| `@nexapay.com` | Personalroll | ❌ 400 | ✅ Tillåtet |
 
 ### Swagger
 
@@ -208,9 +212,9 @@ Korrekt konfigurerat med JWT Bearer-stöd och inlindat i `if (app.Environment.Is
 |--------|-------|-----------|
 | Arkitektur | 9/10 | Clean Architecture korrekt, rätt beroendeflöde, bra mönster |
 | Kodkvalitet | 9/10 | Async genomgående, bra namngivning, `Transaction` oföränderlig, `IsStaff()` utbruten, audit behavior |
-| Säkerhet | 9/10 | CSPRNG, lockout, RBAC, `ex.Message` borttaget, token-revokering, `AllowedHosts` begränsat, audit log, DefaultChallengeScheme-bugg fixad |
-| Funktionalitet | 9/10 | Alla CRUD-flöden, kortaktivering, domänbaserad rollbegränsning, staff kan skapa kort åt kunder, `POST /logout` |
-| Testning | 10/10 | 145 tester – 133 enhetstester + 12 integrationstester (end-to-end via `WebApplicationFactory`) |
+| Säkerhet | 10/10 | CSPRNG, lockout, RBAC, `ex.Message` borttaget, token-revokering, `AllowedHosts` begränsat, audit log, DefaultChallengeScheme-bugg fixad, personalregistrering låst bakom Admin-endpoint |
+| Funktionalitet | 9/10 | Alla CRUD-flöden, kortaktivering, domänbaserad rollbegränsning, staff kan skapa kort åt kunder, `POST /logout`, `POST /api/admin/users` |
+| Testning | 10/10 | 148 tester – 133 enhetstester + 15 integrationstester (end-to-end via `WebApplicationFactory`) |
 | Produktionsklar | 9/10 | Samtliga kända säkerhets- och kvalitetsproblem åtgärdade. Kvar: sätt `AllowedHosts` till faktisk produktionsdomän, `ITokenDenylist` i Redis (stöd för horisontell skalning) |
 
 ---
