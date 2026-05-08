@@ -16,6 +16,7 @@
 5. [Tester – vad finns och vad saknas](#5-tester--vad-finns-och-vad-saknas)
 6. [NuGet-paket](#6-nuget-paket)
 7. [Sammanfattning & prioriterad åtgärdslista](#7-sammanfattning--prioriterad-åtgärdslista)
+8. [Extern granskning – Lärarens feedback](#8-extern-granskning--lärarens-feedback)
 
 ---
 
@@ -278,3 +279,79 @@ Korrekt konfigurerat med JWT Bearer-stöd och inlindat i `if (app.Environment.Is
 |---|---------|-----------|
 | – | `ConnectionStrings:Redis` tom i prod | Sätt Redis-anslutningssträngen i miljövariabler/secrets. Vid uppstart loggas en varning om strängen saknas. |
 | – | `AllowedHosts` i produktion | Sätt till faktisk domän när API:et driftsätts. |
+
+---
+
+## 8. Extern granskning – Lärarens feedback
+
+> **Granskare:** Lärare (extern)  
+> **Datum:** 2026-05-08  
+> **Ursprunglig text:** Engelska (message.txt på skrivbordet)
+
+### Vad som godkänns ✅
+
+- Beroendeflöde korrekt: `Domain` ← `Application` ← `Infrastructure`/`API`. Application läcker inte till Infrastructure.
+- MediatR + CQRS-mappning (`Features/{Aggregate}/Commands|Queries`) är kanonisk.
+- Pipeline behaviors i rätt ordning: Logging → Validation → Audit.
+- DI-extension methods håller `Program.cs` ren.
+
+> *"The skeleton is right and it's clearly built thoughtfully — the issues above are the difference between 'nice student/portfolio Clean Architecture project' and 'I'd put this in production at a bank.'"*
+
+---
+
+### Huvudproblem (20 st)
+
+| # | Prioritet | Problem | Fil/Plats | Beskrivning |
+|---|-----------|---------|-----------|-------------|
+| 1 | 🔴 HÖG | **Anemic Domain Model** | `Account`, `Card`, `Transaction` | Entiteterna är rena datapåsar med publika setters. All affärslogik (overdraft-check, IsActive-check, timestamping) bor i handlers istf. i domänen. Lägg till `Account.Deposit()`, `Account.Withdraw()`, `Account.Close()`. Lås setters med `private set`. |
+| 2 | 🔴 HÖG | **`Money` bör vara ett value object, inte `decimal`** | Hela domänen | Ingen valuta. Kan inte förhindra blandning av valutor. Avrundning/precision spridd. En `Money(decimal Amount, Currency Currency)` value object är obligatorisk i ett banksystem. |
+| 3 | 🔴 HÖG | **Transaktioner är inte oföränderliga i databasen** | `AccountConfiguration.cs:112` | `OnDelete(DeleteBehavior.Cascade)` raderar transaktioner när konton tas bort. Bankliggare ska vara append-only. `IRepository<T>` exponerar `Delete` på `ITransactionRepository` — detta är ett regulatoriskt/audit-fel. |
+| 4 | 🔴 HÖG | **Generisk `IRepository<T>` i Domain är ett anti-pattern** | `NexaPay.Domain/Interfaces/IRepository.cs` | Exponerar `Update`, `Delete`, `GetAllAsync` på varje aggregat. Läcker data-access-bekymmer in i Domain. Bort med generisk repository – ersätt med avsiktsavslöjande metoder per aggregat-rot. |
+| 5 | 🟠 MEDEL | **`UnitOfWork.Dispose()` dubbel-disposar DbContext** | `UnitOfWork.cs:94` | Både `ApplicationDbContext` och `UnitOfWork` är Scoped. DI-containern disposar båda. Manuell `_context.Dispose()` kan disposa DbContext innan `UserManager`/`RoleManager` är klara. Ta bort `IDisposable` från `UnitOfWork`. |
+| 6 | 🟠 MEDEL | **`Repository.Update()` är fel för spårade entiteter** | `Repository.cs:82` | `Attach` + `State = Modified` skriver alla kolumner varje gång, även om bara `Balance` ändrades. Entiteter från `GetByIdAsync` är redan spårade — ta bort `Update`-anropen. EF spårar ändringar automatiskt. |
+| 7 | 🟠 MEDEL | **`try/catch (Exception)` i varje handler slukar undantag** | Alla handlers | Real-exceptions blir opaka `Result.Failure`-strängar. `ExceptionMiddleware` nås aldrig för handler-fel → alla buggar returnerar `200 OK { success:false }` istf. `500`. Monitoring missar dem. `ConcurrencyException` fångas av samma generiska catch och tappar retry-signalen. Välj EN modell: antingen `Result<T>` med specifika catches, eller throw + låt middleware översätta. |
+| 8 | 🟠 MEDEL | **Hybrid-felmodell: exceptions vs. Result** | `ValidationBehavior`, handlers | `ValidationBehavior` kastar `ValidationException`. Handlers returnerar `Result<T>.Failure`. `NotFoundException` existerar men kastas aldrig. Controllers måste förstå båda modellerna. Välj och dokumentera en modell. |
+| 9 | 🟠 MEDEL | **Inga domänhändelser / integrationshändelser** | Hela lösningen | `MoneyDeposited`, `MoneyWithdrawn`, `MoneyTransferred`, `CardBlocked`, `AccountClosed` saknas. Dessa driver audit, bedrägeridetektering, notifieringar och kassaavstämning. Ens MediatR `INotification` vore ett steg framåt. |
+| 10 | 🔴 HÖG | **Ingen idempotens för pengaflyttande operationer** | `TransactionsController` | En nätverksåtgärd på `POST /transactions/transfer` utför överföringen två gånger. Ingen `Idempotency-Key`-header, ingen dedup-tabell. **Den farligaste bristen i ett betalsystem.** |
+| 11 | 🟡 LÅG | **RowVersion finns men meddelandet är vilseledande och ingen retry** | `UnitOfWork.SaveChangesAsync` | Meddelandet hårdkodar "Kontot" i en generisk save-metod. Ingen retry-logik – varje misslyckat parallellt transfer-försök kastas tillbaka till klienten. Polly retry med refresh-and-replay hör hemma här. |
+| 12 | 🟠 MEDEL | **Soft-delete + global query filter läcker** | `ApplicationDbContext.cs:46` | Stängda konton är osynliga även för Auditor-rollen. Kort kopplat till inaktivt konto returnerar `null` tyst vid navigering. Transaktioner på stängda konton syns inte. Behöver `IgnoreQueryFilters()` i admin/audit-queries, och troligen `AccountStatus` (Open/Frozen/Closed) istf. `IsActive`. |
+| 13 | 🟠 MEDEL | **PAN/CVV-hantering** | `Card.CardNumber` | Kortnumret lagras i klartext. Även för utbildningssyfte måste en Clean Architecture-granskning påpeka: PAN ska tokeniseras, fullständigt PAN ska aldrig lagras. CVV-hanteringen är korrekt (returneras en gång, lagras inte). |
+| 14 | 🟡 LÅG | **`IsAdmin` används som `IsStaff`** | `AccountsController.cs:59`, `DeleteAccountCommand` | Queryfältet heter `IsAdmin` men fylls från `User.IsStaff()`. `DeleteAccountCommand` använder `User.IsAdmin()` för samma flagga. Framtida underhållare fixar åt fel håll. Byt namn till `IsStaff` överallt eller dela upp `IsStaff`/`IsAdmin` korrekt. |
+| 15 | 🟡 LÅG | **`ApiResponse` är inte generisk – Swagger tappar payload-form** | `ApiResponse.cs` | `[ProducesResponseType(typeof(ApiResponse), 200)]` – `Data`-propertyn är `object?`. OpenAPI-klienter ser `data: any`. Använd `ApiResponse<T>` med `Data: T` för riktiga scheman. |
+| 16 | 🟡 LÅG | **Validatorer har hårdkodade affärsregler** | `TransferValidator.cs:29` | `LessThanOrEqualTo(1000000)` kr – ett domängränsvärde och en valutaantagelse hårdkodad i en Application-validator. Tillhör domänpolicy eller extern konfiguration. |
+| 17 | 🟠 MEDEL | **CancellationToken tappas vid repository-gränsen** | `IRepository<T>` | `GetByIdAsync(Guid id)` och liknande accepterar inte `CancellationToken`. Handlers tar emot token, skickar den bara till `SaveChangesAsync`, tappar den för alla läsningar. Avbrytning av HTTP-request avbryter inte DB-query. Lägg till token i alla async repo-metoder. |
+| 18 | 🔴 HÖG | **LoggingBehavior loggar hela request-objektet inkl. lösenord** | `LoggingBehavior.cs:54` | `_logger.LogInformation("... {@Request}", request)` serialiserar `LoginCommand` inklusive **lösenordet**. Fixa med `ILoggable`-opt-in, destructuring policies (Serilog) eller filtrera känsliga properties. |
+| 19 | 🟡 LÅG | **JWT-nyckel saknar fail-fast för längd/styrka** | `DependencyInjection.cs` | `Encoding.UTF8.GetBytes(jwtKey)` matas direkt till `SymmetricSecurityKey`. HS256 kräver ≥ 256-bit (32 bytes). En kort nyckel i dev signerar tokens som ASP.NET sedan avvisar med ett otydligt fel. Validera vid uppstart. |
+| 20 | 🟡 LÅG | **MediatR-version och `RequestHandlerDelegate`** | `NexaPay.Application.csproj` | `MediatR 12.4.0` fungerar, men i 12.5+ inkluderar delegate-signaturen CancellationToken. Behöver en liten anpassning vid versionsuppgradering. |
+
+---
+
+### Mindre anmärkningar
+
+| # | Typ | Beskrivning |
+|---|-----|-------------|
+| a | Kodkvalitet | Överdrivna lärokommentarer i produktionskod (förklarar vad `Task<>`, `?`, `decimal` betyder). Hör hemma i onboarding-docs, inte i koden. |
+| b | Struktur | Request-DTOs ligger inlined i controllers (`CreateAccountRequest`, `TransferRequest`). Konventionen är en typ per fil under `Contracts/` eller per feature. |
+| c | Trådsäkerhet | `InMemoryTokenDenylist` är Singleton – korrekt med `ConcurrentDictionary`. ✅ |
+| d | Performance | `AccountRepository.GetByAccountNumberAsync` hämtar tracking-entitet. Använd `AsNoTracking()` i queries (fungerar för `GetAccountsByOwnerIdAsync` ✅, saknas för `GetByAccountNumberAsync`). |
+| e | Driftsättning | `MigrateAsync` vid uppstart (`DatabaseExtensions`): bekvämt i dev, farligt i prod. Production bör köra migrationer som ett separat steg i deploy-pipelinen. |
+| f | CORS | Dev allow-list i `appsettings.Development.json`. Production nekar allt – fail-closed är rätt. ✅ |
+| g | Domänpolicy | `StaffDomain`-kontroll (roll + `@nexapay.com`-epost) görs i `RegisterHandler`. Renare som en namngiven `IAuthorizationRequirement`/policy. |
+| h | Health checks | `/health` returnerar alltid Healthy även om SQL är nere. Lägg till `AddDbContextCheck<ApplicationDbContext>()` och `AddRedis(...)`. |
+
+---
+
+### Lärarens rekommenderade prioritetsordning (nästa sprint)
+
+| Prio | Åtgärd |
+|------|--------|
+| 1 | **Rik domänmodell** – flytta saldoändring, overdraft-check, IsActive-check, statustransitioner till aggregatmetoder (`Account.Deposit()`, `Account.Withdraw()`, `Account.Close()`). Lås setters. |
+| 2 | **`Money` value object** med valuta. |
+| 3 | **Ta bort generisk `IRepository<T>` från Domain.** Ersätt med avsiktsavslöjande metoder. Ta bort redundant `Update`. |
+| 4 | **Fixa `UnitOfWork.Dispose`** – disposa inte context manuellt. |
+| 5 | **Välj EN felmodell** (`Result<T>` *eller* exceptions) och sluta wrappa allt i `catch (Exception)`. |
+| 6 | **Lägg till idempotens-nyckel** på alla pengaflyttande endpoints. |
+| 7 | **Sluta logga hela requests** – sanera känsliga fält (lösenord). |
+| 8 | **Domänhändelser** för de fyra pengarörelseoperationerna – ens in-process `INotification` är en riktig förbättring. |
+| 9 | **Ta bort cascade-delete på Transactions** – transaktioner är en oföränderlig liggare. |
+| 10 | **Generisk `ApiResponse<T>`** för korrekta OpenAPI-scheman. |
