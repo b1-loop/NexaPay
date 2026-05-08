@@ -80,9 +80,13 @@ namespace NexaPay.Application.Common.Constants
         public const string CanWrite =
             $"{Admin},{BankManager},{Teller},{User}";
 
-        // Roller som kan genomföra överföringar och stänga konton
+        // Roller som kan genomföra överföringar mellan konton
         // Teller kan hjälpa kunder med in/uttag men inte flytta pengar mellan konton
         public const string CanTransfer =
+            $"{Admin},{BankManager},{User}";
+
+        // Roller som kan stänga/radera konton
+        public const string CanDelete =
             $"{Admin},{BankManager},{User}";
     }
 }

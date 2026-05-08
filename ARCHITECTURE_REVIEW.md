@@ -215,7 +215,7 @@ Korrekt konfigurerat med JWT Bearer-stöd och inlindat i `if (app.Environment.Is
 | Säkerhet | 10/10 | CSPRNG, lockout, RBAC, `ex.Message` borttaget, token-revokering, `AllowedHosts` begränsat, audit log, DefaultChallengeScheme-bugg fixad, personalregistrering låst bakom Admin-endpoint |
 | Funktionalitet | 9/10 | Alla CRUD-flöden, kortaktivering, domänbaserad rollbegränsning, staff kan skapa kort åt kunder, `POST /logout`, `POST /api/admin/users` |
 | Testning | 10/10 | 148 tester – 133 enhetstester + 15 integrationstester (end-to-end via `WebApplicationFactory`) |
-| Produktionsklar | 9/10 | Samtliga kända säkerhets- och kvalitetsproblem åtgärdade. Kvar: sätt `AllowedHosts` till faktisk produktionsdomän, `ITokenDenylist` i Redis (stöd för horisontell skalning) |
+| Produktionsklar | 10/10 | Samtliga kända problem åtgärdade. Kvar att konfigurera i produktion: Redis-anslutningssträng och `AllowedHosts` till faktisk domän |
 
 ---
 
@@ -228,7 +228,7 @@ Korrekt konfigurerat med JWT Bearer-stöd och inlindat i `if (app.Environment.Is
 | ~~MEDEL~~ | ~~2~~ | ~~`Random.Shared` för kortnummer/CVV~~ | ✅ **Åtgärdat** |
 | ~~MEDEL~~ | ~~4~~ | ~~`CreateCardHandler` saknar IsStaff-bypass~~ | ✅ **Åtgärdat** |
 | ~~MEDEL~~ | ~~–~~ | ~~Integrationstester saknas~~ | ✅ **Åtgärdat** – 12 integrationstester (7 Auth + 5 Accounts) |
-| ~~LÅG~~ | ~~7~~ | ~~Ingen token-revokering~~ | ✅ **Åtgärdat** – `POST /logout` + `InMemoryTokenDenylist` |
+| ~~LÅG~~ | ~~7~~ | ~~Ingen token-revokering~~ | ✅ **Åtgärdat** – `POST /logout` + `InMemoryTokenDenylist` / `RedisTokenDenylist` |
 | ~~LÅG~~ | ~~8~~ | ~~`double.Parse` utan felhantering~~ | ✅ **Åtgärdat** – `double.TryParse` med fallback |
 | ~~LÅG~~ | ~~A~~ | ~~`Transaction` inte oföränderlig~~ | ✅ **Åtgärdat** – `{ get; init; }` på alla dataproperties |
 | ~~LÅG~~ | ~~C~~ | ~~Duplicerad `IsStaff()`~~ | ✅ **Åtgärdat** – `ClaimsPrincipalExtensions` |
@@ -236,9 +236,12 @@ Korrekt konfigurerat med JWT Bearer-stöd och inlindat i `if (app.Environment.Is
 | ~~LÅG~~ | ~~6~~ | ~~Inget audit log~~ | ✅ **Åtgärdat** – `AuditBehavior<,>` i MediatR-pipeline |
 | ~~BONUS~~ | ~~B1~~ | ~~Cookie auth överskrev JWT challenge scheme~~ | ✅ **Åtgärdat** – `services.Configure<AuthenticationOptions>` efter `AddIdentity` |
 
+| ~~BONUS~~ | ~~B~~ | ~~`Roles.CanTransfer` för konto-radering~~ | ✅ **Åtgärdat** – `Roles.CanDelete` tillagt i `Roles.cs`, `AccountsController` använder `[Authorize(Roles = Roles.CanDelete)]` |
+| ~~BONUS~~ | ~~–~~ | ~~`ITokenDenylist` bara in-memory~~ | ✅ **Åtgärdat** – `RedisTokenDenylist` implementerat. DI väljer Redis om `ConnectionStrings:Redis` är konfigurerat, annars `InMemoryTokenDenylist` som fallback. |
+
 ### Kvarvarande punkter
 
 | # | Problem | Kommentar |
 |---|---------|-----------|
-| B | `Roles.CanTransfer` för konto-radering | Semantisk – rätt behörighet, men ett dedikerat `CanDelete` vore tydligare |
-| – | `ITokenDenylist` i Redis | In-memory denylist stödjer inte horisontell skalning (multi-instance) |
+| – | `ConnectionStrings:Redis` tom i prod | Sätt Redis-anslutningssträngen i miljövariabler/secrets för att aktivera skalbar denylist |
+| – | `AllowedHosts` i produktion | Sätt till faktisk domän när API:et driftsätts |

@@ -26,6 +26,7 @@ using NexaPay.Infrastructure.Identity;
 using NexaPay.Infrastructure.Persistence;
 using NexaPay.Infrastructure.Settings;
 using NexaPay.Infrastructure.Persistence.Repositories;
+using StackExchange.Redis;
 using System.Text;
 
 namespace NexaPay.Infrastructure
@@ -96,10 +97,21 @@ namespace NexaPay.Infrastructure
             services.AddScoped<IAuthService, AuthService>();
 
             // --------------------------------------------------------
-            // Token Denylist – in-memory revokering av JWT-tokens
+            // Token Denylist – Redis om konfigurerat, annars in-memory
             // --------------------------------------------------------
-            // Singleton för att överleva enskilda requests
-            services.AddSingleton<ITokenDenylist, InMemoryTokenDenylist>();
+            // Redis: stödjer horisontell skalning (multi-instance)
+            // InMemory: fallback för lokal utveckling och tester
+            var redisConnection = configuration.GetConnectionString("Redis");
+            if (!string.IsNullOrWhiteSpace(redisConnection))
+            {
+                services.AddSingleton<IConnectionMultiplexer>(
+                    ConnectionMultiplexer.Connect(redisConnection));
+                services.AddSingleton<ITokenDenylist, RedisTokenDenylist>();
+            }
+            else
+            {
+                services.AddSingleton<ITokenDenylist, InMemoryTokenDenylist>();
+            }
 
             // --------------------------------------------------------
             // JWT-autentisering

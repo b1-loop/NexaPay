@@ -112,7 +112,7 @@ namespace NexaPay.API.Controllers
         // Admin, BankManager och User kan stänga konton
         // Teller och Auditor kan INTE stänga konton
         [HttpDelete("{id:guid}")]
-        [Authorize(Roles = Roles.CanTransfer)]
+        [Authorize(Roles = Roles.CanDelete)]
         public async Task<IActionResult> Delete(Guid id)
         {
             var result = await _mediator.Send(
