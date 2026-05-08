@@ -73,16 +73,10 @@ namespace NexaPay.Application.Features.Cards.Commands.CreateCard
                 // Steg 2: Generera kortdata
                 // --------------------------------------------------------
 
-                // Generera ett unikt 16-siffrigt kortnummer
-                // Loopa tills vi hittar ett ledigt nummer – precis som
-                // CreateAccountHandler gör med kontonummer
+                // Generera ett 16-siffrigt kortnummer med CSPRNG.
+                // Databasen har UNIQUE-constraint på CardNumber (CardConfiguration)
+                // – en eventuell kollision fångas av catch-blocket.
                 var cardNumber = GenerateCardNumber();
-
-                while (await _unitOfWork.Cards
-                    .GetByCardNumberAsync(cardNumber) != null)
-                {
-                    cardNumber = GenerateCardNumber();
-                }
 
                 // Generera en 3-siffrig CVV-kod – sparas INTE i databasen
                 // Returneras en enda gång i svaret (PCI-DSS krav)

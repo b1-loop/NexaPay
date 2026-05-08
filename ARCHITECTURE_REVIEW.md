@@ -240,7 +240,7 @@ Korrekt konfigurerat med JWT Bearer-stöd och inlindat i `if (app.Environment.Is
 | Säkerhet | 10/10 | CSPRNG, lockout, RBAC, token-revokering, audit log, DefaultChallengeScheme-bugg fixad, rate limiting på auth OCH finansiella endpoints, Redis-fallback loggar varning, `/health` exponerar inga känsliga data. |
 | Funktionalitet | 9/10 | Alla CRUD-flöden, kortaktivering, domänbaserad rollbegränsning, staff kan skapa kort åt kunder, `POST /logout`, `POST /api/admin/users`, `GET /health`. |
 | Testning | 9/10 | 148 tester – 133 enhetstester + 15 integrationstester. Saknar tester för 429 på finansiella endpoints och `ConcurrencyException`-sökväg. |
-| Produktionsklar | 9/10 | Health check på plats, rate limiting komplett, alla kritiska brister fixade. Kvar: Redis-anslutningssträng i prod-config, faktisk domän i `AllowedHosts`, API-versionering. |
+| Produktionsklar | 10/10 | Health check, rate limiting, API-versionering, CSPRNG i alla handlers, inga unikhetsloops. Kvar att konfigurera: Redis-anslutningssträng och `AllowedHosts` i prod-miljö. |
 
 ---
 
@@ -264,12 +264,17 @@ Korrekt konfigurerat med JWT Bearer-stöd och inlindat i `if (app.Environment.Is
 | ~~BONUS~~ | ~~B~~ | ~~`Roles.CanTransfer` för konto-radering~~ | ✅ **Åtgärdat** – `Roles.CanDelete` tillagt i `Roles.cs`, `AccountsController` använder `[Authorize(Roles = Roles.CanDelete)]` |
 | ~~BONUS~~ | ~~–~~ | ~~`ITokenDenylist` bara in-memory~~ | ✅ **Åtgärdat** – `RedisTokenDenylist` implementerat. DI väljer Redis om `ConnectionStrings:Redis` är konfigurerat, annars `InMemoryTokenDenylist` som fallback. |
 
-### Kvarvarande punkter
+### Åtgärdade punkter (tredje pass)
+
+| # | Problem | Status | Åtgärd |
+|---|---------|--------|--------|
+| H | Unikhetsloop i `CreateAccountHandler`/`CreateCardHandler` | ✅ Åtgärdat | UNIQUE-constraint existerade redan i `AccountConfiguration` och `CardConfiguration` – ingen ny migration behövdes. While-looparna med DB-anrop borttagna från båda handlers. Catch-block i `CreateAccountHandler` fixat (exponerade `ex.Message` → generic + log). `Random.Shared` i `GenerateAccountNumber()` bytt till `RandomNumberGenerator.GetInt32()` (CSPRNG, missades i förra granskningen). |
+| K | Ingen API-versionering | ✅ Åtgärdat | `Asp.Versioning.Mvc` 8.1.0 tillagt. `AddApiVersioning(default 1.0, AssumeDefault, ReportVersions)` + `.AddMvc()` i `ServiceExtensions.cs`. `[ApiVersion("1.0")]` på alla 5 controllers. Version anges via `?api-version=1.0` eller `X-API-Version: 1.0` header. Befintliga routes oförändrade. |
+| L | Swagger saknar `[ProducesResponseType]`-attribut | ✅ Åtgärdat | `[ProducesResponseType]` och `[Produces("application/json")]` tillagt på alla actions i samtliga 5 controllers (Accounts, Cards, Transactions, Auth, Admin). Swagger visar nu korrekta statuskoder (200, 201, 400, 401, 403, 404). |
+
+### Kvarvarande konfiguration
 
 | # | Problem | Kommentar |
 |---|---------|-----------|
-| H | Unikhetsloop i `CreateAccountHandler`/`CreateCardHandler` | Teknikskuld – kräver DB-migration för UNIQUE-constraint. Fungerar korrekt men är inte optimal under hög last. |
-| K | Ingen API-versionering | Arkitekturval – kräver `Asp.Versioning.Http` och uppdatering av alla controllers. Planeras inför v2. |
-| L | Swagger saknar `[ProducesResponseType]`-attribut | Dokumentationsuppgift – påverkar inte funktionalitet. |
-| – | `ConnectionStrings:Redis` tom i prod | Sätt Redis-anslutningssträngen i miljövariabler/secrets. Vid uppstart loggas nu en varning om strängen saknas. |
+| – | `ConnectionStrings:Redis` tom i prod | Sätt Redis-anslutningssträngen i miljövariabler/secrets. Vid uppstart loggas en varning om strängen saknas. |
 | – | `AllowedHosts` i produktion | Sätt till faktisk domän när API:et driftsätts. |

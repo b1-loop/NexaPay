@@ -5,6 +5,7 @@
 // Håller Program.cs ren och läsbar.
 // ============================================================
 
+using Asp.Versioning;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
@@ -66,6 +67,24 @@ namespace NexaPay.API
         {
             // Controllers
             services.AddControllers();
+
+            // --------------------------------------------------------
+            // API-versionshantering
+            // --------------------------------------------------------
+            // Nuvarande version: 1.0
+            // Version anges via query string (?api-version=1.0) eller
+            // header (X-API-Version: 1.0). Befintliga routes (/api/*)
+            // fungerar utan versionsparameter via AssumeDefaultVersionWhenUnspecified.
+            services.AddApiVersioning(options =>
+            {
+                options.DefaultApiVersion = new ApiVersion(1, 0);
+                options.AssumeDefaultVersionWhenUnspecified = true;
+                options.ReportApiVersions = true;
+                options.ApiVersionReader = ApiVersionReader.Combine(
+                    new QueryStringApiVersionReader("api-version"),
+                    new HeaderApiVersionReader("X-API-Version"));
+            })
+            .AddMvc();
 
             // --------------------------------------------------------
             // Rate Limiting

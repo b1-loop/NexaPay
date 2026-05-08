@@ -10,6 +10,7 @@
 //   DELETE /accounts/{id}→ Admin, BankManager, User (ej Teller/Auditor)
 // ============================================================
 
+using Asp.Versioning;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -25,9 +26,11 @@ using NexaPay.Domain.Enums;
 namespace NexaPay.API.Controllers
 {
     [ApiController]
+    [ApiVersion("1.0")]
     [Route("api/[controller]")]
     [Authorize]
     [EnableRateLimiting("financial")]
+    [Produces("application/json")]
     public class AccountsController : ControllerBase
     {
         private readonly IMediator _mediator;
@@ -44,6 +47,9 @@ namespace NexaPay.API.Controllers
         // Personal ser alla konton
         // Vanlig User ser bara sina egna
         [HttpGet]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> GetAll()
         {
             var result = await _mediator.Send(
@@ -63,6 +69,9 @@ namespace NexaPay.API.Controllers
         // GET api/accounts/{id}
         // --------------------------------------------------------
         [HttpGet("{id:guid}")]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> GetById(Guid id)
         {
             var result = await _mediator.Send(
@@ -86,6 +95,10 @@ namespace NexaPay.API.Controllers
         // Auditor kan INTE skapa konton (read-only roll)
         [HttpPost]
         [Authorize(Roles = Roles.CanWrite)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status201Created)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
         public async Task<IActionResult> Create(
             [FromBody] CreateAccountRequest request)
         {
@@ -115,6 +128,10 @@ namespace NexaPay.API.Controllers
         // Teller och Auditor kan INTE stänga konton
         [HttpDelete("{id:guid}")]
         [Authorize(Roles = Roles.CanDelete)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
         public async Task<IActionResult> Delete(Guid id)
         {
             var result = await _mediator.Send(

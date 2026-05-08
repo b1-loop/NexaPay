@@ -8,6 +8,7 @@
 //   PUT  /cards/{id}/block      → Admin, BankManager
 // ============================================================
 
+using Asp.Versioning;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -23,9 +24,11 @@ using NexaPay.Application.Features.Cards.Queries.GetCardsByAccount;
 namespace NexaPay.API.Controllers
 {
     [ApiController]
+    [ApiVersion("1.0")]
     [Route("api/[controller]")]
     [Authorize]
     [EnableRateLimiting("financial")]
+    [Produces("application/json")]
     public class CardsController : ControllerBase
     {
         private readonly IMediator _mediator;
@@ -40,6 +43,9 @@ namespace NexaPay.API.Controllers
         // GET api/cards/account/{accountId}
         // --------------------------------------------------------
         [HttpGet("account/{accountId:guid}")]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> GetByAccount(Guid accountId)
         {
             var result = await _mediator.Send(
@@ -62,6 +68,10 @@ namespace NexaPay.API.Controllers
         // Auditor kan INTE skapa kort – read-only roll
         [HttpPost]
         [Authorize(Roles = Roles.CanWrite)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
         public async Task<IActionResult> Create(
             [FromBody] CreateCardRequest request)
         {
@@ -88,6 +98,10 @@ namespace NexaPay.API.Controllers
         // Kortets ägare, Admin, BankManager och Teller kan aktivera kort
         [HttpPut("{id:guid}/activate")]
         [Authorize(Roles = Roles.CanWrite)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
         public async Task<IActionResult> Activate(Guid id)
         {
             var result = await _mediator.Send(
@@ -111,6 +125,10 @@ namespace NexaPay.API.Controllers
         // Bara Admin och BankManager kan blockera kort
         [HttpPut("{id:guid}/block")]
         [Authorize(Roles = Roles.CanBlockCard)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
         public async Task<IActionResult> Block(
             Guid id,
             [FromBody] BlockCardRequest request)

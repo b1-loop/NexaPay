@@ -5,6 +5,7 @@
 // Istället för isAdmin (bool) skickar vi nu en rollsträng.
 // ============================================================
 
+using Asp.Versioning;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -19,8 +20,10 @@ using NexaPay.Application.Features.Auth.Commands.Register;
 namespace NexaPay.API.Controllers
 {
     [ApiController]
+    [ApiVersion("1.0")]
     [Route("api/[controller]")]
     [EnableRateLimiting("auth")]
+    [Produces("application/json")]
     public class AuthController : ControllerBase
     {
         private readonly IMediator _mediator;
@@ -36,6 +39,8 @@ namespace NexaPay.API.Controllers
         // POST api/auth/register
         // --------------------------------------------------------
         [HttpPost("register")]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> Register(
             [FromBody] RegisterRequest request)
         {
@@ -65,6 +70,8 @@ namespace NexaPay.API.Controllers
         // POST api/auth/login
         // --------------------------------------------------------
         [HttpPost("login")]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> Login(
             [FromBody] LoginRequest request)
         {
@@ -91,6 +98,8 @@ namespace NexaPay.API.Controllers
         [HttpPost("logout")]
         [Authorize]
         [DisableRateLimiting]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public IActionResult Logout()
         {
             var jti = User.FindFirst(JwtRegisteredClaimNames.Jti)?.Value;

@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -7,8 +8,10 @@ using NexaPay.Application.Features.Auth.Commands.Register;
 namespace NexaPay.API.Controllers
 {
     [ApiController]
+    [ApiVersion("1.0")]
     [Route("api/[controller]")]
     [Authorize(Roles = Roles.Admin)]
+    [Produces("application/json")]
     public class AdminController : ControllerBase
     {
         private readonly IMediator _mediator;
@@ -26,6 +29,10 @@ namespace NexaPay.API.Controllers
         // Personalroller (Admin, BankManager, Teller, Auditor)
         // kräver fortfarande @nexapay.com-epost (hanteras av RegisterHandler).
         [HttpPost("users")]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
         public async Task<IActionResult> CreateUser(
             [FromBody] AdminCreateUserRequest request)
         {

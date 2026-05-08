@@ -6,6 +6,7 @@
 // ============================================================
 
 using FluentAssertions;
+using Microsoft.Extensions.Logging;
 using Moq;
 using NexaPay.Application.Features.Accounts.Commands.CreateAccount;
 using NexaPay.Domain.Enums;
@@ -47,7 +48,8 @@ namespace NexaPay.Tests.Application.Features.Accounts
 
             _handler = new CreateAccountHandler(
                 MockUnitOfWork.Object,
-                Mapper);
+                Mapper,
+                Mock.Of<ILogger<CreateAccountHandler>>());
         }
 
         // --------------------------------------------------------
@@ -68,11 +70,6 @@ namespace NexaPay.Tests.Application.Features.Accounts
                 AccountType = AccountType.Savings,
                 OwnerId = "user-123"
             };
-
-            MockAccountRepository
-                .Setup(r => r.AccountNumberExistsAsync(
-                    It.IsAny<string>()))
-                .ReturnsAsync(false);
 
             // Act
             var result = await _handler.Handle(
@@ -117,11 +114,6 @@ namespace NexaPay.Tests.Application.Features.Accounts
                 OwnerId = "user-456"
             };
 
-            MockAccountRepository
-                .Setup(r => r.AccountNumberExistsAsync(
-                    It.IsAny<string>()))
-                .ReturnsAsync(false);
-
             // Act
             var result = await _handler.Handle(
                 command,
@@ -152,11 +144,6 @@ namespace NexaPay.Tests.Application.Features.Accounts
                 AccountType = AccountType.ISK,
                 OwnerId = "user-789"
             };
-
-            MockAccountRepository
-                .Setup(r => r.AccountNumberExistsAsync(
-                    It.IsAny<string>()))
-                .ReturnsAsync(false);
 
             // Act
             await _handler.Handle(command, CancellationToken.None);
@@ -196,11 +183,6 @@ namespace NexaPay.Tests.Application.Features.Accounts
                 AccountType = accountType,
                 OwnerId = "user-123"
             };
-
-            MockAccountRepository
-                .Setup(r => r.AccountNumberExistsAsync(
-                    It.IsAny<string>()))
-                .ReturnsAsync(false);
 
             // Act
             var result = await _handler.Handle(

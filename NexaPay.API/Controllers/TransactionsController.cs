@@ -14,6 +14,7 @@
 //   ?page=2&pageSize=10 (sida 2 med 10 per sida)
 // ============================================================
 
+using Asp.Versioning;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -28,9 +29,11 @@ using NexaPay.Application.Features.Transactions.Queries.GetTransactionsByAccount
 namespace NexaPay.API.Controllers
 {
     [ApiController]
+    [ApiVersion("1.0")]
     [Route("api/[controller]")]
     [Authorize]
     [EnableRateLimiting("financial")]
+    [Produces("application/json")]
     public class TransactionsController : ControllerBase
     {
         // IMediator skickar Commands och Queries till rätt Handler
@@ -59,6 +62,9 @@ namespace NexaPay.API.Controllers
         //   hasNextPage   = om det finns fler sidor
         //   hasPreviousPage = om det finns föregående sida
         [HttpGet("account/{accountId:guid}")]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> GetByAccount(
             Guid accountId,
             // [FromQuery] läser parametrar från URL:en
@@ -90,6 +96,10 @@ namespace NexaPay.API.Controllers
         // Auditor kan INTE göra insättningar – read-only roll
         [HttpPost("deposit")]
         [Authorize(Roles = Roles.CanWrite)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
         public async Task<IActionResult> Deposit(
             [FromBody] DepositRequest request)
         {
@@ -117,6 +127,10 @@ namespace NexaPay.API.Controllers
         // Auditor kan INTE göra uttag – read-only roll
         [HttpPost("withdraw")]
         [Authorize(Roles = Roles.CanWrite)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
         public async Task<IActionResult> Withdraw(
             [FromBody] WithdrawRequest request)
         {
@@ -145,6 +159,10 @@ namespace NexaPay.API.Controllers
         // Teller och Auditor kan INTE göra överföringar
         [HttpPost("transfer")]
         [Authorize(Roles = Roles.CanTransfer)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
         public async Task<IActionResult> Transfer(
             [FromBody] TransferRequest request)
         {
