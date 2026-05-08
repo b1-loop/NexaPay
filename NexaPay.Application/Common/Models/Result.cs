@@ -15,11 +15,19 @@
 
 namespace NexaPay.Application.Common.Models
 {
+    // Kontrakt för AuditBehavior och andra pipeline-komponenter –
+    // eliminerar reflektion för att läsa IsSuccess.
+    public interface IResult
+    {
+        bool IsSuccess { get; }
+        string Error { get; }
+    }
+
     // ============================================================
     // Result utan data – används när vi inte returnerar något värde
     // T.ex. vid Delete-operationer där vi bara vill veta om det gick bra
     // ============================================================
-    public class Result
+    public class Result : IResult
     {
         // Skyddad konstruktor – man skapar inte Result direkt med "new Result()"
         // Man använder istället de statiska metoderna Success() och Failure()

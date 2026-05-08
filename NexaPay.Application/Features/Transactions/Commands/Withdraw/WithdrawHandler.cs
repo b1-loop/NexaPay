@@ -69,9 +69,8 @@ namespace NexaPay.Application.Features.Transactions.Commands.Withdraw
                 if (account.Balance < request.Amount)
                     return Result<TransactionDto>.Failure(
                         $"Otillräckligt saldo. " +
-                        $"Tillgängligt saldo: {account.Balance:C}, " +
-                        $"Begärt belopp: {request.Amount:C}");
-                // ":C" formaterar decimal som valuta t.ex. "1 234,56 kr"
+                        $"Tillgängligt saldo: {account.Balance:F2}, " +
+                        $"Begärt belopp: {request.Amount:F2}");
 
                 // Steg 3: Dra av beloppet från saldot
                 account.Balance -= request.Amount;

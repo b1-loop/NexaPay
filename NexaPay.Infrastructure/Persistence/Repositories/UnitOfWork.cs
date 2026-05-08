@@ -15,6 +15,7 @@
 // ============================================================
 
 using Microsoft.EntityFrameworkCore;
+using NexaPay.Domain.Exceptions;
 using NexaPay.Domain.Interfaces;
 
 namespace NexaPay.Infrastructure.Persistence.Repositories
@@ -77,11 +78,10 @@ namespace NexaPay.Infrastructure.Persistence.Repositories
             {
                 return await _context.SaveChangesAsync(cancellationToken);
             }
-            catch (DbUpdateConcurrencyException)
+            catch (DbUpdateConcurrencyException ex)
             {
-                throw new Exception(
-                    "Kontot uppdaterades av en annan begäran samtidigt. " +
-                    "Försök igen.");
+                throw new ConcurrencyException(
+                    "Kontot uppdaterades av en annan begäran samtidigt. Försök igen.", ex);
             }
         }
 

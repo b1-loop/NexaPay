@@ -68,10 +68,10 @@ namespace NexaPay.API
             services.AddControllers();
 
             // --------------------------------------------------------
-            // Rate Limiting – skydd mot brute-force på auth-endpoints
+            // Rate Limiting
             // --------------------------------------------------------
-            // Max 5 requests per minut per IP-adress på /auth/*
-            // Returnerar 429 Too Many Requests vid överträdelse
+            // "auth"      – max 5 req/min per IP på AuthController
+            // "financial" – max 20 req/min per IP på Accounts/Cards/Transactions
             services.AddRateLimiter(options =>
             {
                 options.AddPolicy("auth", httpContext =>
@@ -85,9 +85,25 @@ namespace NexaPay.API
                             QueueLimit = 0
                         }));
 
+                options.AddPolicy("financial", httpContext =>
+                    RateLimitPartition.GetFixedWindowLimiter(
+                        partitionKey: httpContext.Connection.RemoteIpAddress?
+                            .ToString() ?? "unknown",
+                        factory: _ => new FixedWindowRateLimiterOptions
+                        {
+                            PermitLimit = 20,
+                            Window = TimeSpan.FromMinutes(1),
+                            QueueLimit = 0
+                        }));
+
                 options.RejectionStatusCode =
                     StatusCodes.Status429TooManyRequests;
             });
+
+            // --------------------------------------------------------
+            // Health checks – /health returnerar API:ets status
+            // --------------------------------------------------------
+            services.AddHealthChecks();
 
             // --------------------------------------------------------
             // Swagger med JWT-stöd
@@ -266,6 +282,9 @@ namespace NexaPay.API
 
             // 7. Controllers
             app.MapControllers();
+
+            // 8. Health check endpoint – ingen autentisering, används av load balancers
+            app.MapHealthChecks("/health");
 
             return app;
         }

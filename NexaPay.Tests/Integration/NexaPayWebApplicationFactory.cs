@@ -40,8 +40,10 @@ namespace NexaPay.Tests.Integration
                     services.Remove(d);
 
                 services.Configure<RateLimiterOptions>(options =>
-                    options.AddPolicy("auth", _ =>
-                        RateLimitPartition.GetNoLimiter("test")));
+                {
+                    options.AddPolicy("auth", _ => RateLimitPartition.GetNoLimiter("test"));
+                    options.AddPolicy("financial", _ => RateLimitPartition.GetNoLimiter("test"));
+                });
             });
         }
     }

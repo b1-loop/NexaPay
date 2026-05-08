@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.Extensions.Logging;
+using NexaPay.Application.Common.Models;
 
 namespace NexaPay.Application.Common.Behaviors
 {
@@ -37,10 +38,8 @@ namespace NexaPay.Application.Common.Behaviors
 
             var response = await next();
 
-            // Läs IsSuccess från Result-mönstret via reflektion
-            var isSuccess = response?.GetType()
-                .GetProperty("IsSuccess")
-                ?.GetValue(response) as bool? ?? true;
+            // Använd IResult-interfacet istf. reflektion – typesafe och alltid korrekt
+            var isSuccess = response is IResult result ? result.IsSuccess : false;
 
             _logger.LogInformation(
                 "AUDIT | {Command} | User: {UserId} | Success: {Success} | {Timestamp:O}",

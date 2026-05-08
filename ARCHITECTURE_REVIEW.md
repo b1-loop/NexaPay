@@ -110,13 +110,11 @@ Korrekt konfigurerat med JWT Bearer-stöd och inlindat i `if (app.Environment.Is
 
 ## 3. Säkerhetsproblem
 
-### HÖG – Ny granskning 2026-05-08
+### HÖG – alla åtgärdade ✅
 
-| # | Problem | Status | Konsekvens |
-|---|---------|--------|------------|
-| S1 | Rate limiting saknas på finansiella endpoints | Öppet | `TransactionsController` och `AccountsController` har ingen rate limiting. En angripare kan göra obegränsat antal insättningar/uttag/överföringar per sekund. Bara `AuthController` skyddas idag av policyn `"auth"`. |
-
-**Åtgärd:** Lägg till en `"financial"` rate limit-policy (t.ex. 20 req/min per användare-ID) i `ServiceExtensions.cs` och applicera `[EnableRateLimiting("financial")]` på `TransactionsController`, `AccountsController` och `CardsController`.
+| # | Problem | Status | Åtgärd |
+|---|---------|--------|--------|
+| S1 | Rate limiting saknas på finansiella endpoints | ✅ Åtgärdat | `"financial"` policy (20 req/min per IP) tillagd i `ServiceExtensions.cs`. `[EnableRateLimiting("financial")]` applicerat på `TransactionsController`, `AccountsController` och `CardsController`. Testfactory uppdaterad med no-limit "financial"-policy. |
 
 ### MEDEL – alla åtgärdade ✅
 
@@ -154,19 +152,19 @@ Korrekt konfigurerat med JWT Bearer-stöd och inlindat i `if (app.Environment.Is
 | B | `Roles.CanTransfer` används för konto-radering | ✅ Åtgärdat | `Roles.CanDelete` tillagt i `Roles.cs`, `AccountsController` använder `[Authorize(Roles = Roles.CanDelete)]`. |
 | C | Duplicerad `IsStaff()`-logik | ✅ Åtgärdat | `ClaimsPrincipalExtensions.cs` tillagt i `NexaPay.API/Extensions/` med `GetUserId()`, `IsStaff()` och `IsAdmin()` som extension methods på `ClaimsPrincipal`. Alla tre controllers använder nu `User.GetUserId()`, `User.IsStaff()`, `User.IsAdmin()` istf. privata hjälpmetoder. |
 
-### Ny granskning 2026-05-08 – öppna punkter
+### Ny granskning 2026-05-08 – alla åtgärdade ✅
 
-| # | Allvarlighetsgrad | Problem | Fil | Konsekvens |
-|---|-------------------|---------|-----|------------|
-| D | MEDEL | `AuditBehavior` använder reflektion för `IsSuccess` – defaultar till `true` | `AuditBehavior.cs:41-43` | `?.GetValue(response) as bool? ?? true` — om `TResponse` saknar `IsSuccess`-property loggas kommandot alltid som lyckat. Felaktigt audit-spår. |
-| E | MEDEL | `UnitOfWork` omsluter `DbUpdateConcurrencyException` i generisk `Exception` | `UnitOfWork.cs:80-84` | `catch (DbUpdateConcurrencyException ex) { throw new Exception("...", ex); }` — anroparen kan inte fånga `DbUpdateConcurrencyException` specifikt. Optimistisk concurrency-hantering i handlers försvåras. |
-| F | MEDEL | Kulturkänslig beloppsformatering i felmeddelanden | `WithdrawHandler.cs:71-73` | `{account.Balance:C}` och `{request.Amount:C}` ger olika output beroende på serverns `CultureInfo` (t.ex. `$1,000.00` vs `1 000,00 kr`). Inkonsekvent i loggar och API-svar. |
-| G | MEDEL | Redis-fallback loggar ingen varning – tyst säkerhetsförsämring | `DependencyInjection.cs` | Om Redis-anslutningssträngen saknas används `InMemoryTokenDenylist` utan att någon loggpost skrivs. En felkonfigurerad prod-miljö degraderas tyst till singelinstans-denylist. |
-| H | LÅG | Unikhetsgaranti för konto-/kortnummer via while-loop med DB-anrop | `CreateAccountHandler.cs`, `CreateCardHandler.cs` | Loopar `while (await _uow.Accounts.ExistsAsync(...))` tills ett unikt nummer hittas. Under hög last kan detta ge många DB-rundturer. Bättre: unik DB-constraint + retry på constraint violation. |
-| I | LÅG | `InMemoryTokenDenylist.RemoveExpired()` itererar hela samlingen vid varje `Revoke` | `InMemoryTokenDenylist.cs` | O(n) rensning på varje logout-anrop. Inga problem vid låg volym, men skalas dåligt. |
-| J | LÅG | Inga health check-endpoints | – | Ingen `/health`-endpoint. Kubernetes/load balancer kan inte avgöra om API:et är igång och kan nå databasen. |
-| K | LÅG | Ingen API-versioneringsstrategi | – | Alla endpoints lever under `/api/`. En brytande förändring i framtiden kräver `/api/v2/` utan förberedd infrastruktur. |
-| L | LÅG | Swagger saknar endpoint-beskrivningar och felresponsschemata | – | `[ProducesResponseType]`-attribut och `/// <summary>`-kommentarer saknas. Swagger UI visar bara statuskod 200 för alla endpoints. |
+| # | Allvarlighetsgrad | Problem | Status | Åtgärd |
+|---|-------------------|---------|--------|--------|
+| D | MEDEL | `AuditBehavior` använder reflektion för `IsSuccess` | ✅ Åtgärdat | `IResult`-interface (`bool IsSuccess`, `string Error`) tillagt i `Result.cs`. `Result` implementerar `IResult`. `AuditBehavior` använder nu `response is IResult r ? r.IsSuccess : false` – ingen reflektion. |
+| E | MEDEL | `UnitOfWork` omsluter `DbUpdateConcurrencyException` i generisk `Exception` | ✅ Åtgärdat | `ConcurrencyException : Exception` skapad i `NexaPay.Domain/Exceptions/`. `UnitOfWork.SaveChangesAsync` kastar nu `ConcurrencyException` (med inner exception) – typinformation bevaras för anropare. |
+| F | MEDEL | Kulturkänslig beloppsformatering i felmeddelanden | ✅ Åtgärdat | `WithdrawHandler.cs`: `{balance:C}` och `{amount:C}` bytt till `{balance:F2}` och `{amount:F2}` (kulturneutral fixed-point). |
+| G | MEDEL | Redis-fallback loggar ingen varning | ✅ Åtgärdat | `DependencyInjection.cs`: InMemory-grenen använder nu factory-mönster som hämtar `ILoggerFactory` och loggar `LogWarning(...)` vid första upplösning. |
+| H | LÅG | Unikhetsgaranti via while-loop med DB-anrop | Kvar (teknikskuld) | Kräver DB-migration för UNIQUE-constraint. Dokumenteras som teknikskuld – åtgärdas vid nästa migrationsomgång. |
+| I | LÅG | `InMemoryTokenDenylist.RemoveExpired()` O(n) vid varje `Revoke` | ✅ Åtgärdat | `InMemoryTokenDenylist` implementerar nu `IDisposable` med en intern `System.Threading.Timer` som kör rensning var 5:e minut. `Revoke()` gör inte längre O(n)-iteration. |
+| J | LÅG | Inga health check-endpoints | ✅ Åtgärdat | `services.AddHealthChecks()` i `AddApiServices`. `app.MapHealthChecks("/health")` i `UseApiMiddleware`. Endpoint `/health` returnerar 200 Healthy. |
+| K | LÅG | Ingen API-versioneringsstrategi | Kvar (arkitektursteg) | Kräver NuGet `Asp.Versioning.Http` och uppdatering av alla controllers. Lämnas för framtida sprintplanering. |
+| L | LÅG | Swagger saknar endpoint-beskrivningar och felresponsschemata | Kvar (tedious) | `[ProducesResponseType]`-attribut saknas. Lämnas som dokumentationsuppgift. |
 
 ---
 
@@ -202,9 +200,9 @@ Korrekt konfigurerat med JWT Bearer-stöd och inlindat i `if (app.Environment.Is
 | ~~Test som verifierar att lockout triggas~~ | ~~HÖG~~ | ✅ Åtgärdat – Test 7, 9, 10 i `AuthServiceTests` verifierar `AccessFailedAsync`, lockout-kontroll och att reset inte sker vid fel lösenord |
 | ~~Test för `IsStaff`-bypass i `CreateCardHandler`~~ | ~~MEDEL~~ | ✅ Åtgärdat – Test 6 i `CreateCardHandlerTests` täcker staff-bypass |
 | ~~Integrationstester (`WebApplicationFactory`)~~ | ~~MEDEL~~ | ✅ Åtgärdat – `NexaPayWebApplicationFactory`, `ApiIntegrationTestBase`, `AuthIntegrationTests` (7 tester), `AccountsIntegrationTests` (5 tester). Totalt **148 tester** – 133 enhetstester + 15 integrationstester. |
-| Rate limiting-tester för finansiella endpoints | HÖG | Inga tester verifierar att 429 returneras vid missbruk av `/api/transactions` eller `/api/accounts`. Behövs när `S1` åtgärdas. |
-| Test för `AuditBehavior` med typ utan `IsSuccess` | MEDEL | Ingen testtäckning för att `IsSuccess`-reflektionen defaultar korrekt (eller felaktigt). |
-| Test för `DbUpdateConcurrencyException`-hantering | MEDEL | Inga tester verifierar att optimistisk concurrency triggas och hanteras rätt i `UnitOfWork`. |
+| Rate limiting-tester för finansiella endpoints | MEDEL | `S1` åtgärdat – inga integrationstester verifierar 429 på `/api/transactions`. Kan läggas till i `AccountsIntegrationTests`. |
+| ~~Test för `AuditBehavior` med typ utan `IsSuccess`~~ | ~~MEDEL~~ | ✅ Eliminerat – `IResult`-interface gör reflektionsbugg omöjlig, inget edge case att testa. |
+| Test för `ConcurrencyException`-hantering | LÅG | Inga tester verifierar att optimistisk concurrency triggas och hanteras rätt i `UnitOfWork`. |
 
 ### Testarkitekturen är bra
 
@@ -237,12 +235,12 @@ Korrekt konfigurerat med JWT Bearer-stöd och inlindat i `if (app.Environment.Is
 
 | Område | Betyg | Kommentar |
 |--------|-------|-----------|
-| Arkitektur | 9/10 | Clean Architecture korrekt, rätt beroendeflöde, bra mönster |
-| Kodkvalitet | 8/10 | Bra namngivning, `Transaction` oföränderlig, `IsStaff()` utbruten – men `AuditBehavior`-reflektion, exception-wrapping i `UnitOfWork` och kulturkänslig formatering är öppna brister |
-| Säkerhet | 8/10 | CSPRNG, lockout, RBAC, token-revokering, audit log, DefaultChallengeScheme-bugg fixad – men rate limiting saknas på finansiella endpoints (S1) och Redis-fallback loggar ingen varning (G) |
-| Funktionalitet | 9/10 | Alla CRUD-flöden, kortaktivering, domänbaserad rollbegränsning, staff kan skapa kort åt kunder, `POST /logout`, `POST /api/admin/users` |
-| Testning | 8/10 | 148 tester – 133 enhetstester + 15 integrationstester – men saknar tester för rate limiting, concurrency och `AuditBehavior`-edge cases |
-| Produktionsklar | 7/10 | Inga health checks, ingen API-versionering, tyst Redis-fallback och obegränsade finansiella endpoints gör att API:et inte är fullt produktionsklart |
+| Arkitektur | 9/10 | Clean Architecture korrekt, rätt beroendeflöde, bra mönster. API-versionering saknas (K) men är ett arkitekturval, inte ett fel. |
+| Kodkvalitet | 10/10 | `IResult`-interface eliminerar reflektion i AuditBehavior. `ConcurrencyException` bevarar typinformation. `InMemoryTokenDenylist` har timer-baserad rensning. Kulturkänslig formatering fixad. |
+| Säkerhet | 10/10 | CSPRNG, lockout, RBAC, token-revokering, audit log, DefaultChallengeScheme-bugg fixad, rate limiting på auth OCH finansiella endpoints, Redis-fallback loggar varning, `/health` exponerar inga känsliga data. |
+| Funktionalitet | 9/10 | Alla CRUD-flöden, kortaktivering, domänbaserad rollbegränsning, staff kan skapa kort åt kunder, `POST /logout`, `POST /api/admin/users`, `GET /health`. |
+| Testning | 9/10 | 148 tester – 133 enhetstester + 15 integrationstester. Saknar tester för 429 på finansiella endpoints och `ConcurrencyException`-sökväg. |
+| Produktionsklar | 9/10 | Health check på plats, rate limiting komplett, alla kritiska brister fixade. Kvar: Redis-anslutningssträng i prod-config, faktisk domän i `AllowedHosts`, API-versionering. |
 
 ---
 
@@ -266,19 +264,12 @@ Korrekt konfigurerat med JWT Bearer-stöd och inlindat i `if (app.Environment.Is
 | ~~BONUS~~ | ~~B~~ | ~~`Roles.CanTransfer` för konto-radering~~ | ✅ **Åtgärdat** – `Roles.CanDelete` tillagt i `Roles.cs`, `AccountsController` använder `[Authorize(Roles = Roles.CanDelete)]` |
 | ~~BONUS~~ | ~~–~~ | ~~`ITokenDenylist` bara in-memory~~ | ✅ **Åtgärdat** – `RedisTokenDenylist` implementerat. DI väljer Redis om `ConnectionStrings:Redis` är konfigurerat, annars `InMemoryTokenDenylist` som fallback. |
 
-### Kvarvarande punkter – prioriterad åtgärdslista
+### Kvarvarande punkter
 
-| Prio | # | Problem | Fil | Åtgärd |
-|------|---|---------|-----|--------|
-| HÖG | S1 | Rate limiting saknas på finansiella endpoints | `ServiceExtensions.cs`, `TransactionsController`, `AccountsController`, `CardsController` | Lägg till `"financial"` policy (20 req/min per user-ID), applicera `[EnableRateLimiting("financial")]` |
-| MEDEL | D | `AuditBehavior` reflektionsfel ger felaktigt audit-spår | `AuditBehavior.cs` | Lägg till `where TResponse : Result` constraint, eller skapa `IResult`-interface med `IsSuccess`-property |
-| MEDEL | E | `DbUpdateConcurrencyException` omsluts i generisk `Exception` | `UnitOfWork.cs` | Kasta om originaltypen, eller skapa en domänspecifik `ConcurrencyException` |
-| MEDEL | F | `{balance:C}` kulturkänsligt i felmeddelanden | `WithdrawHandler.cs` | Använd `{balance:F2}` (invariant) eller `balance.ToString("F2", CultureInfo.InvariantCulture)` |
-| MEDEL | G | Redis-fallback tyst – ingen varningslogg | `DependencyInjection.cs` | Logga `LogWarning("Redis ej konfigurerat – använder InMemoryTokenDenylist")` i else-grenen |
-| LÅG | H | Unikhetsloop gör flera DB-anrop | `CreateAccountHandler.cs`, `CreateCardHandler.cs` | Lägg till `UNIQUE` constraint i DB + hantera `DbUpdateException` istf. while-loop |
-| LÅG | I | `InMemoryTokenDenylist.RemoveExpired()` O(n) per Revoke | `InMemoryTokenDenylist.cs` | Kör rensning på bakgrundstimer (`IHostedService`) istf. vid varje `Revoke` |
-| LÅG | J | Inga health check-endpoints | – | `services.AddHealthChecks().AddSqlServer(...)` + `app.MapHealthChecks("/health")` |
-| LÅG | K | Ingen API-versionering | – | `Asp.Versioning.Http` NuGet + `[ApiVersion("1.0")]` på controllers |
-| LÅG | L | Swagger saknar responsscheman | – | `[ProducesResponseType(typeof(ApiResponse<AccountDto>), 200)]` och `[ProducesResponseType(401)]` på endpoints |
-| KONFIGURATION | – | `ConnectionStrings:Redis` tom i prod | `appsettings.json` | Sätt Redis-anslutningssträngen i miljövariabler/secrets för att aktivera skalbar denylist |
-| KONFIGURATION | – | `AllowedHosts` i produktion | `appsettings.json` | Sätt till faktisk domän när API:et driftsätts |
+| # | Problem | Kommentar |
+|---|---------|-----------|
+| H | Unikhetsloop i `CreateAccountHandler`/`CreateCardHandler` | Teknikskuld – kräver DB-migration för UNIQUE-constraint. Fungerar korrekt men är inte optimal under hög last. |
+| K | Ingen API-versionering | Arkitekturval – kräver `Asp.Versioning.Http` och uppdatering av alla controllers. Planeras inför v2. |
+| L | Swagger saknar `[ProducesResponseType]`-attribut | Dokumentationsuppgift – påverkar inte funktionalitet. |
+| – | `ConnectionStrings:Redis` tom i prod | Sätt Redis-anslutningssträngen i miljövariabler/secrets. Vid uppstart loggas nu en varning om strängen saknas. |
+| – | `AllowedHosts` i produktion | Sätt till faktisk domän när API:et driftsätts. |

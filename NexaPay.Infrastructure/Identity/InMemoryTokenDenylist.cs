@@ -6,21 +6,24 @@ namespace NexaPay.Infrastructure.Identity
     // Singleton – delas över hela applikationens livstid.
     // Tokens som revokeras läggs in här och kontrolleras vid varje request.
     // Innehållet förloras vid omstart – acceptabelt för en 24h token-livstid.
-    public class InMemoryTokenDenylist : ITokenDenylist
+    // Rensning av utgångna tokens sker var 5:e minut via intern timer (inte vid varje Revoke).
+    public class InMemoryTokenDenylist : ITokenDenylist, IDisposable
     {
         private readonly ConcurrentDictionary<string, DateTime> _revoked = new();
+        private readonly Timer _cleanupTimer;
 
-        public void Revoke(string jti, DateTime expiry)
+        public InMemoryTokenDenylist()
         {
-            _revoked[jti] = expiry;
-            RemoveExpired();
+            _cleanupTimer = new Timer(_ => Cleanup(), null,
+                TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(5));
         }
+
+        public void Revoke(string jti, DateTime expiry) => _revoked[jti] = expiry;
 
         public bool IsRevoked(string jti) =>
             _revoked.TryGetValue(jti, out var expiry) && expiry > DateTime.UtcNow;
 
-        // Rensa utgångna tokens lazy för att hålla minnet i schack.
-        private void RemoveExpired()
+        private void Cleanup()
         {
             var now = DateTime.UtcNow;
             foreach (var key in _revoked.Keys.ToList())
@@ -29,5 +32,7 @@ namespace NexaPay.Infrastructure.Identity
                     _revoked.TryRemove(key, out _);
             }
         }
+
+        public void Dispose() => _cleanupTimer.Dispose();
     }
 }

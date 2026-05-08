@@ -18,6 +18,7 @@ using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.Extensions.Primitives;
 using NexaPay.Application.Common.Interfaces;
@@ -110,7 +111,15 @@ namespace NexaPay.Infrastructure
             }
             else
             {
-                services.AddSingleton<ITokenDenylist, InMemoryTokenDenylist>();
+                services.AddSingleton<ITokenDenylist>(sp =>
+                {
+                    sp.GetRequiredService<ILoggerFactory>()
+                        .CreateLogger("NexaPay.Infrastructure.TokenDenylist")
+                        .LogWarning(
+                            "Redis ej konfigurerat (ConnectionStrings:Redis är tom). " +
+                            "Använder InMemoryTokenDenylist – token-revokering stödjer inte horisontell skalning.");
+                    return new InMemoryTokenDenylist();
+                });
             }
 
             // --------------------------------------------------------

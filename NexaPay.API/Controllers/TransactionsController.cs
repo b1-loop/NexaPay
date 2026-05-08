@@ -17,6 +17,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using NexaPay.API.Extensions;
 using NexaPay.Application.Common.Constants;
 using NexaPay.Application.Features.Transactions.Commands.Deposit;
@@ -29,6 +30,7 @@ namespace NexaPay.API.Controllers
     [ApiController]
     [Route("api/[controller]")]
     [Authorize]
+    [EnableRateLimiting("financial")]
     public class TransactionsController : ControllerBase
     {
         // IMediator skickar Commands och Queries till rätt Handler
