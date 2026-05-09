@@ -11,33 +11,20 @@
 ```
 NexaPay.sln
 ├── NexaPay.Domain          – Entiteter, value objects, interfaces, events. Inga externa NuGet-beroenden
-├── NexaPay.Application     – Handlers, validators, DTOs, pipeline behaviors
+├── NexaPay.Application     – Handlers, validators, DTOs, pipeline behaviors, policies
 ├── NexaPay.Infrastructure  – EF Core, repositories, Identity, JWT, Redis
-├── NexaPay.API             – Controllers, middleware, Swagger, Program.cs
-└── NexaPay.Tests           – 148 tester (133 enhets + 15 integrations)
+├── NexaPay.API             – Controllers, Contracts/, middleware, Swagger, Program.cs
+└── NexaPay.Tests           – 159 tester (enhet + integration)
 ```
 
-**Status:** Alla stora arkitekturbrister och samtliga lärarens 20 feedback-punkter är åtgärdade. Kvar är mindre förbättringar och testtäckning.
+**Status:** Alla öppna arkitekturpunkter åtgärdade. Nedanstående är konfigurationsval som sätts vid driftsättning — inget kvarstår i koden.
 
 ---
 
-## Kvarvarande åtgärdspunkter
-
-### Kod & arkitektur
-
-| # | Prioritet | Problem | Fil/Plats |
-|---|-----------|---------|-----------|
-| K1 | LÅG | `GetByAccountNumberAsync` saknar `AsNoTracking()` – hämtar en tracking-entitet trots att den bara används för läsning | `AccountRepository.cs:28` |
-| K2 | LÅG | `/health` returnerar alltid Healthy även om SQL Server eller Redis är nere – `AddDbContextCheck<ApplicationDbContext>()` är inte registrerat | `ServiceExtensions.cs:125` |
-| K3 | LÅG | `DatabaseExtensions.MigrateAsync()` körs vid uppstart – bekvämt i dev, riskabelt i prod (en misslyckad migration kraschar applikationen) | `DatabaseExtensions.cs` |
-| K4 | LÅG | Request-klasser (`CreateAccountRequest`, `TransferRequest` m.fl.) är inlinede i controllers – konventionen är en typ per fil | Alla controllers |
-| K5 | LÅG | `StaffDomain`-kontrollen (roll + `@nexapay.com`-epost) görs i `RegisterHandler` – renare som en namngiven `IAuthorizationRequirement`/policy | `RegisterHandler.cs` |
-| K6 | LÅG | Lärokommentarer i produktionskod (förklarar vad `Task<>`, `?`, `decimal` betyder) – hör hemma i onboarding-docs | Spridda filer |
-
-### Konfiguration (sätts vid driftsättning, inte i kod)
+## Kvarvarande konfiguration (sätts vid driftsättning, inte i kod)
 
 | # | Problem |
 |---|---------|
 | C1 | `ConnectionStrings:Redis` saknas i prod – sätt i miljövariabler/secrets. Varning loggas automatiskt om strängen saknas. |
 | C2 | `AllowedHosts` i `appsettings.json` – sätt till faktisk domän när API:et driftsätts. |
-| C3 | `MigrateAsync` bör ersättas av ett separat migrations-steg i deploy-pipelinen i prod (se K3). |
+| C3 | `MigrateAsync` vid uppstart loggar en varning i Production och kör sedan – bör ersättas av ett separat `dotnet ef database update`-steg i deploy-pipelinen vid horisontell skalning. |
