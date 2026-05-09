@@ -23,13 +23,6 @@ NexaPay.sln
 
 ## Kvarvarande åtgärdspunkter
 
-### Tester
-
-| # | Prioritet | Problem | Fil |
-|---|-----------|---------|-----|
-| T1 | MEDEL | Inga integrationstester verifierar att finansiella endpoints returnerar 429 vid för många requests | `AccountsIntegrationTests.cs` – saknas |
-| T2 | LÅG | Inga tester verifierar att `ConcurrencyException` triggas och att `ConcurrencyRetryBehavior` försöker igen | Ny testfil saknas |
-
 ### Kod & arkitektur
 
 | # | Prioritet | Problem | Fil/Plats |
