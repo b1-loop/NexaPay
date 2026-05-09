@@ -15,6 +15,7 @@ using FluentValidation;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using NexaPay.Application.Common.Behaviors;
+using NexaPay.Application.Common.Policies;
 using NexaPay.Application.Mappings;
 using System.Reflection;
 
@@ -87,8 +88,8 @@ namespace NexaPay.Application
                     typeof(AuditBehavior<,>));
             });
 
-            // Returnera services för method chaining
-            // T.ex. builder.Services.AddApplication().AddInfrastructure()
+            services.AddScoped<IStaffEmailPolicy, StaffEmailPolicy>();
+
             return services;
         }
     }

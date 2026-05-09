@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.JsonWebTokens;
+using NexaPay.API.Contracts;
 using NexaPay.API.Extensions;
 using NexaPay.Application.Common.Constants;
 using NexaPay.Application.Common.Interfaces;
@@ -116,23 +117,4 @@ namespace NexaPay.API.Controllers
         }
     }
 
-    // --------------------------------------------------------
-    // Request-modeller
-    // --------------------------------------------------------
-    public record RegisterRequest
-    {
-        public string Email { get; init; } = string.Empty;
-        public string Password { get; init; } = string.Empty;
-
-        // Roll istället för bool isAdmin
-        // Standard är User – den säkraste standardrollen
-        // Giltiga värden: Admin, BankManager, Teller, Auditor, User
-        public string Role { get; init; } = Roles.User;
-    }
-
-    public record LoginRequest
-    {
-        public string Email { get; init; } = string.Empty;
-        public string Password { get; init; } = string.Empty;
-    }
 }

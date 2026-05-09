@@ -2,6 +2,7 @@ using Asp.Versioning;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NexaPay.API.Contracts;
 using NexaPay.Application.Common.Constants;
 using NexaPay.Application.DTOs;
 using NexaPay.Application.Features.Auth.Commands.Register;
@@ -54,10 +55,4 @@ namespace NexaPay.API.Controllers
         }
     }
 
-    public record AdminCreateUserRequest
-    {
-        public string Email { get; init; } = string.Empty;
-        public string Password { get; init; } = string.Empty;
-        public string Role { get; init; } = Roles.User;
-    }
 }

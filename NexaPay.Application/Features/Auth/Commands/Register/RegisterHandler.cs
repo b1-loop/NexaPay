@@ -1,7 +1,7 @@
 using MediatR;
-using NexaPay.Application.Common.Constants;
 using NexaPay.Application.Common.Interfaces;
 using NexaPay.Application.Common.Models;
+using NexaPay.Application.Common.Policies;
 using NexaPay.Application.DTOs;
 
 namespace NexaPay.Application.Features.Auth.Commands.Register
@@ -10,28 +10,23 @@ namespace NexaPay.Application.Features.Auth.Commands.Register
         : IRequestHandler<RegisterCommand, Result<AuthDto>>
     {
         private readonly IAuthService _authService;
-        private readonly IAppSettings _appSettings;
+        private readonly IStaffEmailPolicy _staffEmailPolicy;
 
         public RegisterHandler(
             IAuthService authService,
-            IAppSettings appSettings)
+            IStaffEmailPolicy staffEmailPolicy)
         {
             _authService = authService;
-            _appSettings = appSettings;
+            _staffEmailPolicy = staffEmailPolicy;
         }
 
         public async Task<Result<AuthDto>> Handle(
             RegisterCommand request,
             CancellationToken cancellationToken)
         {
-            var isStaffRole = request.Role != Roles.User;
-            var isStaffEmail = request.Email.EndsWith(
-                $"@{_appSettings.StaffDomain}",
-                StringComparison.OrdinalIgnoreCase);
-
-            if (isStaffRole && !isStaffEmail)
-                return Result<AuthDto>.Failure(
-                    $"Personalroller kräver en @{_appSettings.StaffDomain}-e-postadress");
+            var error = _staffEmailPolicy.Validate(request.Email, request.Role);
+            if (error != null)
+                return Result<AuthDto>.Failure(error);
 
             return await _authService.RegisterAsync(
                 request.Email,

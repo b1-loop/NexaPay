@@ -13,6 +13,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using NexaPay.API.Contracts;
 using NexaPay.API.Extensions;
 using NexaPay.Application.Common.Constants;
 using NexaPay.Application.Common.Models;
@@ -150,14 +151,4 @@ namespace NexaPay.API.Controllers
         }
     }
 
-    public record CreateCardRequest
-    {
-        public Guid AccountId { get; init; }
-        public string CardHolderName { get; init; } = string.Empty;
-    }
-
-    public record BlockCardRequest
-    {
-        public string Reason { get; init; } = string.Empty;
-    }
 }

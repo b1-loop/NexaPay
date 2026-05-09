@@ -15,6 +15,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using NexaPay.API.Contracts;
 using NexaPay.API.Extensions;
 using NexaPay.Application.Common.Constants;
 using NexaPay.Application.Common.Models;
@@ -23,7 +24,6 @@ using NexaPay.Application.Features.Accounts.Commands.DeleteAccount;
 using NexaPay.Application.Features.Accounts.Queries.GetAccountById;
 using NexaPay.Application.Features.Accounts.Queries.GetAllAccounts;
 using NexaPay.Application.DTOs;
-using NexaPay.Domain.Enums;
 
 namespace NexaPay.API.Controllers
 {
@@ -152,9 +152,4 @@ namespace NexaPay.API.Controllers
         }
     }
 
-    public record CreateAccountRequest
-    {
-        public string AccountName { get; init; } = string.Empty;
-        public AccountType AccountType { get; init; }
-    }
 }

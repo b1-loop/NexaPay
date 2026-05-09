@@ -9,13 +9,35 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.OpenApi.Models;
 using NexaPay.API.Middleware;
 using NexaPay.Infrastructure.Persistence;
+using StackExchange.Redis;
 using System.Threading.RateLimiting;
 
 namespace NexaPay.API
 {
+    internal sealed class RedisHealthCheck : IHealthCheck
+    {
+        private readonly IServiceProvider _sp;
+
+        public RedisHealthCheck(IServiceProvider sp) => _sp = sp;
+
+        public Task<HealthCheckResult> CheckHealthAsync(
+            HealthCheckContext context,
+            CancellationToken cancellationToken)
+        {
+            var muxer = _sp.GetService<IConnectionMultiplexer>();
+            if (muxer == null)
+                return Task.FromResult(
+                    HealthCheckResult.Healthy("Redis inte konfigurerat (InMemory)"));
+            return Task.FromResult(muxer.IsConnected
+                ? HealthCheckResult.Healthy()
+                : HealthCheckResult.Unhealthy("Redis anslutning misslyckades"));
+        }
+    }
+
     public static class ServiceExtensions
     {
         // --------------------------------------------------------
@@ -122,7 +144,12 @@ namespace NexaPay.API
             // --------------------------------------------------------
             // Health checks – /health returnerar API:ets status
             // --------------------------------------------------------
-            services.AddHealthChecks();
+            // AddDbContextCheck skickar SELECT 1 mot SQL Server vid varje poll.
+            // RedisHealthCheck pingar Redis via IConnectionMultiplexer om det
+            // är registrerat; annars rapporteras "ej konfigurerat" som Healthy.
+            services.AddHealthChecks()
+                .AddDbContextCheck<ApplicationDbContext>("database")
+                .AddCheck<RedisHealthCheck>("redis");
 
             // --------------------------------------------------------
             // Swagger med JWT-stöd

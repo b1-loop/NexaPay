@@ -25,7 +25,7 @@ namespace NexaPay.Infrastructure.Persistence.Repositories
                 .ToListAsync(cancellationToken);
 
         public async Task<Account?> GetByAccountNumberAsync(string accountNumber, CancellationToken cancellationToken = default)
-            => await _dbSet.FirstOrDefaultAsync(a => a.AccountNumber == accountNumber, cancellationToken);
+            => await _dbSet.AsNoTracking().FirstOrDefaultAsync(a => a.AccountNumber == accountNumber, cancellationToken);
 
         public async Task<bool> AccountNumberExistsAsync(string accountNumber, CancellationToken cancellationToken = default)
             => await _dbSet.AnyAsync(a => a.AccountNumber == accountNumber, cancellationToken);

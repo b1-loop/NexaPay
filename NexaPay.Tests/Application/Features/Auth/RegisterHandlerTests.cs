@@ -13,11 +13,11 @@
 // ============================================================
 
 using FluentAssertions;
-using Microsoft.Extensions.Logging;
 using Moq;
 using NexaPay.Application.Common.Constants;
 using NexaPay.Application.Common.Interfaces;
 using NexaPay.Application.Common.Models;
+using NexaPay.Application.Common.Policies;
 using NexaPay.Application.DTOs;
 using NexaPay.Application.Features.Auth.Commands.Register;
 using NUnit.Framework;
@@ -31,18 +31,15 @@ namespace NexaPay.Tests.Application.Features.Auth
     public class RegisterHandlerTests
     {
         private Mock<IAuthService> _mockAuthService = null!;
-        private Mock<IAppSettings> _mockAppSettings = null!;
         private RegisterHandler _handler = null!;
 
         [SetUp]
         public void Setup()
         {
             _mockAuthService = new Mock<IAuthService>();
-            _mockAppSettings = new Mock<IAppSettings>();
 
-            _mockAppSettings
-                .Setup(s => s.StaffDomain)
-                .Returns("nexapay.com");
+            var mockAppSettings = new Mock<IAppSettings>();
+            mockAppSettings.Setup(s => s.StaffDomain).Returns("nexapay.com");
 
             _mockAuthService
                 .Setup(a => a.RegisterAsync(
@@ -59,7 +56,7 @@ namespace NexaPay.Tests.Application.Features.Auth
 
             _handler = new RegisterHandler(
                 _mockAuthService.Object,
-                _mockAppSettings.Object);
+                new StaffEmailPolicy(mockAppSettings.Object));
         }
 
         // --------------------------------------------------------

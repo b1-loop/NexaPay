@@ -19,6 +19,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using NexaPay.API.Contracts;
 using NexaPay.API.Extensions;
 using NexaPay.Application.Common.Constants;
 using NexaPay.Application.Common.Models;
@@ -196,49 +197,4 @@ namespace NexaPay.API.Controllers
         }
     }
 
-    // --------------------------------------------------------
-    // Request-modeller
-    // --------------------------------------------------------
-
-    // Request-modell för POST /api/transactions/deposit
-    public record DepositRequest
-    {
-        // Vilket konto pengarna ska sättas in på
-        public Guid AccountId { get; init; }
-
-        // Beloppet – måste vara > 0 (valideras av DepositValidator)
-        public decimal Amount { get; init; }
-
-        // Beskrivning som syns i kontoutdraget
-        public string Description { get; init; } = string.Empty;
-    }
-
-    // Request-modell för POST /api/transactions/withdraw
-    public record WithdrawRequest
-    {
-        // Vilket konto pengarna ska tas från
-        public Guid AccountId { get; init; }
-
-        // Beloppet – måste vara > 0 och <= saldo
-        public decimal Amount { get; init; }
-
-        // Beskrivning som syns i kontoutdraget
-        public string Description { get; init; } = string.Empty;
-    }
-
-    // Request-modell för POST /api/transactions/transfer
-    public record TransferRequest
-    {
-        // Kontot som pengarna dras ifrån
-        public Guid FromAccountId { get; init; }
-
-        // Kontot som pengarna sätts in på
-        public Guid ToAccountId { get; init; }
-
-        // Beloppet som ska överföras
-        public decimal Amount { get; init; }
-
-        // Beskrivning som syns i kontoutdraget för båda kontona
-        public string Description { get; init; } = string.Empty;
-    }
 }

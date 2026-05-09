@@ -52,9 +52,26 @@ namespace NexaPay.API
                 // redan körda migrationer hoppas över
                 // InMemory-databas (används i integrationstester) stödjer inte migrationer
                 if (context.Database.ProviderName == "Microsoft.EntityFrameworkCore.InMemory")
+                {
                     await context.Database.EnsureCreatedAsync();
-                else
+                }
+                else if (app.Environment.IsProduction())
+                {
+                    // Automatisk migration vid uppstart är riskabelt i produktion:
+                    // vid horisontell skalning försöker flera instanser migrera
+                    // simultant. Flytta detta steg till deploy-pipelinen när
+                    // applikationen skalas ut.
+                    app.Logger.LogWarning(
+                        "Automatisk databasmigration körs vid uppstart. " +
+                        "Flytta 'dotnet ef database update' till ett separat " +
+                        "deploy-steg i produktion för att undvika konflikter " +
+                        "vid horisontell skalning.");
                     await context.Database.MigrateAsync();
+                }
+                else
+                {
+                    await context.Database.MigrateAsync();
+                }
 
                 // ------------------------------------------------
                 // Steg 2: Seed roller
