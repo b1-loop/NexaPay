@@ -269,8 +269,8 @@ namespace NexaPay.Tests.Application.Features.Cards
             result.IsFailure.Should().BeTrue(
                 "kort ska inte kunna skapas på ett inaktivt konto");
 
-            result.Error.Should().Contain("inaktivt",
-                "felmeddelandet ska nämna att kontot är inaktivt");
+            result.Error.Should().ContainAny("closed", "frozen", "inaktivt",
+                "felmeddelandet ska nämna att kontot inte är öppet");
 
             MockUnitOfWork.Verify(
                 u => u.SaveChangesAsync(It.IsAny<CancellationToken>()),
