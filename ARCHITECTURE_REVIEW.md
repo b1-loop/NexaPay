@@ -63,7 +63,7 @@ NexaPay.sln
 
 | # | Fil | Problem |
 |---|-----|---------|
-| H2 | `NexaPay.API/Controllers/AdminController.cs` | AdminController saknar `[EnableRateLimiting]`. Endpoint `POST /api/admin/users` har inga hastighetsbegränsningar – en angripare kan skapa obegränsat antal användare utan att bromsas. Lägg till `[EnableRateLimiting("auth")]`. |
+| H2 | `NexaPay.API/Controllers/AdminController.cs` | AdminController saknar `[EnableRateLimiting]`. Endpoint `POST /api/admin/users` har inga hastighetsbegränsningar – en angripare kan skapa obegränsat antal användare utan att bromsas. **Medvetet utelämnat i detta projekt** för att underlätta testning. I produktion skulle `[EnableRateLimiting("auth")]` läggas till för att skydda mot massregistrering. |
 
 ### LÅG prioritet
 
