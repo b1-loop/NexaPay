@@ -24,6 +24,7 @@ using Microsoft.Extensions.Primitives;
 using NexaPay.Application.Common.Interfaces;
 using NexaPay.Domain.Interfaces;
 using NexaPay.Infrastructure.Identity;
+using NexaPay.Infrastructure.Notifications;
 using NexaPay.Infrastructure.Persistence;
 using NexaPay.Infrastructure.Settings;
 using NexaPay.Infrastructure.Persistence.Repositories;
@@ -81,6 +82,14 @@ namespace NexaPay.Infrastructure
             // --------------------------------------------------------
             // Scoped – en ny instans per request
             services.AddScoped<IJwtService, JwtService>();
+
+            // --------------------------------------------------------
+            // Notification Service
+            // --------------------------------------------------------
+            // Placeholder-implementation som loggar notifieringar.
+            // Byt ut mot riktig e-post/SMS-provider inför produktion
+            // genom att ändra registreringen nedan.
+            services.AddScoped<INotificationService, LoggingNotificationService>();
 
             // --------------------------------------------------------
             // Auth Service

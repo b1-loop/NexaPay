@@ -26,14 +26,28 @@ namespace NexaPay.Application.Features.Accounts.Commands.CreateAccount
             CreateAccountCommand request,
             CancellationToken cancellationToken)
         {
-            var accountNumber = GenerateAccountNumber();
+            // Retry on collision — collision probability is ~10⁻¹⁷ per attempt,
+            // but a duplicate would cause a DB unique-constraint exception without this guard.
+            const int maxAttempts = 5;
+            Account? account = null;
+            for (var attempt = 0; attempt < maxAttempts; attempt++)
+            {
+                var accountNumber = GenerateAccountNumber();
+                if (!await _unitOfWork.Accounts.AccountNumberExistsAsync(accountNumber, cancellationToken))
+                {
+                    account = Account.Open(
+                        accountNumber,
+                        request.AccountName,
+                        request.AccountType,
+                        request.OwnerId,
+                        request.Currency);
+                    break;
+                }
+            }
 
-            var account = Account.Open(
-                accountNumber,
-                request.AccountName,
-                request.AccountType,
-                request.OwnerId,
-                request.Currency);
+            if (account is null)
+                return Result<AccountDto>.Failure(
+                    "Kunde inte generera ett unikt kontonummer. Försök igen.");
 
             await _unitOfWork.Accounts.AddAsync(account, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);

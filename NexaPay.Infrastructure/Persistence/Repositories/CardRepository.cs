@@ -15,6 +15,6 @@ namespace NexaPay.Infrastructure.Persistence.Repositories
                 .ToListAsync(cancellationToken);
 
         public async Task<Card?> GetByCardTokenAsync(string cardToken, CancellationToken cancellationToken = default)
-            => await _dbSet.FirstOrDefaultAsync(c => c.CardToken == cardToken, cancellationToken);
+            => await _dbSet.AsNoTracking().FirstOrDefaultAsync(c => c.CardToken == cardToken, cancellationToken);
     }
 }

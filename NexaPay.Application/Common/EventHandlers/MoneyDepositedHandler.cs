@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.Extensions.Logging;
+using NexaPay.Application.Common.Interfaces;
 using NexaPay.Domain.Events;
 
 namespace NexaPay.Application.Common.EventHandlers
@@ -7,11 +8,17 @@ namespace NexaPay.Application.Common.EventHandlers
     public class MoneyDepositedHandler : INotificationHandler<MoneyDeposited>
     {
         private readonly ILogger<MoneyDepositedHandler> _logger;
+        private readonly INotificationService _notifications;
 
-        public MoneyDepositedHandler(ILogger<MoneyDepositedHandler> logger)
-            => _logger = logger;
+        public MoneyDepositedHandler(
+            ILogger<MoneyDepositedHandler> logger,
+            INotificationService notifications)
+        {
+            _logger = logger;
+            _notifications = notifications;
+        }
 
-        public Task Handle(MoneyDeposited notification, CancellationToken cancellationToken)
+        public async Task Handle(MoneyDeposited notification, CancellationToken cancellationToken)
         {
             _logger.LogInformation(
                 "MoneyDeposited: AccountId={AccountId} OwnerId={OwnerId} " +
@@ -22,7 +29,12 @@ namespace NexaPay.Application.Common.EventHandlers
                 notification.NewBalance,
                 notification.OccurredAt);
 
-            return Task.CompletedTask;
+            await _notifications.NotifyTransactionAsync(
+                notification.OwnerId,
+                "Insättning genomförd",
+                $"{notification.Amount} har satts in på konto {notification.AccountId}. " +
+                $"Nytt saldo: {notification.NewBalance}.",
+                cancellationToken);
         }
     }
 }

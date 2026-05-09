@@ -90,11 +90,32 @@ namespace NexaPay.Application.Features.Cards.Commands.CreateCard
 
         private static string GeneratePan()
         {
-            var part1 = $"4{RandomNumberGenerator.GetInt32(100, 1000)}";
-            var part2 = RandomNumberGenerator.GetInt32(1000, 10000).ToString();
-            var part3 = RandomNumberGenerator.GetInt32(1000, 10000).ToString();
-            var part4 = RandomNumberGenerator.GetInt32(1000, 10000).ToString();
-            return $"{part1}{part2}{part3}{part4}";
+            // 15 slumpmässiga siffror (BIN-prefix 4xxx för Visa-format).
+            var part1 = $"4{RandomNumberGenerator.GetInt32(100, 1000)}"; // 4 siffror
+            var part2 = RandomNumberGenerator.GetInt32(1000, 10000).ToString(); // 4 siffror
+            var part3 = RandomNumberGenerator.GetInt32(1000, 10000).ToString(); // 4 siffror
+            var part4 = RandomNumberGenerator.GetInt32(100, 1000).ToString();   // 3 siffror
+            var partial = $"{part1}{part2}{part3}{part4}"; // 15 siffror
+            return $"{partial}{ComputeLuhnCheckDigit(partial)}"; // 16 siffror, Luhn-giltigt
+        }
+
+        // Beräknar Luhn-kontrollsiffran för ett partiellt kortnummer (utan check digit).
+        // Algoritm: från höger, dubblera varannan siffra (position 1, 3, 5, ... från höger av partial
+        // = position 2, 4, 6, ... i det fullständiga kortnumret). Om dubblering ger > 9, subtrahera 9.
+        private static int ComputeLuhnCheckDigit(string partialPan)
+        {
+            var sum = 0;
+            for (var i = 0; i < partialPan.Length; i++)
+            {
+                var digit = partialPan[partialPan.Length - 1 - i] - '0';
+                if (i % 2 == 0) // i=0 är rightmost av partial = position 2 i final → dubbleras
+                {
+                    digit *= 2;
+                    if (digit > 9) digit -= 9;
+                }
+                sum += digit;
+            }
+            return (10 - (sum % 10)) % 10;
         }
 
         private static string GenerateCvv()

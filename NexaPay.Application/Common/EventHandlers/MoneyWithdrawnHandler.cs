@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.Extensions.Logging;
+using NexaPay.Application.Common.Interfaces;
 using NexaPay.Domain.Events;
 
 namespace NexaPay.Application.Common.EventHandlers
@@ -7,11 +8,17 @@ namespace NexaPay.Application.Common.EventHandlers
     public class MoneyWithdrawnHandler : INotificationHandler<MoneyWithdrawn>
     {
         private readonly ILogger<MoneyWithdrawnHandler> _logger;
+        private readonly INotificationService _notifications;
 
-        public MoneyWithdrawnHandler(ILogger<MoneyWithdrawnHandler> logger)
-            => _logger = logger;
+        public MoneyWithdrawnHandler(
+            ILogger<MoneyWithdrawnHandler> logger,
+            INotificationService notifications)
+        {
+            _logger = logger;
+            _notifications = notifications;
+        }
 
-        public Task Handle(MoneyWithdrawn notification, CancellationToken cancellationToken)
+        public async Task Handle(MoneyWithdrawn notification, CancellationToken cancellationToken)
         {
             _logger.LogInformation(
                 "MoneyWithdrawn: AccountId={AccountId} OwnerId={OwnerId} " +
@@ -22,7 +29,12 @@ namespace NexaPay.Application.Common.EventHandlers
                 notification.NewBalance,
                 notification.OccurredAt);
 
-            return Task.CompletedTask;
+            await _notifications.NotifyTransactionAsync(
+                notification.OwnerId,
+                "Uttag genomfört",
+                $"{notification.Amount} har tagits ut från konto {notification.AccountId}. " +
+                $"Nytt saldo: {notification.NewBalance}.",
+                cancellationToken);
         }
     }
 }

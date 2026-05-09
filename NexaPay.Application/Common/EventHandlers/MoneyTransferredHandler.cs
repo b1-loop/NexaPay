@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.Extensions.Logging;
+using NexaPay.Application.Common.Interfaces;
 using NexaPay.Domain.Events;
 
 namespace NexaPay.Application.Common.EventHandlers
@@ -7,11 +8,17 @@ namespace NexaPay.Application.Common.EventHandlers
     public class MoneyTransferredHandler : INotificationHandler<MoneyTransferred>
     {
         private readonly ILogger<MoneyTransferredHandler> _logger;
+        private readonly INotificationService _notifications;
 
-        public MoneyTransferredHandler(ILogger<MoneyTransferredHandler> logger)
-            => _logger = logger;
+        public MoneyTransferredHandler(
+            ILogger<MoneyTransferredHandler> logger,
+            INotificationService notifications)
+        {
+            _logger = logger;
+            _notifications = notifications;
+        }
 
-        public Task Handle(MoneyTransferred notification, CancellationToken cancellationToken)
+        public async Task Handle(MoneyTransferred notification, CancellationToken cancellationToken)
         {
             _logger.LogInformation(
                 "MoneyTransferred: FromAccountId={FromAccountId} ToAccountId={ToAccountId} " +
@@ -22,7 +29,12 @@ namespace NexaPay.Application.Common.EventHandlers
                 notification.Amount,
                 notification.OccurredAt);
 
-            return Task.CompletedTask;
+            await _notifications.NotifyTransactionAsync(
+                notification.FromOwnerId,
+                "Överföring genomförd",
+                $"{notification.Amount} har överförts från konto {notification.FromAccountId} " +
+                $"till konto {notification.ToAccountId}.",
+                cancellationToken);
         }
     }
 }

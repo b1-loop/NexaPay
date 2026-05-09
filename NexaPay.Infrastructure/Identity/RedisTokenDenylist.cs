@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using NexaPay.Application.Common.Interfaces;
 using StackExchange.Redis;
 
@@ -6,11 +7,13 @@ namespace NexaPay.Infrastructure.Identity
     public class RedisTokenDenylist : ITokenDenylist
     {
         private readonly IDatabase _db;
+        private readonly ILogger<RedisTokenDenylist> _logger;
         private const string Prefix = "nexapay:token:revoked:";
 
-        public RedisTokenDenylist(IConnectionMultiplexer redis)
+        public RedisTokenDenylist(IConnectionMultiplexer redis, ILogger<RedisTokenDenylist> logger)
         {
             _db = redis.GetDatabase();
+            _logger = logger;
         }
 
         public void Revoke(string jti, DateTime expiry)
@@ -19,11 +22,37 @@ namespace NexaPay.Infrastructure.Identity
             if (ttl <= TimeSpan.Zero)
                 return;
 
-            // Redis rensar posten automatiskt när token ändå gått ut
-            _db.StringSet(Prefix + jti, 1, ttl);
+            try
+            {
+                // Redis rensar posten automatiskt när token ändå gått ut
+                _db.StringSet(Prefix + jti, 1, ttl);
+            }
+            catch (RedisException ex)
+            {
+                // Logga men kasta inte – klienten ska få 200 OK på logout.
+                // Token löper ut naturligt när dess exp-tid passerar.
+                _logger.LogWarning(ex,
+                    "Redis otillgängligt vid tokenrevokering (jti={Jti}). " +
+                    "Token förblir giltigt tills exp-tiden passerar.", jti);
+            }
         }
 
-        public bool IsRevoked(string jti) =>
-            _db.KeyExists(Prefix + jti);
+        public bool IsRevoked(string jti)
+        {
+            try
+            {
+                return _db.KeyExists(Prefix + jti);
+            }
+            catch (RedisException ex)
+            {
+                // Fail-open: om Redis är nere vet vi inte om token är revokerad.
+                // Vi väljer att släppa igenom requests hellre än att blocka alla
+                // autentiserade användare. Logga varning för övervakning.
+                _logger.LogWarning(ex,
+                    "Redis otillgängligt vid kontroll av tokenrevokering (jti={Jti}). " +
+                    "Returnerar false (fail-open).", jti);
+                return false;
+            }
+        }
     }
 }

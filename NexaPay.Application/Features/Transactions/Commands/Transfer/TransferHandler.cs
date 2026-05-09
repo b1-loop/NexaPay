@@ -53,6 +53,11 @@ namespace NexaPay.Application.Features.Transactions.Commands.Transfer
                         return Result<TransactionDto>.Success(_mapper.Map<TransactionDto>(existing));
                 }
 
+                if (fromAccount.Balance.Currency != toAccount.Balance.Currency)
+                    return Result<TransactionDto>.Failure(
+                        $"Kontona har olika valutor ({fromAccount.Balance.Currency} och " +
+                        $"{toAccount.Balance.Currency}). Överföring kräver att båda konton har samma valuta.");
+
                 var amount = new Money(request.Amount, fromAccount.Balance.Currency);
 
                 var (fromTransaction, toTransaction) = fromAccount.TransferTo(
