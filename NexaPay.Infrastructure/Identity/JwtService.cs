@@ -1,22 +1,7 @@
-﻿// ============================================================
-// JwtService.cs – NexaPay.Infrastructure/Identity
-// ============================================================
-// Genererar JWT-tokens för autentiserade användare.
-//
-// En JWT-token innehåller:
-//   - UserId (sub claim)
-//   - Email
-//   - Roll (Admin eller User)
-//   - Utgångstid (exp claim)
-//   - En digital signatur som garanterar äkthet
-//
-// Tokens signeras med en hemlig nyckel som bara servern känner till.
-// Om någon försöker ändra token-innehållet ogiltigförklaras signaturen.
-// ============================================================
-
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
-using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 
@@ -24,95 +9,55 @@ namespace NexaPay.Infrastructure.Identity
 {
     public class JwtService : IJwtService
     {
-        // IConfiguration ger oss tillgång till appsettings.json
-        // Där lagrar vi vår hemliga nyckel och inställningar
         private readonly IConfiguration _configuration;
+        private readonly ILogger<JwtService> _logger;
 
-        public JwtService(IConfiguration configuration)
+        public JwtService(IConfiguration configuration, ILogger<JwtService> logger)
         {
             _configuration = configuration;
+            _logger = logger;
         }
 
         public TokenResult GenerateToken(string userId, string email, string role)
         {
-            // --------------------------------------------------------
-            // Steg 1: Definiera Claims (anspråk)
-            // --------------------------------------------------------
-            // Claims är information som vi lägger i token-payloaden
-            // Controllern kan sedan läsa dessa för att veta vem som anropar
             var claims = new[]
             {
-                // Sub (subject) = vem token tillhör – standard JWT claim
                 new Claim(JwtRegisteredClaimNames.Sub, userId),
-
-                // Jti (JWT ID) = unikt ID för denna token
-                // Kan användas för att blacklista specifika tokens
-                new Claim(JwtRegisteredClaimNames.Jti,
-                    Guid.NewGuid().ToString()),
-
-                // Email-claim
+                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
                 new Claim(JwtRegisteredClaimNames.Email, email),
-
-                // NameIdentifier = standard claim för användar-ID
-                // Används av ASP.NET Core för User.FindFirstValue()
                 new Claim(ClaimTypes.NameIdentifier, userId),
-
-                // Role-claim – används för [Authorize(Roles = "Admin")]
                 new Claim(ClaimTypes.Role, role)
             };
 
-            // --------------------------------------------------------
-            // Steg 2: Skapa signeringsnyckeln
-            // --------------------------------------------------------
-            // Hämta den hemliga nyckeln från appsettings.json
-            // Nyckeln måste vara minst 256 bitar (32 tecken) för HS256
             var jwtKey = _configuration["Jwt:Key"]
                 ?? throw new InvalidOperationException(
                     "JWT-nyckeln saknas i konfigurationen");
 
-            // Konvertera strängen till bytes
-            var key = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(jwtKey));
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
+            var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-            // Skapa signeringsuppgifter med HMAC-SHA256-algoritmen
-            // HMAC-SHA256 är industristandard för JWT-signering
-            var credentials = new SigningCredentials(
-                key,
-                SecurityAlgorithms.HmacSha256);
+            if (!double.TryParse(_configuration["Jwt:ExpiryHours"], out var hours))
+            {
+                _logger.LogWarning(
+                    "Jwt:ExpiryHours saknas i konfigurationen. Använder default 24 timmar.");
+                hours = 24;
+            }
 
-            // --------------------------------------------------------
-            // Steg 3: Skapa token-beskrivningen
-            // --------------------------------------------------------
-            var tokenDescriptor = new JwtSecurityToken(
-                // Issuer = vem som utfärdat token (vår applikation)
-                issuer: _configuration["Jwt:Issuer"],
+            var expires = DateTime.UtcNow.AddHours(hours);
 
-                // Audience = vem token är avsedd för (vår klient)
-                audience: _configuration["Jwt:Audience"],
+            var tokenDescriptor = new SecurityTokenDescriptor
+            {
+                Subject = new ClaimsIdentity(claims),
+                Issuer = _configuration["Jwt:Issuer"],
+                Audience = _configuration["Jwt:Audience"],
+                NotBefore = DateTime.UtcNow,
+                Expires = expires,
+                SigningCredentials = credentials
+            };
 
-                // Claims vi definierade ovan
-                claims: claims,
+            var tokenString = new JsonWebTokenHandler().CreateToken(tokenDescriptor);
 
-                // NotBefore = token är inte giltig före detta datum
-                notBefore: DateTime.UtcNow,
-
-                // Expires = token slutar gälla efter X timmar
-                // Vi läser antalet timmar från konfigurationen
-                expires: DateTime.UtcNow.AddHours(
-                    double.TryParse(_configuration["Jwt:ExpiryHours"], out var hours)
-                        ? hours : 24),
-
-                // Signeringsuppgifterna vi skapade ovan
-                signingCredentials: credentials
-            );
-
-            // --------------------------------------------------------
-            // Steg 4: Serialisera och returnera token + utgångstid
-            // --------------------------------------------------------
-            var tokenString = new JwtSecurityTokenHandler()
-                .WriteToken(tokenDescriptor);
-
-            return new TokenResult(tokenString, tokenDescriptor.ValidTo);
+            return new TokenResult(tokenString, expires);
         }
     }
 }

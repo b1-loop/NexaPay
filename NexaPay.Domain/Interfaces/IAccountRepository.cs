@@ -12,5 +12,7 @@ namespace NexaPay.Domain.Interfaces
         Task<IEnumerable<Account>> GetAccountsByOwnerIdAsync(string ownerId, CancellationToken cancellationToken = default);
         Task<Account?> GetByAccountNumberAsync(string accountNumber, CancellationToken cancellationToken = default);
         Task<bool> AccountNumberExistsAsync(string accountNumber, CancellationToken cancellationToken = default);
+        Task<bool> AccountExistsAsync(Guid accountId, CancellationToken cancellationToken = default);
+        Task<bool> AccountOwnedByAsync(Guid accountId, string ownerId, CancellationToken cancellationToken = default);
     }
 }

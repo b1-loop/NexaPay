@@ -1,22 +1,25 @@
 using MediatR;
 using Microsoft.Extensions.Logging;
+using NexaPay.Application.Common.Interfaces;
 using NexaPay.Application.Common.Models;
 
 namespace NexaPay.Application.Common.Behaviors
 {
     // Loggar alla kommandon (ej queries) med vem som utförde dem och om det lyckades.
     // Körs sist i pipeline – efter validering – så bara giltiga kommandon auditeras.
-    // Format: "AUDIT | {Kommando} | User: {UserId} | Success: {bool}"
-    // Kan routas till valfri logg-sink (Seq, Application Insights, fil, osv.)
     public class AuditBehavior<TRequest, TResponse>
         : IPipelineBehavior<TRequest, TResponse>
         where TRequest : notnull
     {
         private readonly ILogger<AuditBehavior<TRequest, TResponse>> _logger;
+        private readonly IAuditService _auditService;
 
-        public AuditBehavior(ILogger<AuditBehavior<TRequest, TResponse>> logger)
+        public AuditBehavior(
+            ILogger<AuditBehavior<TRequest, TResponse>> logger,
+            IAuditService auditService)
         {
             _logger = logger;
+            _auditService = auditService;
         }
 
         public async Task<TResponse> Handle(
@@ -30,7 +33,6 @@ namespace NexaPay.Application.Common.Behaviors
             if (requestName.EndsWith("Query"))
                 return await next();
 
-            // Extrahera UserId via reflektion om kommandot bär det
             var userId = typeof(TRequest)
                 .GetProperty("UserId")
                 ?.GetValue(request)
@@ -38,8 +40,7 @@ namespace NexaPay.Application.Common.Behaviors
 
             var response = await next();
 
-            // Använd IResult-interfacet istf. reflektion – typesafe och alltid korrekt
-            var isSuccess = response is IResult result ? result.IsSuccess : false;
+            var isSuccess = response is IResult result && result.IsSuccess;
 
             _logger.LogInformation(
                 "AUDIT | {Command} | User: {UserId} | Success: {Success} | {Timestamp:O}",
@@ -47,6 +48,8 @@ namespace NexaPay.Application.Common.Behaviors
                 userId,
                 isSuccess,
                 DateTime.UtcNow);
+
+            await _auditService.LogAsync(requestName, userId, isSuccess, cancellationToken);
 
             return response;
         }

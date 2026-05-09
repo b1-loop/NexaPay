@@ -29,5 +29,11 @@ namespace NexaPay.Infrastructure.Persistence.Repositories
 
         public async Task<bool> AccountNumberExistsAsync(string accountNumber, CancellationToken cancellationToken = default)
             => await _dbSet.AnyAsync(a => a.AccountNumber == accountNumber, cancellationToken);
+
+        public async Task<bool> AccountExistsAsync(Guid accountId, CancellationToken cancellationToken = default)
+            => await _dbSet.AnyAsync(a => a.Id == accountId, cancellationToken);
+
+        public async Task<bool> AccountOwnedByAsync(Guid accountId, string ownerId, CancellationToken cancellationToken = default)
+            => await _dbSet.AnyAsync(a => a.Id == accountId && a.OwnerId == ownerId, cancellationToken);
     }
 }

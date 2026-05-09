@@ -84,6 +84,11 @@ namespace NexaPay.Infrastructure
             services.AddScoped<IJwtService, JwtService>();
 
             // --------------------------------------------------------
+            // Audit Service
+            // --------------------------------------------------------
+            services.AddScoped<IAuditService, EfAuditService>();
+
+            // --------------------------------------------------------
             // Notification Service
             // --------------------------------------------------------
             // Placeholder-implementation som loggar notifieringar.

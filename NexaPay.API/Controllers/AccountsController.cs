@@ -21,6 +21,8 @@ using NexaPay.Application.Common.Constants;
 using NexaPay.Application.Common.Models;
 using NexaPay.Application.Features.Accounts.Commands.CreateAccount;
 using NexaPay.Application.Features.Accounts.Commands.DeleteAccount;
+using NexaPay.Application.Features.Accounts.Commands.FreezeAccount;
+using NexaPay.Application.Features.Accounts.Commands.UnfreezeAccount;
 using NexaPay.Application.Features.Accounts.Queries.GetAccountById;
 using NexaPay.Application.Features.Accounts.Queries.GetAllAccounts;
 using NexaPay.Application.DTOs;
@@ -121,6 +123,56 @@ namespace NexaPay.API.Controllers
                         "Konto skapades framgångsrikt"));
 
             return BadRequest(ApiResponse.Fail(result.Error));
+        }
+
+        // --------------------------------------------------------
+        // PUT api/accounts/{id}/freeze
+        // --------------------------------------------------------
+        // Bara bankpersonal (Admin, BankManager, Teller) kan frysa konton
+        [HttpPut("{id:guid}/freeze")]
+        [Authorize(Roles = Roles.CanWriteAccounts)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public async Task<IActionResult> Freeze(Guid id)
+        {
+            var result = await _mediator.Send(new FreezeAccountCommand
+            {
+                AccountId = id,
+                UserId = User.GetUserId(),
+                IsStaff = User.IsStaff()
+            });
+
+            if (result.IsSuccess)
+                return Ok(ApiResponse.Ok(message: "Konto frysts framgångsrikt"));
+
+            return this.ToErrorResponse(result);
+        }
+
+        // --------------------------------------------------------
+        // PUT api/accounts/{id}/unfreeze
+        // --------------------------------------------------------
+        // Bara bankpersonal (Admin, BankManager, Teller) kan avfrysa konton
+        [HttpPut("{id:guid}/unfreeze")]
+        [Authorize(Roles = Roles.CanWriteAccounts)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public async Task<IActionResult> Unfreeze(Guid id)
+        {
+            var result = await _mediator.Send(new UnfreezeAccountCommand
+            {
+                AccountId = id,
+                UserId = User.GetUserId(),
+                IsStaff = User.IsStaff()
+            });
+
+            if (result.IsSuccess)
+                return Ok(ApiResponse.Ok(message: "Konto avfryst framgångsrikt"));
+
+            return this.ToErrorResponse(result);
         }
 
         // --------------------------------------------------------

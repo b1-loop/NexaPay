@@ -31,6 +31,7 @@ namespace NexaPay.Infrastructure.Persistence
         public DbSet<Account> Accounts { get; set; } = null!;
         public DbSet<Card> Cards { get; set; } = null!;
         public DbSet<Transaction> Transactions { get; set; } = null!;
+        public DbSet<AuditLog> AuditLogs { get; set; } = null!;
 
         protected override void OnModelCreating(
             ModelBuilder modelBuilder)

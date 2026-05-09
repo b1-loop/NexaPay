@@ -75,8 +75,8 @@ namespace NexaPay.Tests.Application.Features.Transactions
                 .ToList();
 
             MockAccountRepository
-                .Setup(r => r.GetByIdAsync(account.Id, It.IsAny<CancellationToken>()))
-                .ReturnsAsync(account);
+                .Setup(r => r.AccountOwnedByAsync(account.Id, userId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(true);
 
             MockTransactionRepository
                 .Setup(r => r.GetTransactionsByAccountIdPagedAsync(
@@ -197,8 +197,8 @@ namespace NexaPay.Tests.Application.Features.Transactions
             var account = CreateTestAccount(ownerId: "customer-123");
 
             MockAccountRepository
-                .Setup(r => r.GetByIdAsync(account.Id, It.IsAny<CancellationToken>()))
-                .ReturnsAsync(account);
+                .Setup(r => r.AccountExistsAsync(account.Id, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(true);
 
             MockTransactionRepository
                 .Setup(r => r.GetTransactionsByAccountIdPagedAsync(
@@ -239,8 +239,8 @@ namespace NexaPay.Tests.Application.Features.Transactions
             var account = CreateTestAccount(ownerId: userId);
 
             MockAccountRepository
-                .Setup(r => r.GetByIdAsync(account.Id, It.IsAny<CancellationToken>()))
-                .ReturnsAsync(account);
+                .Setup(r => r.AccountOwnedByAsync(account.Id, userId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(true);
 
             MockTransactionRepository
                 .Setup(r => r.GetTransactionsByAccountIdPagedAsync(
@@ -283,8 +283,8 @@ namespace NexaPay.Tests.Application.Features.Transactions
             var account = CreateTestAccount(ownerId: userId);
 
             MockAccountRepository
-                .Setup(r => r.GetByIdAsync(account.Id, It.IsAny<CancellationToken>()))
-                .ReturnsAsync(account);
+                .Setup(r => r.AccountOwnedByAsync(account.Id, userId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(true);
 
             MockTransactionRepository
                 .Setup(r => r.GetTransactionsByAccountIdPagedAsync(

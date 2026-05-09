@@ -67,11 +67,7 @@ NexaPay.sln
 
 ### LÅG prioritet
 
-| # | Fil | Problem |
-|---|-----|---------|
-| L1 | `NexaPay.Infrastructure/Identity/JwtService.cs:86–113` | Tokengenereringen använder det äldre `JwtSecurityToken` + `JwtSecurityTokenHandler`. Valideringssidan i `DependencyInjection.cs` använder redan modernare `JsonWebTokenHandler`. Inkonsekvent – bör harmoniseras till `JsonWebTokenHandler` på båda sidor. |
-| L2 | `NexaPay.Application/Features/Transactions/Queries/GetTransactionsByAccount/GetTransactionsByAccountHandler.cs:40–41` | `GetByIdAsync` laddar `Account` med change tracking enbart för att kontrollera ägarskap. Byt till en `AccountOwnedByAsync(accountId, userId)` (bool) eller lägg till AsNoTracking. |
-| L3 | `NexaPay.Infrastructure/Identity/JwtService.cs:102–103` | Default på 24 timmar är hårdkodat. Logga en varning om `Jwt:ExpiryHours` saknas i konfigurationen. |
+*Inga kvarvarande låg-prioritetsproblem.*
 
 ---
 
@@ -79,9 +75,7 @@ NexaPay.sln
 
 | # | Beskrivning | Status |
 |---|-------------|--------|
-| F1 | **Freeze/Unfreeze API-endpoints** – `Account.Freeze()` och `Account.Unfreeze()` finns i domänen men det finns inga Commands, Handlers eller controllers för dessa operationer. Staff kan inte frysa misstänkta konton via API. | Öppen |
-| F2 | **Persistent audit-tabell** – `AuditBehavior` skriver bara till `ILogger`. Loggar kan roteras bort och är inte sökbara via API. Compliance kräver ofta en revisionsspårning som är persistent och querybar. | Öppen |
-| F3 | **Notifieringssystem** – `INotificationService`-interface och `LoggingNotificationService` är på plats. Alla 5 domain event handlers anropar servicen. Byt `LoggingNotificationService` mot en riktig e-post/SMS-implementation i `DependencyInjection.cs`. | Infrastruktur klar – implementation återstår |
+| F3 | **Notifieringssystem** – `INotificationService`-interface och `LoggingNotificationService` är på plats. Alla 5 domain event handlers anropar servicen. Byt `LoggingNotificationService` mot en riktig e-post/SMS-implementation i `DependencyInjection.cs`. | Infrastruktur klar – provider-implementation återstår |
 
 ---
 
@@ -105,4 +99,9 @@ NexaPay.sln
 | M3 | `CreateCardHandler.GeneratePan` – implementerade Luhn-kontrollsiffra via `ComputeLuhnCheckDigit()`; genererade PANs är nu Luhn-giltiga. |
 | M4 | `TransferHandler` – explicit valutakontroll med tydligt felmeddelande innan `Money`-operatorerna anropas. |
 | M5 | `INotificationService` tillagt i Application; `LoggingNotificationService` i Infrastructure; alla 5 event handlers anropar servicen. `CardBlockedHandler` slår upp kontot via `IUnitOfWork` för att hämta `OwnerId`. |
+| L1 | `JwtService` – migrerad från `JwtSecurityTokenHandler` till `JsonWebTokenHandler` (modern, konsekvent med valideringssidan). |
+| L2 | `IAccountRepository` utökad med `AccountExistsAsync` och `AccountOwnedByAsync`; `GetTransactionsByAccountHandler` använder nu bool-queries istället för full entity load. |
+| L3 | `JwtService` – loggar nu varning om `Jwt:ExpiryHours` saknas i konfigurationen och faller tillbaka på 24 h. |
+| F1 | `FreezeAccountCommand/Handler/Validator` + `UnfreezeAccountCommand/Handler/Validator` skapade; `AccountsController` har `PUT /accounts/{id}/freeze` och `PUT /accounts/{id}/unfreeze` med `[Authorize(Roles = Roles.CanWriteAccounts)]`. |
+| F2 | `IAuditService` + `EfAuditService` skapad; `AuditLog`-entitet och `AuditLogs`-tabell tillagda; `AuditBehavior` skriver nu till persistant DB och `ILogger` parallellt; EF-migration `AddAuditLog` skapad. |
 | – | Fullständig `README.md` skapad med arkitektur, endpoints, flödesdiagram och driftsättningsinstruktioner. |

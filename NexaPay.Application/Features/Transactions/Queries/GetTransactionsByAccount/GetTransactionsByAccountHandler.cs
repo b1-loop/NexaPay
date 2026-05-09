@@ -1,11 +1,3 @@
-﻿// ============================================================
-// GetTransactionsByAccountHandler.cs
-// NexaPay.Application/Features/Transactions/Queries/
-// GetTransactionsByAccount
-// ============================================================
-// Uppdaterad med paginering.
-// ============================================================
-
 using AutoMapper;
 using MediatR;
 using NexaPay.Application.Common.Models;
@@ -37,18 +29,23 @@ namespace NexaPay.Application.Features.Transactions.Queries
             var page = Math.Max(1, request.Page);
             var pageSize = Math.Clamp(request.PageSize, 1, 100);
 
-            var account = await _unitOfWork.Accounts
-                .GetByIdAsync(request.AccountId, cancellationToken);
-
-            if (account == null)
-                return Result<PagedResult<TransactionDto>>.NotFound(
-                    $"Konto med ID {request.AccountId} hittades inte");
-
-            var isOwner = account.OwnerId == request.UserId;
-
-            if (!request.IsStaff && !isOwner)
-                return Result<PagedResult<TransactionDto>>.NotFound(
-                    $"Konto med ID {request.AccountId} hittades inte");
+            // Lightweight ownership check — avoids loading the full Account entity.
+            if (request.IsStaff)
+            {
+                var exists = await _unitOfWork.Accounts
+                    .AccountExistsAsync(request.AccountId, cancellationToken);
+                if (!exists)
+                    return Result<PagedResult<TransactionDto>>.NotFound(
+                        $"Konto med ID {request.AccountId} hittades inte");
+            }
+            else
+            {
+                var owned = await _unitOfWork.Accounts
+                    .AccountOwnedByAsync(request.AccountId, request.UserId, cancellationToken);
+                if (!owned)
+                    return Result<PagedResult<TransactionDto>>.NotFound(
+                        $"Konto med ID {request.AccountId} hittades inte");
+            }
 
             var (transactions, totalCount) = await _unitOfWork
                 .Transactions
