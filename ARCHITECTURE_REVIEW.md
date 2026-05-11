@@ -14,7 +14,7 @@ NexaPay.sln
 ├── NexaPay.Application     – Handlers, validators, DTOs, pipeline behaviors, policies
 ├── NexaPay.Infrastructure  – EF Core, repositories, Identity, JWT, Redis
 ├── NexaPay.API             – Controllers, Contracts/, middleware, Swagger, Program.cs
-└── NexaPay.Tests           – 159 tester (enhet + integration)
+└── NexaPay.Tests           – 160 tester (enhet + integration)
 ```
 
 ---
@@ -64,7 +64,6 @@ NexaPay.sln
 ## Säkerhetsgranskning
 
 > Fullständig fil-för-fil genomgång utförd 2026-05-11. Varje fynd verifierat mot källkoden.
-
 
 ### Verifierade false positives (ej problem)
 
