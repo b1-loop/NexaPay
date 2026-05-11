@@ -1,6 +1,6 @@
 # NexaPay – Arkitekturgenomgång
 
-> **Senast uppdaterad:** 2026-05-09  
+> **Senast uppdaterad:** 2026-05-11  
 > **Branch:** master  
 > **Stack:** .NET 8 · ASP.NET Core · EF Core 8 · MediatR · FluentValidation · AutoMapper · ASP.NET Identity · JWT
 
@@ -28,7 +28,7 @@ NexaPay.sln
 - **UnitOfWork samlar events FÖRE save** – om `SaveChangesAsync` kastar finns inga events att dispatcha; events dispatchar EFTER lyckad save. Korrekt ordning.
 - **Result<T> med IResult-interface** – AuditBehavior kan kontrollera `IsSuccess` typesäkert utan reflektion på response-typen.
 - **ISensitiveRequest** – `LoginCommand` maskeras i LoggingBehavior; lösenord syns aldrig i loggar.
-- **INotificationService** – Interface i Application, `LoggingNotificationService` i Infrastructure som placeholder. Alla 5 domain event handlers anropar servicen. Byt till riktig e-post/SMS-provider med en enda DI-ändring.
+- **SmtpNotificationService** – Interface i Application, Gmail SMTP-implementation i Infrastructure. Alla 5 domain event handlers anropar servicen. `UserManager` slår upp e-postadress från `ownerId`. Byt provider med en enda DI-ändring.
 
 ### Säkerhet
 - **Lockout kontrolleras FÖRE lösenordsvalidering** i `AuthService.LoginAsync` – undviker timing oracle.
@@ -36,7 +36,9 @@ NexaPay.sln
 - **RedisTokenDenylist fail-open** – vid Redis-avbrott loggar `IsRevoked` en varning och returnerar `false`; autentiserade requests blockeras inte av infrastrukturproblem.
 - **CORS nekar allt som default** – `SetIsOriginAllowed(_ => false)` om inga origins är konfigurerade. Tvingar explicit konfiguration i produktion.
 - **JWT-nyckel valideras vid uppstart** – kastar `InvalidOperationException` om nyckeln är < 32 bytes.
-- **Kortnummer aldrig lagrat** – `CreateCardHandler` lagrar bara `CardToken` (Guid) + `Last4Digits`; full PAN returneras bara en gång i svaret, lagras inte, och är nu Luhn-giltigt.
+- **JWT ValidAlgorithms = HS256** – förhindrar algoritmbytes-attacker explicit.
+- **Säkerhetsheaders på alla svar** – `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`; HSTS aktiveras i produktion.
+- **Kortnummer aldrig lagrat** – `CreateCardHandler` lagrar bara `CardToken` (128-bit RNG hex) + `Last4Digits`; full PAN returneras bara en gång i svaret och är Luhn-giltigt.
 - **Idempotency-nyckel med filtrerat unikt index** – `WHERE IdempotencyKey IS NOT NULL` förhindrar dubbletter i databasen.
 - **Rate limiting på auth och finansiella endpoints** – 5/min respektive 20/min per IP.
 - **Lösenordskrav och kontolåsning** – 8 tecken, versaler, siffror, specialtecken; låses vid 5 misslyckanden i 15 minuter.
@@ -49,6 +51,7 @@ NexaPay.sln
 - **TransactionPolicy centraliserar gränsvärden** – max belopp och max beskrivningslängd på ett ställe.
 - **AsNoTracking på alla read-only queries** – `GetAllAccountsAsync`, `GetAccountsByOwnerIdAsync`, `GetCardsByAccountIdAsync`, `GetByAccountNumberAsync`, `GetByCardTokenAsync` m.fl.
 - **AccountNumber kollisionsskydd** – `CreateAccountHandler` provar upp till 5 unika nummer via `AccountNumberExistsAsync()` innan save.
+- **Persistent audit-tabell** – `AuditBehavior` skriver varje kommando (inkl. validationsfel) till `AuditLogs`-tabellen i databasen.
 
 ### Testning
 - **RateLimitingIntegrationTests** använder `[SetUp]`/`[TearDown]` – ger varje test en färsk factory och klient, isolerar rate limit-buckets.
@@ -61,18 +64,12 @@ NexaPay.sln
 
 > Fullständig fil-för-fil genomgång utförd 2026-05-11. Varje fynd verifierat mot källkoden.
 
-### Fynd och status
+### Accepterade begränsningar (kräver e-posttjänst)
 
-| # | Fil | Allvarlighet | Status |
-|---|-----|-------------|--------|
-| S1 | `DependencyInjection.cs` | MEDIUM | **Åtgärdat** – `ValidAlgorithms = new[] { SecurityAlgorithms.HmacSha256 }` tillagt i `TokenValidationParameters`. |
-| S2 | `AuthService.cs:71` | LÅG | **Accepterat** – `EmailConfirmed = true` kräver fungerande e-posttjänst. Dokumenterat som krav inför produktion. |
-| S3 | `AuthService.cs` | LÅG | **Accepterat** – Lösenordsåterställning kräver e-posttjänst. Dokumenterat som krav inför produktion. |
-| S4 | `StaffEmailPolicy.cs:27` | LÅG | **Åtgärdat** – Validering att `StaffDomain` är icke-tom och innehåller en punkt tillagd. |
-| S5 | `TransactionsController.cs:80–82` | LÅG | **Åtgärdat** – `[Range(1, int.MaxValue)]` på `page` och `[Range(1, 100)]` på `pageSize` tillagt. |
-| S6 | `CreateCardHandler.cs` | LÅG | **Åtgärdat** – `CardToken` genereras med `RandomNumberGenerator.GetBytes(16)` (128-bit explicit RNG). |
-| S7 | `ServiceExtensions.cs` | LÅG | **Åtgärdat** – Säkerhetsheaders + `UseHsts()` i produktion tillagda. |
-| S8 | `ValidationBehavior.cs` | LÅG | **Åtgärdat** – Kommandovalidationsfel loggas nu till `AuditLogs` innan `ValidationException` kastas. |
+| # | Fil | Beskrivning |
+|---|-----|-------------|
+| S2 | `AuthService.cs:71` | `EmailConfirmed = true` sätts direkt vid registrering – ingen e-postverifiering. Kräver fungerande e-posttjänst för att åtgärda. Dokumenterat som krav inför produktion. |
+| S3 | `AuthService.cs` | Inget lösenordsåterställningsflöde. Kräver e-posttjänst. Dokumenterat som krav inför produktion. |
 
 ### Verifierade false positives (ej problem)
 
@@ -86,23 +83,9 @@ NexaPay.sln
 
 ## Kvarvarande problem
 
-### HÖG prioritet
-
 | # | Fil | Problem |
 |---|-----|---------|
-| H2 | `NexaPay.API/Controllers/AdminController.cs` | AdminController saknar `[EnableRateLimiting]`. Endpoint `POST /api/admin/users` har inga hastighetsbegränsningar – en angripare kan skapa obegränsat antal användare utan att bromsas. **Medvetet utelämnat i detta projekt** för att underlätta testning. I produktion skulle `[EnableRateLimiting("auth")]` läggas till för att skydda mot massregistrering. |
-
-### LÅG prioritet
-
-*Inga kvarvarande låg-prioritetsproblem.*
-
----
-
-## Saknade funktioner
-
-| # | Beskrivning | Status |
-|---|-------------|--------|
-| F3 | **Notifieringssystem** – `SmtpNotificationService` implementerad med Gmail SMTP. `UserManager` slår upp e-postadressen från Identity via `ownerId` innan utskick. Credentials lagras lokalt i `appsettings.Development.json` (gitignorerad). | **Klar** |
+| H2 | `NexaPay.API/Controllers/AdminController.cs` | AdminController saknar `[EnableRateLimiting]`. **Medvetet utelämnat i detta projekt** för att underlätta testning. I produktion skulle `[EnableRateLimiting("auth")]` läggas till för att skydda mot massregistrering. |
 
 ---
 
@@ -125,18 +108,18 @@ NexaPay.sln
 | M2 | `CardRepository.GetByCardTokenAsync` – lade till `.AsNoTracking()`. |
 | M3 | `CreateCardHandler.GeneratePan` – implementerade Luhn-kontrollsiffra via `ComputeLuhnCheckDigit()`; genererade PANs är nu Luhn-giltiga. |
 | M4 | `TransferHandler` – explicit valutakontroll med tydligt felmeddelande innan `Money`-operatorerna anropas. |
-| M5 | `INotificationService` tillagt i Application; `LoggingNotificationService` i Infrastructure; alla 5 event handlers anropar servicen. `CardBlockedHandler` slår upp kontot via `IUnitOfWork` för att hämta `OwnerId`. |
+| M5 | `INotificationService` tillagt i Application; alla 5 event handlers anropar servicen. `CardBlockedHandler` slår upp kontot via `IUnitOfWork` för att hämta `OwnerId`. |
 | L1 | `JwtService` – migrerad från `JwtSecurityTokenHandler` till `JsonWebTokenHandler` (modern, konsekvent med valideringssidan). |
 | L2 | `IAccountRepository` utökad med `AccountExistsAsync` och `AccountOwnedByAsync`; `GetTransactionsByAccountHandler` använder nu bool-queries istället för full entity load. |
 | L3 | `JwtService` – loggar nu varning om `Jwt:ExpiryHours` saknas i konfigurationen och faller tillbaka på 24 h. |
 | F1 | `FreezeAccountCommand/Handler/Validator` + `UnfreezeAccountCommand/Handler/Validator` skapade; `AccountsController` har `PUT /accounts/{id}/freeze` och `PUT /accounts/{id}/unfreeze` med `[Authorize(Roles = Roles.CanWriteAccounts)]`. |
-| F2 | `IAuditService` + `EfAuditService` skapad; `AuditLog`-entitet och `AuditLogs`-tabell tillagda; `AuditBehavior` skriver nu till persistant DB och `ILogger` parallellt; EF-migration `AddAuditLog` skapad. |
-| W1–W4 | Fyra EF Core modellvalideringsvarningar åtgärdade: `HasQueryFilter` tillagd på `CardConfiguration` (matchar Account-filtret); `Transaction.Account`-navigationen markerad som optional (bevarar transaktionshistorik för stängda konton); `HasDefaultValue(Currency.SEK)` borttagen från alla `Money`-konfigurationer (Currency sätts alltid explicit i kod). EF-migration `FixEfCoreWarnings` skapad. |
-| S1 | `DependencyInjection.cs` – `ValidAlgorithms = new[] { SecurityAlgorithms.HmacSha256 }` tillagt i `TokenValidationParameters`; förhindrar algoritmbytes-attacker. |
-| S4 | `StaffEmailPolicy` – validerar nu att `StaffDomain` är icke-tom och innehåller en punkt innan domänkontrollen körs. |
-| S5 | `TransactionsController` – `[Range(1, int.MaxValue)]` på `page` och `[Range(1, 100)]` på `pageSize`; tydliga 400-svar vid ogiltiga värden. |
-| S6 | `CreateCardHandler` – `CardToken` genereras nu med `RandomNumberGenerator.GetBytes(16)` (128-bit explicit entropi) istället för `Guid.NewGuid()`. |
-| S7 | `ServiceExtensions.cs` – säkerhetsheaders tillagda i middleware: `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy`, `X-Permitted-Cross-Domain-Policies`; `UseHsts()` aktiveras i icke-dev-miljöer. |
-| S8 | `ValidationBehavior` – `IAuditService` injiceras nu; kommandovalidationsfel loggas till `AuditLogs`-tabellen innan `ValidationException` kastas, vilket ger komplett revisionsspår. |
-| F3 | `SmtpNotificationService` implementerad – skickar riktiga mail via Gmail SMTP. `UserManager<IdentityUser>` injiceras för att slå upp e-postadress från `ownerId`. Graceful fallback om SMTP ej konfigurerat. `appsettings.Development.json` gitignorerad så credentials aldrig pushas. |
-| – | Fullständig `README.md` skapad med arkitektur, endpoints, flödesdiagram och driftsättningsinstruktioner. |
+| F2 | `IAuditService` + `EfAuditService` skapad; `AuditLog`-entitet och `AuditLogs`-tabell tillagda; `AuditBehavior` skriver till DB och `ILogger` parallellt; EF-migration `AddAuditLog` skapad. |
+| F3 | `SmtpNotificationService` implementerad – skickar riktiga mail via Gmail SMTP. `UserManager<IdentityUser>` slår upp e-postadress från `ownerId`. Graceful fallback om SMTP ej konfigurerat. `appsettings.Development.json` gitignorerad så credentials aldrig pushas. |
+| W1–W4 | Fyra EF Core modellvalideringsvarningar åtgärdade: `HasQueryFilter` tillagd på `CardConfiguration`; `Transaction.Account`-navigationen markerad som optional; `HasDefaultValue(Currency.SEK)` borttagen från alla `Money`-konfigurationer. EF-migration `FixEfCoreWarnings` skapad. |
+| S1 | `DependencyInjection.cs` – `ValidAlgorithms = new[] { SecurityAlgorithms.HmacSha256 }` tillagt; förhindrar algoritmbytes-attacker. |
+| S4 | `StaffEmailPolicy` – validerar nu att `StaffDomain` är icke-tom och innehåller en punkt. |
+| S5 | `TransactionsController` – `[Range(1, int.MaxValue)]` på `page` och `[Range(1, 100)]` på `pageSize`. |
+| S6 | `CreateCardHandler` – `CardToken` genereras med `RandomNumberGenerator.GetBytes(16)` (128-bit explicit entropi). |
+| S7 | `ServiceExtensions.cs` – säkerhetsheaders + `UseHsts()` i produktion tillagda. |
+| S8 | `ValidationBehavior` – `IAuditService` injiceras; kommandovalidationsfel loggas till `AuditLogs` innan `ValidationException` kastas. |
+| – | Fullständig `README.md` och `CODEBASE_GUIDE.md` skapade. |
