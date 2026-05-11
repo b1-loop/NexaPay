@@ -15,6 +15,24 @@ using Microsoft.EntityFrameworkCore;
 using NexaPay.Application.Common.Constants;
 using NexaPay.Infrastructure.Persistence;
 
+// Seed-användare skapas vid uppstart om de inte finns
+// Alla har EmailConfirmed = true för att kringgå SMTP-kravet i dev
+// Lösenord: NexaPay1!
+file static class SeedUsers
+{
+    // (email, roll) – e-post avgör om det är staff (@nexapay.com) eller kund
+    public static readonly (string Email, string Role)[] All =
+    [
+        ("admin@nexapay.com",       Roles.Admin),
+        ("bankmanager@nexapay.com", Roles.BankManager),
+        ("teller@nexapay.com",      Roles.Teller),
+        ("auditor@nexapay.com",     Roles.Auditor),
+        ("user@test.com",           Roles.User),
+    ];
+
+    public const string Password = "NexaPay1!";
+}
+
 namespace NexaPay.API
 {
     public static class DatabaseExtensions
@@ -81,6 +99,13 @@ namespace NexaPay.API
                 // roller som saknas – idempotent operation
                 await SeedRolesAsync(services);
 
+                // ------------------------------------------------
+                // Steg 3: Seed användare (dev-konton per roll)
+                // ------------------------------------------------
+                // Skapar ett konto per roll med EmailConfirmed = true
+                // Körs bara om kontot inte redan finns – idempotent
+                await SeedUsersAsync(services);
+
                 // Logga att allt gick bra
                 app.Logger.LogInformation(
                     "Databas initialiserad framgångsrikt");
@@ -96,6 +121,49 @@ namespace NexaPay.API
                 // Det är bättre att krascha tidigt än att få
                 // konstiga fel senare
                 throw;
+            }
+        }
+
+        // --------------------------------------------------------
+        // Seed – Skapa ett konto per roll
+        // --------------------------------------------------------
+        // Använder UserManager direkt för att sätta EmailConfirmed = true
+        // utan att gå via AuthService (som annars kräver e-postverifiering)
+        private static async Task SeedUsersAsync(IServiceProvider services)
+        {
+            var userManager = services.GetRequiredService<UserManager<IdentityUser>>();
+            var logger = services
+                .GetRequiredService<ILoggerFactory>()
+                .CreateLogger(nameof(DatabaseExtensions));
+
+            foreach (var (email, role) in SeedUsers.All)
+            {
+                // Hoppa över om kontot redan finns
+                if (await userManager.FindByEmailAsync(email) is not null)
+                    continue;
+
+                // Skapa Identity-användaren med EmailConfirmed = true
+                // så att inloggning fungerar direkt utan SMTP
+                var user = new IdentityUser
+                {
+                    UserName = email,
+                    Email    = email,
+                    // Sätts till true här – kringgår e-postbekräftelsekravet i dev
+                    EmailConfirmed = true
+                };
+
+                var result = await userManager.CreateAsync(user, SeedUsers.Password);
+                if (!result.Succeeded)
+                {
+                    var errors = string.Join(", ", result.Errors.Select(e => e.Description));
+                    logger.LogError("Kunde inte skapa seed-användare {Email}: {Errors}", email, errors);
+                    continue;
+                }
+
+                // Tilldela rätt roll
+                await userManager.AddToRoleAsync(user, role);
+
+                logger.LogInformation("Seed-användare skapad: {Email} ({Role})", email, role);
             }
         }
 
