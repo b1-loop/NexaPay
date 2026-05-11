@@ -199,6 +199,31 @@ namespace NexaPay.Infrastructure.Identity
             }
         }
 
+        public async Task<Result> ChangePasswordAsync(string userId, string currentPassword, string newPassword)
+        {
+            try
+            {
+                var user = await _userManager.FindByIdAsync(userId);
+                if (user == null)
+                    return Result.Failure("Användaren hittades inte.");
+
+                var result = await _userManager.ChangePasswordAsync(user, currentPassword, newPassword);
+                if (!result.Succeeded)
+                {
+                    var errors = string.Join(", ", result.Errors.Select(e => e.Description));
+                    return Result.Failure(errors);
+                }
+
+                _logger.LogInformation("Lösenord bytt för {UserId}", userId);
+                return Result.Success();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Oväntat fel vid lösenordsbyte för {UserId}", userId);
+                return Result.Failure("Ett oväntat fel uppstod. Försök igen senare.");
+            }
+        }
+
         private static bool IsValidRole(string role) =>
             role == Roles.Admin ||
             role == Roles.BankManager ||

@@ -133,6 +133,26 @@ namespace NexaPay.API.Controllers
         }
 
         // --------------------------------------------------------
+        // POST api/auth/change-password
+        // --------------------------------------------------------
+        [HttpPost("change-password")]
+        [Authorize]
+        [DisableRateLimiting]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request)
+        {
+            var result = await _authService.ChangePasswordAsync(
+                User.GetUserId(), request.CurrentPassword, request.NewPassword);
+
+            if (result.IsSuccess)
+                return Ok(ApiResponse.Ok(message: "Lösenordet har bytts."));
+
+            return BadRequest(ApiResponse.Fail(result.Error));
+        }
+
+        // --------------------------------------------------------
         // POST api/auth/logout
         // --------------------------------------------------------
         [HttpPost("logout")]

@@ -39,6 +39,15 @@ namespace NexaPay.Domain.Entities
             RaiseDomainEvent(new CardBlocked(Id, AccountId, DateTime.UtcNow));
         }
 
+        public void Unblock()
+        {
+            if (Status != CardStatus.Blocked)
+                throw new InvalidOperationException("Kortet är inte blockerat");
+
+            Status = CardStatus.Active;
+            UpdatedAt = DateTime.UtcNow;
+        }
+
         public void MarkAsExpired()
         {
             Status = CardStatus.Expired;

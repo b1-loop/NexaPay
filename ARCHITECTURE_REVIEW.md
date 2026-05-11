@@ -81,6 +81,7 @@ NexaPay.sln
 |---|-----|---------|
 | H2 | `NexaPay.API/Controllers/AdminController.cs` | AdminController saknar `[EnableRateLimiting]`. **Medvetet utelämnat i detta projekt** för att underlätta testning. I produktion skulle `[EnableRateLimiting("auth")]` läggas till för att skydda mot massregistrering. |
 | F4 | `SmtpNotificationService.cs` | Bekräftelse- och återställningsmailet exponerar råa tokens och API-endpoints i brödtexten. Kräver frontend-integration. När frontend finns: byt ut brödtexten mot en klickbar länk, t.ex. `https://nexapay.com/confirm-email?userId=X&token=Y`. Frontenden anropar sedan `POST /auth/confirm-email` i bakgrunden – användaren ser bara en knapp. Samma princip för `forgot-password`. |
+| F5 | – | Ingen `GET /api/users/me`-endpoint. Behövs inte förrän frontend byggs – om extra profildata utöver JWT-claims (email, roll, userId) behöver visas ska denna endpoint läggas till då. |
 
 ---
 
@@ -120,3 +121,5 @@ NexaPay.sln
 | S7 | `ServiceExtensions.cs` – säkerhetsheaders + `UseHsts()` i produktion tillagda. |
 | S8 | `ValidationBehavior` – `IAuditService` injiceras; kommandovalidationsfel loggas till `AuditLogs` innan `ValidationException` kastas. |
 | – | Fullständig `README.md` och `CODEBASE_GUIDE.md` skapade. |
+| – | `Card.Unblock()` tillagd i domänen; `UnblockCardCommand/Handler/Validator` skapade; `PUT /cards/{id}/unblock` tillagd i `CardsController` (kräver Admin/BankManager). |
+| – | `IAuthService.ChangePasswordAsync` tillagd; `POST /auth/change-password` kräver inloggning och tar `{ currentPassword, newPassword }`. |

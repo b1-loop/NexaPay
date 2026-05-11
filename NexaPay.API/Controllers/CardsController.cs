@@ -19,6 +19,7 @@ using NexaPay.Application.Common.Constants;
 using NexaPay.Application.Common.Models;
 using NexaPay.Application.Features.Cards.Commands.ActivateCard;
 using NexaPay.Application.Features.Cards.Commands.BlockCard;
+using NexaPay.Application.Features.Cards.Commands.UnblockCard;
 using NexaPay.Application.DTOs;
 using NexaPay.Application.Features.Cards.Commands.CreateCard;
 using NexaPay.Application.Features.Cards.Queries.GetCardsByAccount;
@@ -117,6 +118,29 @@ namespace NexaPay.API.Controllers
             if (result.IsSuccess)
                 return Ok(ApiResponse.Ok(
                     message: "Kort aktiverades framgångsrikt"));
+
+            return this.ToErrorResponse(result);
+        }
+
+        // --------------------------------------------------------
+        // PUT api/cards/{id}/unblock
+        // --------------------------------------------------------
+        [HttpPut("{id:guid}/unblock")]
+        [Authorize(Roles = Roles.CanBlockCard)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public async Task<IActionResult> Unblock(Guid id)
+        {
+            var result = await _mediator.Send(new UnblockCardCommand
+            {
+                CardId = id,
+                AdminId = User.GetUserId()
+            });
+
+            if (result.IsSuccess)
+                return Ok(ApiResponse.Ok(message: "Kort avblockerades framgångsrikt"));
 
             return this.ToErrorResponse(result);
         }

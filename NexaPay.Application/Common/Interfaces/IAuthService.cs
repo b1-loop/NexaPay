@@ -10,5 +10,6 @@ namespace NexaPay.Application.Common.Interfaces
         Task<Result> ConfirmEmailAsync(string userId, string token);
         Task<Result> ForgotPasswordAsync(string email);
         Task<Result> ResetPasswordAsync(string email, string token, string newPassword);
+        Task<Result> ChangePasswordAsync(string userId, string currentPassword, string newPassword);
     }
 }
