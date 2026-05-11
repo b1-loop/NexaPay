@@ -6,6 +6,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using NexaPay.Domain.Entities;
+using NexaPay.Domain.Enums;
 
 namespace NexaPay.Infrastructure.Persistence.Configurations
 {
@@ -59,6 +60,9 @@ namespace NexaPay.Infrastructure.Persistence.Configurations
 
             // Index för snabb hämtning av alla kort per konto
             builder.HasIndex(c => c.AccountId);
+
+            // Matchar Account-filtret – kort kopplade till stängda konton döljs automatiskt
+            builder.HasQueryFilter(c => c.Account!.Status != AccountStatus.Closed);
         }
     }
 }

@@ -1,7 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using NexaPay.Domain.Entities;
-using NexaPay.Domain.Enums;
 
 namespace NexaPay.Infrastructure.Persistence.Configurations
 {
@@ -24,8 +23,7 @@ namespace NexaPay.Infrastructure.Persistence.Configurations
 
                 b.Property(m => m.Currency)
                     .HasColumnName("Amount_Currency")
-                    .IsRequired()
-                    .HasDefaultValue(Currency.SEK);
+                    .IsRequired();
             });
 
             builder.Property(t => t.Type)
@@ -47,8 +45,7 @@ namespace NexaPay.Infrastructure.Persistence.Configurations
 
                 b.Property(m => m.Currency)
                     .HasColumnName("BalanceAfterTransaction_Currency")
-                    .IsRequired()
-                    .HasDefaultValue(Currency.SEK);
+                    .IsRequired();
             });
 
             builder.Property(t => t.ReceiverAccountId)
@@ -74,6 +71,10 @@ namespace NexaPay.Infrastructure.Persistence.Configurations
             builder.HasIndex(t => t.IdempotencyKey)
                 .IsUnique()
                 .HasFilter("[IdempotencyKey] IS NOT NULL");
+
+            // Transaktioner är ett historiskt register – vi vill behålla dem även för stängda konton.
+            // Markera navigationen som optional så EF inte varnar om det globala Account-filtret.
+            builder.Navigation(t => t.Account).IsRequired(false);
         }
     }
 }

@@ -32,8 +32,7 @@ namespace NexaPay.Infrastructure.Persistence.Configurations
 
                 b.Property(m => m.Currency)
                     .HasColumnName("AccountCurrency")
-                    .IsRequired()
-                    .HasDefaultValue(Currency.SEK);
+                    .IsRequired();
             });
 
             builder.Property(a => a.AccountType)
