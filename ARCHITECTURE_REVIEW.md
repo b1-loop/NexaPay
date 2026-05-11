@@ -104,4 +104,5 @@ NexaPay.sln
 | L3 | `JwtService` – loggar nu varning om `Jwt:ExpiryHours` saknas i konfigurationen och faller tillbaka på 24 h. |
 | F1 | `FreezeAccountCommand/Handler/Validator` + `UnfreezeAccountCommand/Handler/Validator` skapade; `AccountsController` har `PUT /accounts/{id}/freeze` och `PUT /accounts/{id}/unfreeze` med `[Authorize(Roles = Roles.CanWriteAccounts)]`. |
 | F2 | `IAuditService` + `EfAuditService` skapad; `AuditLog`-entitet och `AuditLogs`-tabell tillagda; `AuditBehavior` skriver nu till persistant DB och `ILogger` parallellt; EF-migration `AddAuditLog` skapad. |
+| W1–W4 | Fyra EF Core modellvalideringsvarningar åtgärdade: `HasQueryFilter` tillagd på `CardConfiguration` (matchar Account-filtret); `Transaction.Account`-navigationen markerad som optional (bevarar transaktionshistorik för stängda konton); `HasDefaultValue(Currency.SEK)` borttagen från alla `Money`-konfigurationer (Currency sätts alltid explicit i kod). EF-migration `FixEfCoreWarnings` skapad. |
 | – | Fullständig `README.md` skapad med arkitektur, endpoints, flödesdiagram och driftsättningsinstruktioner. |
