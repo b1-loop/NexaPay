@@ -80,6 +80,7 @@ NexaPay.sln
 | # | Fil | Problem |
 |---|-----|---------|
 | H2 | `NexaPay.API/Controllers/AdminController.cs` | AdminController saknar `[EnableRateLimiting]`. **Medvetet utelämnat i detta projekt** för att underlätta testning. I produktion skulle `[EnableRateLimiting("auth")]` läggas till för att skydda mot massregistrering. |
+| F4 | `SmtpNotificationService.cs` | Bekräftelse- och återställningsmailet exponerar råa tokens och API-endpoints i brödtexten. Kräver frontend-integration. När frontend finns: byt ut brödtexten mot en klickbar länk, t.ex. `https://nexapay.com/confirm-email?userId=X&token=Y`. Frontenden anropar sedan `POST /auth/confirm-email` i bakgrunden – användaren ser bara en knapp. Samma princip för `forgot-password`. |
 
 ---
 
