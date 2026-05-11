@@ -57,6 +57,33 @@ NexaPay.sln
 
 ---
 
+## Säkerhetsgranskning
+
+> Fullständig fil-för-fil genomgång utförd 2026-05-11. Varje fynd verifierat mot källkoden.
+
+### Bekräftade problem
+
+| # | Fil | Allvarlighet | Problem |
+|---|-----|-------------|---------|
+| S1 | `DependencyInjection.cs` | MEDIUM | `TokenValidationParameters` saknar `ValidAlgorithms = new[] { SecurityAlgorithms.HmacSha256 }`. Utan explicit algoritmlista kan en angripare i teorin skicka tokens signerade med en annan algoritm. .NET:s JWT-bibliotek mitigerar detta delvis men explicit validering är best practice. |
+| S2 | `AuthService.cs:71` | LÅG (skolprojekt) | `EmailConfirmed = true` sätts direkt vid registrering utan e-postverifiering. Vem som helst kan registrera sig med valfri e-postadress. Kräver en fungerande e-posttjänst för att åtgärda – acceptabelt i nuläget. |
+| S3 | `AuthService.cs` | LÅG (skolprojekt) | Inget lösenordsåterställningsflöde finns. Kräver e-posttjänst. Acceptabelt för skolprojekt, bör dokumenteras som krav inför produktion. |
+| S4 | `StaffEmailPolicy.cs:27` | LÅG | `email.EndsWith($"@{_appSettings.StaffDomain}")` – om `StaffDomain` råkar vara tomt eller en kort sträng (t.ex. "com") kan domänkontrollen bli alltför tillåtande. Lägg till validering att `StaffDomain` är icke-tom och innehåller en punkt. |
+| S5 | `TransactionsController.cs:80–82` | LÅG | `page` och `pageSize` saknar `[Range]`-attribut i controllern. Hanteraren kör `Math.Max` och `Math.Clamp`, men validering bör även finnas på API-nivå för tydliga felmeddelanden. |
+| S6 | `CreateCardHandler.cs` | LÅG | `CardToken = Guid.NewGuid().ToString()` – GUID v4 ger 122 bits entropi vilket är tillräckligt säkert, men ett explicit `RandomNumberGenerator`-baserat token är tydligare i intention. |
+| S7 | `Program.cs / ServiceExtensions.cs` | LÅG | Säkerhetsheaders saknas: `Strict-Transport-Security`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`. Lägg till ett middleware-steg som sätter dessa på alla svar. |
+| S8 | `AuditBehavior.cs` | LÅG | Validationsfel (FluentValidation-undantag) når aldrig `AuditBehavior` eftersom `ValidationBehavior` körs dessförinnan. Misslyckade formatfel syns i app-loggen men inte i `AuditLogs`-tabellen. |
+
+### Verifierade false positives (ej problem)
+
+| Påstått problem | Varför det inte stämmer |
+|---|---|
+| Vanlig User kan frysa eget konto | `AccountsController` har `[Authorize(Roles = Roles.CanWriteAccounts)]` = `Admin,BankManager,Teller` – User-rollen blockeras av controllern. |
+| `Money`-operator kan returnera negativt belopp | `Money`-konstruktorn kastar `ArgumentOutOfRangeException` om `amount < 0`. Aritmetiken är skyddad på domännivå. |
+| CVV skickas i svar (PCI-problem) | CVV genereras och returneras en gång vid kortutfärdande och lagras aldrig. Standardbeteende vid kortutfärdande. |
+
+---
+
 ## Kvarvarande problem
 
 ### HÖG prioritet
