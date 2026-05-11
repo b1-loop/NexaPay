@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using NexaPay.Application.Common.Interfaces;
@@ -10,13 +11,16 @@ namespace NexaPay.Infrastructure.Notifications
     {
         private readonly IConfiguration _configuration;
         private readonly ILogger<SmtpNotificationService> _logger;
+        private readonly UserManager<IdentityUser> _userManager;
 
         public SmtpNotificationService(
             IConfiguration configuration,
-            ILogger<SmtpNotificationService> logger)
+            ILogger<SmtpNotificationService> logger,
+            UserManager<IdentityUser> userManager)
         {
             _configuration = configuration;
             _logger = logger;
+            _userManager = userManager;
         }
 
         public async Task NotifyTransactionAsync(
@@ -25,7 +29,9 @@ namespace NexaPay.Infrastructure.Notifications
             string body,
             CancellationToken ct = default)
         {
-            await SendAsync(ownerId, subject, body, ct);
+            var email = await ResolveEmailAsync(ownerId);
+            if (email is null) return;
+            await SendAsync(email, subject, body, ct);
         }
 
         public async Task NotifyCardBlockedAsync(
@@ -33,8 +39,10 @@ namespace NexaPay.Infrastructure.Notifications
             Guid cardId,
             CancellationToken ct = default)
         {
+            var email = await ResolveEmailAsync(ownerId);
+            if (email is null) return;
             await SendAsync(
-                ownerId,
+                email,
                 "Ditt kort har blockerats",
                 $"Ditt kort (ID: {cardId}) har blockerats. Kontakta oss om du inte begärde detta.",
                 ct);
@@ -45,11 +53,28 @@ namespace NexaPay.Infrastructure.Notifications
             Guid accountId,
             CancellationToken ct = default)
         {
+            var email = await ResolveEmailAsync(ownerId);
+            if (email is null) return;
             await SendAsync(
-                ownerId,
+                email,
                 "Ditt konto har stängts",
                 $"Ditt konto (ID: {accountId}) har stängts. Kontakta oss om du har frågor.",
                 ct);
+        }
+
+        // Slår upp e-postadressen från Identity via userId.
+        // Returnerar null och loggar varning om användaren inte hittas.
+        private async Task<string?> ResolveEmailAsync(string userId)
+        {
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user?.Email is null)
+            {
+                _logger.LogWarning(
+                    "Kunde inte hitta e-postadress för userId {UserId} – notifiering ej skickad.",
+                    userId);
+                return null;
+            }
+            return user.Email;
         }
 
         private async Task SendAsync(
