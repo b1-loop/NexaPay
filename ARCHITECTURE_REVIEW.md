@@ -102,7 +102,7 @@ NexaPay.sln
 
 | # | Beskrivning | Status |
 |---|-------------|--------|
-| F3 | **Notifieringssystem** – `INotificationService`-interface och `LoggingNotificationService` är på plats. Alla 5 domain event handlers anropar servicen. Byt `LoggingNotificationService` mot en riktig e-post/SMS-implementation i `DependencyInjection.cs`. | Infrastruktur klar – provider-implementation återstår |
+| F3 | **Notifieringssystem** – `SmtpNotificationService` implementerad med Gmail SMTP. `UserManager` slår upp e-postadressen från Identity via `ownerId` innan utskick. Credentials lagras lokalt i `appsettings.Development.json` (gitignorerad). | **Klar** |
 
 ---
 
@@ -138,4 +138,5 @@ NexaPay.sln
 | S6 | `CreateCardHandler` – `CardToken` genereras nu med `RandomNumberGenerator.GetBytes(16)` (128-bit explicit entropi) istället för `Guid.NewGuid()`. |
 | S7 | `ServiceExtensions.cs` – säkerhetsheaders tillagda i middleware: `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy`, `X-Permitted-Cross-Domain-Policies`; `UseHsts()` aktiveras i icke-dev-miljöer. |
 | S8 | `ValidationBehavior` – `IAuditService` injiceras nu; kommandovalidationsfel loggas till `AuditLogs`-tabellen innan `ValidationException` kastas, vilket ger komplett revisionsspår. |
+| F3 | `SmtpNotificationService` implementerad – skickar riktiga mail via Gmail SMTP. `UserManager<IdentityUser>` injiceras för att slå upp e-postadress från `ownerId`. Graceful fallback om SMTP ej konfigurerat. `appsettings.Development.json` gitignorerad så credentials aldrig pushas. |
 | – | Fullständig `README.md` skapad med arkitektur, endpoints, flödesdiagram och driftsättningsinstruktioner. |
