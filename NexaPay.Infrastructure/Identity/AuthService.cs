@@ -136,6 +136,10 @@ namespace NexaPay.Infrastructure.Identity
                 if (user == null)
                     return Result.Failure("Ogiltigt användar-ID eller token.");
 
+                // Redan bekräftad – returnera success direkt (idempotent)
+                if (user.EmailConfirmed)
+                    return Result.Success();
+
                 var result = await _userManager.ConfirmEmailAsync(user, token);
                 if (!result.Succeeded)
                 {
