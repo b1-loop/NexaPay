@@ -324,11 +324,12 @@ namespace NexaPay.API
             // 2. Global felhantering
             app.UseMiddleware<ExceptionMiddleware>();
 
-            // 3. HTTPS
-            app.UseHttpsRedirection();
-
-            // 4. CORS
+            // 3. CORS – måste vara före UseHttpsRedirection
+            // så att CORS-headers sätts på preflight-svar innan redirect
             app.UseCors("CorsPolicy");
+
+            // 4. HTTPS
+            app.UseHttpsRedirection();
 
             // 5. Rate Limiting – före autentisering för maximal effekt
             app.UseRateLimiter();
