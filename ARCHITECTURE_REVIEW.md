@@ -61,18 +61,18 @@ NexaPay.sln
 
 > Fullständig fil-för-fil genomgång utförd 2026-05-11. Varje fynd verifierat mot källkoden.
 
-### Bekräftade problem
+### Fynd och status
 
 | # | Fil | Allvarlighet | Status |
 |---|-----|-------------|--------|
 | S1 | `DependencyInjection.cs` | MEDIUM | **Åtgärdat** – `ValidAlgorithms = new[] { SecurityAlgorithms.HmacSha256 }` tillagt i `TokenValidationParameters`. |
-| S2 | `AuthService.cs:71` | LÅG (skolprojekt) | **Accepterat** – `EmailConfirmed = true` kräver fungerande e-posttjänst för att åtgärda. Dokumenterat som krav inför produktion. |
-| S3 | `AuthService.cs` | LÅG (skolprojekt) | **Accepterat** – Lösenordsåterställning kräver e-posttjänst. Dokumenterat som krav inför produktion. |
-| S4 | `StaffEmailPolicy.cs:27` | LÅG | **Åtgärdat** – Validering att `StaffDomain` är icke-tom och innehåller en punkt tillagd. Returnerar tydligt felmeddelande vid felaktig konfiguration. |
+| S2 | `AuthService.cs:71` | LÅG | **Accepterat** – `EmailConfirmed = true` kräver fungerande e-posttjänst. Dokumenterat som krav inför produktion. |
+| S3 | `AuthService.cs` | LÅG | **Accepterat** – Lösenordsåterställning kräver e-posttjänst. Dokumenterat som krav inför produktion. |
+| S4 | `StaffEmailPolicy.cs:27` | LÅG | **Åtgärdat** – Validering att `StaffDomain` är icke-tom och innehåller en punkt tillagd. |
 | S5 | `TransactionsController.cs:80–82` | LÅG | **Åtgärdat** – `[Range(1, int.MaxValue)]` på `page` och `[Range(1, 100)]` på `pageSize` tillagt. |
-| S6 | `CreateCardHandler.cs` | LÅG | **Åtgärdat** – `CardToken` genereras nu med `Convert.ToHexString(RandomNumberGenerator.GetBytes(16))` (128-bit explicit RNG). |
-| S7 | `ServiceExtensions.cs` | LÅG | **Åtgärdat** – `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy`, `X-Permitted-Cross-Domain-Policies` sätts nu i middleware. `UseHsts()` aktiveras i icke-dev-miljöer. |
-| S8 | `ValidationBehavior.cs` | LÅG | **Åtgärdat** – `IAuditService` injiceras i `ValidationBehavior`; kommandovalidationsfel loggas nu till `AuditLogs`-tabellen innan `ValidationException` kastas. |
+| S6 | `CreateCardHandler.cs` | LÅG | **Åtgärdat** – `CardToken` genereras med `RandomNumberGenerator.GetBytes(16)` (128-bit explicit RNG). |
+| S7 | `ServiceExtensions.cs` | LÅG | **Åtgärdat** – Säkerhetsheaders + `UseHsts()` i produktion tillagda. |
+| S8 | `ValidationBehavior.cs` | LÅG | **Åtgärdat** – Kommandovalidationsfel loggas nu till `AuditLogs` innan `ValidationException` kastas. |
 
 ### Verifierade false positives (ej problem)
 
