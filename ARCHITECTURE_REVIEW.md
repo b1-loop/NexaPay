@@ -132,4 +132,10 @@ NexaPay.sln
 | F1 | `FreezeAccountCommand/Handler/Validator` + `UnfreezeAccountCommand/Handler/Validator` skapade; `AccountsController` har `PUT /accounts/{id}/freeze` och `PUT /accounts/{id}/unfreeze` med `[Authorize(Roles = Roles.CanWriteAccounts)]`. |
 | F2 | `IAuditService` + `EfAuditService` skapad; `AuditLog`-entitet och `AuditLogs`-tabell tillagda; `AuditBehavior` skriver nu till persistant DB och `ILogger` parallellt; EF-migration `AddAuditLog` skapad. |
 | W1–W4 | Fyra EF Core modellvalideringsvarningar åtgärdade: `HasQueryFilter` tillagd på `CardConfiguration` (matchar Account-filtret); `Transaction.Account`-navigationen markerad som optional (bevarar transaktionshistorik för stängda konton); `HasDefaultValue(Currency.SEK)` borttagen från alla `Money`-konfigurationer (Currency sätts alltid explicit i kod). EF-migration `FixEfCoreWarnings` skapad. |
+| S1 | `DependencyInjection.cs` – `ValidAlgorithms = new[] { SecurityAlgorithms.HmacSha256 }` tillagt i `TokenValidationParameters`; förhindrar algoritmbytes-attacker. |
+| S4 | `StaffEmailPolicy` – validerar nu att `StaffDomain` är icke-tom och innehåller en punkt innan domänkontrollen körs. |
+| S5 | `TransactionsController` – `[Range(1, int.MaxValue)]` på `page` och `[Range(1, 100)]` på `pageSize`; tydliga 400-svar vid ogiltiga värden. |
+| S6 | `CreateCardHandler` – `CardToken` genereras nu med `RandomNumberGenerator.GetBytes(16)` (128-bit explicit entropi) istället för `Guid.NewGuid()`. |
+| S7 | `ServiceExtensions.cs` – säkerhetsheaders tillagda i middleware: `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy`, `X-Permitted-Cross-Domain-Policies`; `UseHsts()` aktiveras i icke-dev-miljöer. |
+| S8 | `ValidationBehavior` – `IAuditService` injiceras nu; kommandovalidationsfel loggas till `AuditLogs`-tabellen innan `ValidationException` kastas, vilket ger komplett revisionsspår. |
 | – | Fullständig `README.md` skapad med arkitektur, endpoints, flödesdiagram och driftsättningsinstruktioner. |
