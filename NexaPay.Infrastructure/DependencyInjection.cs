@@ -94,7 +94,7 @@ namespace NexaPay.Infrastructure
             // Placeholder-implementation som loggar notifieringar.
             // Byt ut mot riktig e-post/SMS-provider inför produktion
             // genom att ändra registreringen nedan.
-            services.AddScoped<INotificationService, LoggingNotificationService>();
+            services.AddScoped<INotificationService, SmtpNotificationService>();
 
             // --------------------------------------------------------
             // Auth Service
