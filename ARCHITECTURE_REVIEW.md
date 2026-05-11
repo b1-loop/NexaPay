@@ -63,16 +63,16 @@ NexaPay.sln
 
 ### Bekräftade problem
 
-| # | Fil | Allvarlighet | Problem |
-|---|-----|-------------|---------|
-| S1 | `DependencyInjection.cs` | MEDIUM | `TokenValidationParameters` saknar `ValidAlgorithms = new[] { SecurityAlgorithms.HmacSha256 }`. Utan explicit algoritmlista kan en angripare i teorin skicka tokens signerade med en annan algoritm. .NET:s JWT-bibliotek mitigerar detta delvis men explicit validering är best practice. |
-| S2 | `AuthService.cs:71` | LÅG (skolprojekt) | `EmailConfirmed = true` sätts direkt vid registrering utan e-postverifiering. Vem som helst kan registrera sig med valfri e-postadress. Kräver en fungerande e-posttjänst för att åtgärda – acceptabelt i nuläget. |
-| S3 | `AuthService.cs` | LÅG (skolprojekt) | Inget lösenordsåterställningsflöde finns. Kräver e-posttjänst. Acceptabelt för skolprojekt, bör dokumenteras som krav inför produktion. |
-| S4 | `StaffEmailPolicy.cs:27` | LÅG | `email.EndsWith($"@{_appSettings.StaffDomain}")` – om `StaffDomain` råkar vara tomt eller en kort sträng (t.ex. "com") kan domänkontrollen bli alltför tillåtande. Lägg till validering att `StaffDomain` är icke-tom och innehåller en punkt. |
-| S5 | `TransactionsController.cs:80–82` | LÅG | `page` och `pageSize` saknar `[Range]`-attribut i controllern. Hanteraren kör `Math.Max` och `Math.Clamp`, men validering bör även finnas på API-nivå för tydliga felmeddelanden. |
-| S6 | `CreateCardHandler.cs` | LÅG | `CardToken = Guid.NewGuid().ToString()` – GUID v4 ger 122 bits entropi vilket är tillräckligt säkert, men ett explicit `RandomNumberGenerator`-baserat token är tydligare i intention. |
-| S7 | `Program.cs / ServiceExtensions.cs` | LÅG | Säkerhetsheaders saknas: `Strict-Transport-Security`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`. Lägg till ett middleware-steg som sätter dessa på alla svar. |
-| S8 | `AuditBehavior.cs` | LÅG | Validationsfel (FluentValidation-undantag) når aldrig `AuditBehavior` eftersom `ValidationBehavior` körs dessförinnan. Misslyckade formatfel syns i app-loggen men inte i `AuditLogs`-tabellen. |
+| # | Fil | Allvarlighet | Status |
+|---|-----|-------------|--------|
+| S1 | `DependencyInjection.cs` | MEDIUM | **Åtgärdat** – `ValidAlgorithms = new[] { SecurityAlgorithms.HmacSha256 }` tillagt i `TokenValidationParameters`. |
+| S2 | `AuthService.cs:71` | LÅG (skolprojekt) | **Accepterat** – `EmailConfirmed = true` kräver fungerande e-posttjänst för att åtgärda. Dokumenterat som krav inför produktion. |
+| S3 | `AuthService.cs` | LÅG (skolprojekt) | **Accepterat** – Lösenordsåterställning kräver e-posttjänst. Dokumenterat som krav inför produktion. |
+| S4 | `StaffEmailPolicy.cs:27` | LÅG | **Åtgärdat** – Validering att `StaffDomain` är icke-tom och innehåller en punkt tillagd. Returnerar tydligt felmeddelande vid felaktig konfiguration. |
+| S5 | `TransactionsController.cs:80–82` | LÅG | **Åtgärdat** – `[Range(1, int.MaxValue)]` på `page` och `[Range(1, 100)]` på `pageSize` tillagt. |
+| S6 | `CreateCardHandler.cs` | LÅG | **Åtgärdat** – `CardToken` genereras nu med `Convert.ToHexString(RandomNumberGenerator.GetBytes(16))` (128-bit explicit RNG). |
+| S7 | `ServiceExtensions.cs` | LÅG | **Åtgärdat** – `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy`, `X-Permitted-Cross-Domain-Policies` sätts nu i middleware. `UseHsts()` aktiveras i icke-dev-miljöer. |
+| S8 | `ValidationBehavior.cs` | LÅG | **Åtgärdat** – `IAuditService` injiceras i `ValidationBehavior`; kommandovalidationsfel loggas nu till `AuditLogs`-tabellen innan `ValidationException` kastas. |
 
 ### Verifierade false positives (ej problem)
 

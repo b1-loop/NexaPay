@@ -308,28 +308,41 @@ namespace NexaPay.API
                 });
             }
 
-            // 1. Global felhantering – alltid först
+            // 1. Säkerhetsheaders – alltid först så de sätts på alla svar
+            if (!app.Environment.IsDevelopment())
+                app.UseHsts();
+
+            app.Use(async (context, next) =>
+            {
+                context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+                context.Response.Headers["X-Frame-Options"] = "DENY";
+                context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+                context.Response.Headers["X-Permitted-Cross-Domain-Policies"] = "none";
+                await next();
+            });
+
+            // 2. Global felhantering
             app.UseMiddleware<ExceptionMiddleware>();
 
-            // 2. HTTPS
+            // 3. HTTPS
             app.UseHttpsRedirection();
 
-            // 3. CORS
+            // 4. CORS
             app.UseCors("CorsPolicy");
 
-            // 4. Rate Limiting – före autentisering för maximal effekt
+            // 5. Rate Limiting – före autentisering för maximal effekt
             app.UseRateLimiter();
 
-            // 5. Authentication – vem är du?
+            // 6. Authentication – vem är du?
             app.UseAuthentication();
 
-            // 6. Authorization – vad får du göra?
+            // 7. Authorization – vad får du göra?
             app.UseAuthorization();
 
-            // 7. Controllers
+            // 8. Controllers
             app.MapControllers();
 
-            // 8. Health check endpoint – ingen autentisering, används av load balancers
+            // 9. Health check endpoint – ingen autentisering, används av load balancers
             app.MapHealthChecks("/health");
 
             return app;

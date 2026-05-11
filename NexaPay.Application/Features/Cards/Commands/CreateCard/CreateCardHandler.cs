@@ -64,7 +64,8 @@ namespace NexaPay.Application.Features.Cards.Commands.CreateCard
             {
                 Id = Guid.NewGuid(),
                 // Full PAN is never persisted — only an opaque token + last 4 digits.
-                CardToken = Guid.NewGuid().ToString(),
+                // Explicit RNG bytes (128-bit entropy) rather than Guid.NewGuid().
+                CardToken = Convert.ToHexString(RandomNumberGenerator.GetBytes(16)),
                 Last4Digits = last4,
                 CardHolderName = request.CardHolderName.ToUpper(),
                 ExpiryDate = expiryDate,

@@ -19,6 +19,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using System.ComponentModel.DataAnnotations;
 using NexaPay.API.Contracts;
 using NexaPay.API.Extensions;
 using NexaPay.Application.Common.Constants;
@@ -77,9 +78,8 @@ namespace NexaPay.API.Controllers
             Guid accountId,
             // [FromQuery] läser parametrar från URL:en
             // Default = 1 om inget anges
-            [FromQuery] int page = 1,
-            // Default = 20 om inget anges
-            [FromQuery] int pageSize = 20)
+            [FromQuery][Range(1, int.MaxValue)] int page = 1,
+            [FromQuery][Range(1, 100)] int pageSize = 20)
         {
             var result = await _mediator.Send(
                 new GetTransactionsByAccountQuery

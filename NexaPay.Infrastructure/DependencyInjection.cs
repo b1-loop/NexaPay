@@ -184,7 +184,10 @@ namespace NexaPay.Infrastructure
                     // Tillåt inte tokens som gått ut
                     // ClockSkew = hur mycket tidsskillnad vi tolererar
                     // mellan server och klient – sätts till 0 för strikthet
-                    ClockSkew = TimeSpan.Zero
+                    ClockSkew = TimeSpan.Zero,
+
+                    // Tillåt endast HS256 – förhindrar algoritmbytes-attacker
+                    ValidAlgorithms = new[] { SecurityAlgorithms.HmacSha256 }
                 };
 
                 // Kontrollera denylist vid varje validerad token

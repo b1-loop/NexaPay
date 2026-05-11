@@ -24,12 +24,14 @@ namespace NexaPay.Application.Common.Policies
             if (role == Roles.User)
                 return null;
 
-            if (email.EndsWith(
-                    $"@{_appSettings.StaffDomain}",
-                    StringComparison.OrdinalIgnoreCase))
+            var domain = _appSettings.StaffDomain;
+            if (string.IsNullOrWhiteSpace(domain) || !domain.Contains('.'))
+                return "StaffDomain är felaktigt konfigurerat – kontakta systemadministratören.";
+
+            if (email.EndsWith($"@{domain}", StringComparison.OrdinalIgnoreCase))
                 return null;
 
-            return $"Personalroller kräver en @{_appSettings.StaffDomain}-e-postadress";
+            return $"Personalroller kräver en @{domain}-e-postadress";
         }
     }
 }
