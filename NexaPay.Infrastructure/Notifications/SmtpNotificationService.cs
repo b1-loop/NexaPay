@@ -67,12 +67,21 @@ namespace NexaPay.Infrastructure.Notifications
             string confirmationToken,
             CancellationToken ct = default)
         {
+            var frontendUrl = _configuration["FrontendUrl"] ?? "http://localhost:5174";
+
+            // Slå upp userId från e-postadressen – krävs för bekräftelselänken
+            var user = await _userManager.FindByEmailAsync(email);
+            var userId = user?.Id ?? string.Empty;
+
+            // URL-koda token – bekräftelsetoken innehåller ofta + och / som måste escapas
+            var encodedToken = Uri.EscapeDataString(confirmationToken);
+            var link = $"{frontendUrl}/confirm-email?userId={userId}&token={encodedToken}";
+
             var body =
                 $"Tack för att du registrerade dig hos NexaPay!\n\n" +
-                $"Bekräfta ditt konto genom att anropa:\n" +
-                $"  POST /api/auth/confirm-email\n" +
-                $"  Body: {{ \"userId\": \"<ditt-användar-id>\", \"token\": \"{confirmationToken}\" }}\n\n" +
-                $"Ditt användar-ID finns i registreringssvaret (userId-fältet).\n\n" +
+                $"Bekräfta ditt konto genom att klicka på länken nedan:\n\n" +
+                $"{link}\n\n" +
+                $"Länken är giltig i 24 timmar.\n\n" +
                 $"Om du inte registrerade dig kan du ignorera detta mail.";
 
             await SendAsync(email, "Bekräfta din e-postadress – NexaPay", body, ct);
@@ -83,11 +92,17 @@ namespace NexaPay.Infrastructure.Notifications
             string resetToken,
             CancellationToken ct = default)
         {
+            var frontendUrl = _configuration["FrontendUrl"] ?? "http://localhost:5174";
+
+            // URL-koda e-post och token – token innehåller ofta specialtecken
+            var encodedEmail = Uri.EscapeDataString(email);
+            var encodedToken = Uri.EscapeDataString(resetToken);
+            var link = $"{frontendUrl}/reset-password?email={encodedEmail}&token={encodedToken}";
+
             var body =
                 $"Vi har tagit emot en begäran om att återställa ditt lösenord.\n\n" +
-                $"Återställ ditt lösenord genom att anropa:\n" +
-                $"  POST /api/auth/reset-password\n" +
-                $"  Body: {{ \"email\": \"{email}\", \"token\": \"{resetToken}\", \"newPassword\": \"<nytt-lösenord>\" }}\n\n" +
+                $"Klicka på länken nedan för att välja ett nytt lösenord:\n\n" +
+                $"{link}\n\n" +
                 $"Länken är giltig i 24 timmar.\n\n" +
                 $"Om du inte begärde detta kan du ignorera detta mail.";
 

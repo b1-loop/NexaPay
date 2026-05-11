@@ -80,8 +80,7 @@ NexaPay.sln
 | # | Fil | Problem |
 |---|-----|---------|
 | H2 | `NexaPay.API/Controllers/AdminController.cs` | AdminController saknar `[EnableRateLimiting]`. **Medvetet utelämnat i detta projekt** för att underlätta testning. I produktion skulle `[EnableRateLimiting("auth")]` läggas till för att skydda mot massregistrering. |
-| F4 | `SmtpNotificationService.cs` | Bekräftelse- och återställningsmailet exponerar råa tokens och API-endpoints i brödtexten. Kräver frontend-integration. När frontend finns: byt ut brödtexten mot en klickbar länk, t.ex. `https://nexapay.com/confirm-email?userId=X&token=Y`. Frontenden anropar sedan `POST /auth/confirm-email` i bakgrunden – användaren ser bara en knapp. Samma princip för `forgot-password`. |
-| F5 | – | Ingen `GET /api/users/me`-endpoint. Behövs inte förrän frontend byggs – om extra profildata utöver JWT-claims (email, roll, userId) behöver visas ska denna endpoint läggas till då. |
+| H2 | `NexaPay.API/Controllers/AdminController.cs` | AdminController saknar `[EnableRateLimiting]`. **Medvetet utelämnat i detta projekt** för att underlätta testning. I produktion skulle `[EnableRateLimiting("auth")]` läggas till för att skydda mot massregistrering. |
 
 ---
 
@@ -120,6 +119,9 @@ NexaPay.sln
 | S6 | `CreateCardHandler` – `CardToken` genereras med `RandomNumberGenerator.GetBytes(16)` (128-bit explicit entropi). |
 | S7 | `ServiceExtensions.cs` – säkerhetsheaders + `UseHsts()` i produktion tillagda. |
 | S8 | `ValidationBehavior` – `IAuditService` injiceras; kommandovalidationsfel loggas till `AuditLogs` innan `ValidationException` kastas. |
+| F4 | `SmtpNotificationService.cs` – bekräftelse- och återställningsmail skickar nu klickbara länkar (`{FrontendUrl}/confirm-email?userId=X&token=Y` resp. `/reset-password?email=X&token=Y`). Token URL-kodas. `FrontendUrl` läses från `appsettings.Development.json`. |
+| F5 | `GET /api/auth/me` tillagd i `AuthController` – returnerar `{ userId, email, role }` från JWT-claims. `GetEmail()` och `GetRole()` tillagda i `ClaimsPrincipalExtensions`. |
+| – | `ConfirmEmail.jsx`-sida tillagd i frontend; läser `userId` och `token` från URL-params och anropar `POST /auth/confirm-email` vid mount. Route `/confirm-email` tillagd i `App.jsx`. |
 | – | Fullständig `README.md` och `CODEBASE_GUIDE.md` skapade. |
 | – | `Card.Unblock()` tillagd i domänen; `UnblockCardCommand/Handler/Validator` skapade; `PUT /cards/{id}/unblock` tillagd i `CardsController` (kräver Admin/BankManager). |
 | – | `IAuthService.ChangePasswordAsync` tillagd; `POST /auth/change-password` kräver inloggning och tar `{ currentPassword, newPassword }`. |

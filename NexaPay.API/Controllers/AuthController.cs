@@ -153,6 +153,26 @@ namespace NexaPay.API.Controllers
         }
 
         // --------------------------------------------------------
+        // GET api/auth/me
+        // --------------------------------------------------------
+        // Returnerar den inloggade användarens profildata från JWT-claims.
+        // Användbart om frontend behöver fräscha data utan ny inloggning.
+        [HttpGet("me")]
+        [Authorize]
+        [DisableRateLimiting]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public IActionResult Me()
+        {
+            return Ok(ApiResponse.Ok(new
+            {
+                UserId = User.GetUserId(),
+                Email  = User.GetEmail(),
+                Role   = User.GetRole()
+            }));
+        }
+
+        // --------------------------------------------------------
         // POST api/auth/logout
         // --------------------------------------------------------
         [HttpPost("logout")]

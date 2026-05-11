@@ -31,7 +31,8 @@ namespace NexaPay.Application.Features.Auth.Commands.Register
             return await _authService.RegisterAsync(
                 request.Email,
                 request.Password,
-                request.Role);
+                request.Role,
+                request.SkipEmailConfirmation);
         }
     }
 }

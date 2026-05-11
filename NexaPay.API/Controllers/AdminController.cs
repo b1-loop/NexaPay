@@ -43,7 +43,8 @@ namespace NexaPay.API.Controllers
                 {
                     Email = request.Email,
                     Password = request.Password,
-                    Role = request.Role
+                    Role = request.Role,
+                    SkipEmailConfirmation = true
                 });
 
             if (result.IsSuccess)

@@ -25,6 +25,9 @@ namespace NexaPay.Application.Features.Auth.Commands.Register
         // Måste vara en av: Admin, BankManager, Teller, Auditor, User
         // Valideras av RegisterValidator och IsValidRole i AuthService
         public string Role { get; init; } = "User";
-        // Standard är User – den säkraste standardrollen
+
+        // Om true sätts EmailConfirmed = true direkt – används av Admin-flödet
+        // så att admin-skapade konton kan logga in utan SMTP
+        public bool SkipEmailConfirmation { get; init; } = false;
     }
 }

@@ -29,7 +29,7 @@ namespace NexaPay.Infrastructure.Identity
             _logger = logger;
         }
 
-        public async Task<Result<AuthDto>> RegisterAsync(string email, string password, string role)
+        public async Task<Result<AuthDto>> RegisterAsync(string email, string password, string role, bool skipEmailConfirmation = false)
         {
             try
             {
@@ -47,7 +47,7 @@ namespace NexaPay.Infrastructure.Identity
                 {
                     UserName = email,
                     Email = email,
-                    EmailConfirmed = false
+                    EmailConfirmed = skipEmailConfirmation
                 };
 
                 var result = await _userManager.CreateAsync(user, password);
@@ -62,8 +62,11 @@ namespace NexaPay.Infrastructure.Identity
 
                 await _userManager.AddToRoleAsync(user, role);
 
-                var confirmationToken = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-                await _notificationService.NotifyEmailConfirmationAsync(email, confirmationToken);
+                if (!skipEmailConfirmation)
+                {
+                    var confirmationToken = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+                    await _notificationService.NotifyEmailConfirmationAsync(email, confirmationToken);
+                }
 
                 return Result<AuthDto>.Success(new AuthDto
                 {
@@ -71,7 +74,7 @@ namespace NexaPay.Infrastructure.Identity
                     Email = user.Email!,
                     Role = role,
                     ExpiresAt = DateTime.UtcNow,
-                    RequiresEmailConfirmation = true
+                    RequiresEmailConfirmation = !skipEmailConfirmation
                 });
             }
             catch (Exception ex)
