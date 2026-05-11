@@ -202,6 +202,20 @@ namespace NexaPay.Infrastructure
                         if (jti != null && denylist.IsRevoked(jti))
                             context.Fail("Token har återkallats.");
                         return Task.CompletedTask;
+                    },
+                    OnChallenge = async context =>
+                    {
+                        context.HandleResponse();
+                        context.Response.StatusCode = 401;
+                        context.Response.ContentType = "application/json";
+                        var body = System.Text.Json.JsonSerializer.Serialize(new
+                        {
+                            success = false,
+                            message = "Inte inloggad. Logga in för att fortsätta.",
+                            timestamp = DateTime.UtcNow
+                        });
+                        var bytes = System.Text.Encoding.UTF8.GetBytes(body);
+                        await context.Response.Body.WriteAsync(bytes);
                     }
                 };
             });

@@ -137,8 +137,15 @@ namespace NexaPay.API
                             QueueLimit = 0
                         }));
 
-                options.RejectionStatusCode =
-                    StatusCodes.Status429TooManyRequests;
+                options.OnRejected = async (context, cancellationToken) =>
+                {
+                    context.HttpContext.Response.StatusCode =
+                        StatusCodes.Status429TooManyRequests;
+                    context.HttpContext.Response.ContentType = "application/json";
+                    await context.HttpContext.Response.WriteAsJsonAsync(
+                        ApiResponse.Fail("För många förfrågningar. Försök igen om en stund."),
+                        cancellationToken);
+                };
             });
 
             // --------------------------------------------------------
