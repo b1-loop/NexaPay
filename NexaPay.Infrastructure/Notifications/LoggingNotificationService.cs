@@ -45,5 +45,27 @@ namespace NexaPay.Infrastructure.Notifications
                 ownerId, accountId);
             return Task.CompletedTask;
         }
+
+        public Task NotifyEmailConfirmationAsync(
+            string email,
+            string confirmationToken,
+            CancellationToken cancellationToken = default)
+        {
+            _logger.LogInformation(
+                "NOTIFY | E-postbekräftelse | Email={Email} | Token={Token}",
+                email, confirmationToken);
+            return Task.CompletedTask;
+        }
+
+        public Task NotifyPasswordResetAsync(
+            string email,
+            string resetToken,
+            CancellationToken cancellationToken = default)
+        {
+            _logger.LogInformation(
+                "NOTIFY | Lösenordsåterställning | Email={Email} | Token={Token}",
+                email, resetToken);
+            return Task.CompletedTask;
+        }
     }
 }

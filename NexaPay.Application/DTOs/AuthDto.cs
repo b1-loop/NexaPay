@@ -29,5 +29,9 @@ namespace NexaPay.Application.DTOs
         // Klienten kan använda detta för att veta när
         // den behöver logga in igen
         public DateTime ExpiresAt { get; set; }
+
+        // Satt till true när e-postbekräftelse krävs.
+        // Token är tom – användaren måste bekräfta e-posten innan inloggning.
+        public bool RequiresEmailConfirmation { get; set; }
     }
 }

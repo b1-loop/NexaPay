@@ -29,6 +29,7 @@ NexaPay.sln
 - **Result<T> med IResult-interface** – AuditBehavior kan kontrollera `IsSuccess` typesäkert utan reflektion på response-typen.
 - **ISensitiveRequest** – `LoginCommand` maskeras i LoggingBehavior; lösenord syns aldrig i loggar.
 - **SmtpNotificationService** – Interface i Application, Gmail SMTP-implementation i Infrastructure. Alla 5 domain event handlers anropar servicen. `UserManager` slår upp e-postadress från `ownerId`. Byt provider med en enda DI-ändring.
+- **E-postbekräftelse och lösenordsåterställning** – `EmailConfirmed = false` vid registrering; bekräftelsemail skickas via SMTP; login blockeras tills bekräftelse skett. Forgot/reset-password-flöde skyddar mot e-postuppräkning (alltid samma svar oavsett om adressen finns).
 
 ### Säkerhet
 - **Lockout kontrolleras FÖRE lösenordsvalidering** i `AuthService.LoginAsync` – undviker timing oracle.
@@ -64,12 +65,6 @@ NexaPay.sln
 
 > Fullständig fil-för-fil genomgång utförd 2026-05-11. Varje fynd verifierat mot källkoden.
 
-### Accepterade begränsningar (kräver e-posttjänst)
-
-| # | Fil | Beskrivning |
-|---|-----|-------------|
-| S2 | `AuthService.cs:71` | `EmailConfirmed = true` sätts direkt vid registrering – ingen e-postverifiering. Kräver fungerande e-posttjänst för att åtgärda. Dokumenterat som krav inför produktion. |
-| S3 | `AuthService.cs` | Inget lösenordsåterställningsflöde. Kräver e-posttjänst. Dokumenterat som krav inför produktion. |
 
 ### Verifierade false positives (ej problem)
 
@@ -115,6 +110,8 @@ NexaPay.sln
 | F1 | `FreezeAccountCommand/Handler/Validator` + `UnfreezeAccountCommand/Handler/Validator` skapade; `AccountsController` har `PUT /accounts/{id}/freeze` och `PUT /accounts/{id}/unfreeze` med `[Authorize(Roles = Roles.CanWriteAccounts)]`. |
 | F2 | `IAuditService` + `EfAuditService` skapad; `AuditLog`-entitet och `AuditLogs`-tabell tillagda; `AuditBehavior` skriver till DB och `ILogger` parallellt; EF-migration `AddAuditLog` skapad. |
 | F3 | `SmtpNotificationService` implementerad – skickar riktiga mail via Gmail SMTP. `UserManager<IdentityUser>` slår upp e-postadress från `ownerId`. Graceful fallback om SMTP ej konfigurerat. `appsettings.Development.json` gitignorerad så credentials aldrig pushas. |
+| S2 | `AuthService.RegisterAsync` – `EmailConfirmed = false` vid registrering; bekräftelsetoken genereras och skickas via `SmtpNotificationService`; login blockeras tills e-posten bekräftats. `POST /auth/confirm-email` bekräftar kontot. |
+| S3 | Lösenordsåterställningsflöde implementerat – `POST /auth/forgot-password` genererar reset-token och skickar mail (avslöjar aldrig om e-posten finns); `POST /auth/reset-password` sätter nytt lösenord. |
 | W1–W4 | Fyra EF Core modellvalideringsvarningar åtgärdade: `HasQueryFilter` tillagd på `CardConfiguration`; `Transaction.Account`-navigationen markerad som optional; `HasDefaultValue(Currency.SEK)` borttagen från alla `Money`-konfigurationer. EF-migration `FixEfCoreWarnings` skapad. |
 | S1 | `DependencyInjection.cs` – `ValidAlgorithms = new[] { SecurityAlgorithms.HmacSha256 }` tillagt; förhindrar algoritmbytes-attacker. |
 | S4 | `StaffEmailPolicy` – validerar nu att `StaffDomain` är icke-tom och innehåller en punkt. |

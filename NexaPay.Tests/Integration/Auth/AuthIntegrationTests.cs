@@ -11,10 +11,10 @@ namespace NexaPay.Tests.Integration.Auth
     public class AuthIntegrationTests : ApiIntegrationTestBase
     {
         // --------------------------------------------------------
-        // Test 1: Registrering returnerar token
+        // Test 1: Registrering returnerar bekräftelsemedelande (ingen token)
         // --------------------------------------------------------
         [Test]
-        public async Task Register_WithValidData_Returns200WithToken()
+        public async Task Register_WithValidData_Returns200WithConfirmationMessage()
         {
             var response = await Client.PostAsJsonAsync("/api/auth/register", new
             {
@@ -25,7 +25,7 @@ namespace NexaPay.Tests.Integration.Auth
 
             response.StatusCode.Should().Be(HttpStatusCode.OK);
             var body = await response.Content.ReadAsStringAsync();
-            body.Should().Contain("token");
+            body.Should().Contain("bekräfta", "registrering kräver nu e-postbekräftelse");
         }
 
         // --------------------------------------------------------
@@ -54,28 +54,13 @@ namespace NexaPay.Tests.Integration.Auth
         }
 
         // --------------------------------------------------------
-        // Test 3: Inloggning med korrekta uppgifter → 200 med token
+        // Test 3: Inloggning med korrekta uppgifter och bekräftad e-post → 200 med token
         // --------------------------------------------------------
         [Test]
         public async Task Login_WithValidCredentials_Returns200WithToken()
         {
-            var email = $"login_{Guid.NewGuid()}@test.com";
-            await Client.PostAsJsonAsync("/api/auth/register", new
-            {
-                email,
-                password = "Test123!",
-                role = "User"
-            });
-
-            var response = await Client.PostAsJsonAsync("/api/auth/login", new
-            {
-                email,
-                password = "Test123!"
-            });
-
-            response.StatusCode.Should().Be(HttpStatusCode.OK);
-            var body = await response.Content.ReadAsStringAsync();
-            body.Should().Contain("token");
+            var token = await RegisterAndLoginAsync($"login_{Guid.NewGuid()}@test.com");
+            token.Should().NotBeNullOrEmpty("inloggning med bekräftad e-post ska ge JWT-token");
         }
 
         // --------------------------------------------------------

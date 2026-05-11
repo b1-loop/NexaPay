@@ -23,25 +23,28 @@ namespace NexaPay.Tests.Integration
             Client = Factory.CreateClient();
         }
 
-        // Registrera och logga in som User – returnera JWT-token
+        // Registrera, bekräfta e-post via UserManager, logga in – returnera JWT-token
         protected async Task<string> RegisterAndLoginAsync(
             string email,
             string password = "Test123!",
             string role = "User")
         {
-            await Client.PostAsJsonAsync("/api/auth/register", new
-            {
-                email,
-                password,
-                role
-            });
+            await Client.PostAsJsonAsync("/api/auth/register", new { email, password, role });
 
-            var loginResponse = await Client.PostAsJsonAsync("/api/auth/login", new
+            // Bekräfta e-post direkt via UserManager (kringgår SMTP i tester)
+            using (var scope = Factory.Services.CreateScope())
             {
-                email,
-                password
-            });
+                var userManager = scope.ServiceProvider
+                    .GetRequiredService<UserManager<IdentityUser>>();
+                var user = await userManager.FindByEmailAsync(email);
+                if (user != null)
+                {
+                    var token = await userManager.GenerateEmailConfirmationTokenAsync(user);
+                    await userManager.ConfirmEmailAsync(user, token);
+                }
+            }
 
+            var loginResponse = await Client.PostAsJsonAsync("/api/auth/login", new { email, password });
             var body = await loginResponse.Content.ReadAsStringAsync();
             var doc = JsonDocument.Parse(body);
             return doc.RootElement

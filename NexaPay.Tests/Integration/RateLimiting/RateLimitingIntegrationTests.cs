@@ -85,6 +85,20 @@ namespace NexaPay.Tests.Integration.RateLimiting
                 role = "User"
             });
 
+            // Bekräfta e-post direkt via UserManager (kringgår SMTP i tester)
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var userManager = scope.ServiceProvider
+                    .GetRequiredService<Microsoft.AspNetCore.Identity.UserManager<
+                        Microsoft.AspNetCore.Identity.IdentityUser>>();
+                var user = await userManager.FindByEmailAsync(email);
+                if (user != null)
+                {
+                    var token = await userManager.GenerateEmailConfirmationTokenAsync(user);
+                    await userManager.ConfirmEmailAsync(user, token);
+                }
+            }
+
             var loginResponse = await _client.PostAsJsonAsync("/api/auth/login", new
             {
                 email,

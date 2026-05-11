@@ -1,13 +1,3 @@
-﻿// ============================================================
-// AuthService.cs – NexaPay.Infrastructure/Identity
-// ============================================================
-// Implementerar IAuthService från Application-lagret.
-// Hanterar registrering och inloggning med ASP.NET Identity.
-//
-// Stödjer nu 5 roller:
-//   Admin, BankManager, Teller, Auditor, User
-// ============================================================
-
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;
 using NexaPay.Application.Common.Constants;
@@ -22,138 +12,103 @@ namespace NexaPay.Infrastructure.Identity
         private readonly UserManager<IdentityUser> _userManager;
         private readonly RoleManager<IdentityRole> _roleManager;
         private readonly IJwtService _jwtService;
+        private readonly INotificationService _notificationService;
         private readonly ILogger<AuthService> _logger;
 
         public AuthService(
             UserManager<IdentityUser> userManager,
             RoleManager<IdentityRole> roleManager,
             IJwtService jwtService,
+            INotificationService notificationService,
             ILogger<AuthService> logger)
         {
             _userManager = userManager;
             _roleManager = roleManager;
             _jwtService = jwtService;
+            _notificationService = notificationService;
             _logger = logger;
         }
 
-        // --------------------------------------------------------
-        // Registrera ny användare
-        // --------------------------------------------------------
-        public async Task<Result<AuthDto>> RegisterAsync(
-            string email,
-            string password,
-            string role)
+        public async Task<Result<AuthDto>> RegisterAsync(string email, string password, string role)
         {
             try
             {
-                // Kontrollera om e-posten redan används
-                var existingUser = await _userManager
-                    .FindByEmailAsync(email);
-
+                var existingUser = await _userManager.FindByEmailAsync(email);
                 if (existingUser != null)
-                    return Result<AuthDto>.Failure(
-                        "E-postadressen används redan");
+                    return Result<AuthDto>.Failure("E-postadressen används redan");
 
-                // Validera att rollen är giltig
-                // Vi kontrollerar mot våra definierade roller
                 if (!IsValidRole(role))
                     return Result<AuthDto>.Failure(
                         $"Ogiltig roll: {role}. " +
-                        $"Giltiga roller är: {Roles.Admin}, " +
-                        $"{Roles.BankManager}, {Roles.Teller}, " +
-                        $"{Roles.Auditor}, {Roles.User}");
+                        $"Giltiga roller är: {Roles.Admin}, {Roles.BankManager}, " +
+                        $"{Roles.Teller}, {Roles.Auditor}, {Roles.User}");
 
-                // Skapa ny användare
                 var user = new IdentityUser
                 {
                     UserName = email,
                     Email = email,
-                    EmailConfirmed = true
+                    EmailConfirmed = false
                 };
 
-                // CreateAsync hashar lösenordet automatiskt
-                var result = await _userManager
-                    .CreateAsync(user, password);
-
+                var result = await _userManager.CreateAsync(user, password);
                 if (!result.Succeeded)
                 {
-                    var errors = string.Join(", ",
-                        result.Errors.Select(e => e.Description));
+                    var errors = string.Join(", ", result.Errors.Select(e => e.Description));
                     return Result<AuthDto>.Failure(errors);
                 }
 
-                // Skapa rollen om den inte finns
                 if (!await _roleManager.RoleExistsAsync(role))
-                    await _roleManager.CreateAsync(
-                        new IdentityRole(role));
+                    await _roleManager.CreateAsync(new IdentityRole(role));
 
-                // Tilldela rollen till användaren
                 await _userManager.AddToRoleAsync(user, role);
 
-                var tokenResult = _jwtService.GenerateToken(
-                    user.Id,
-                    user.Email!,
-                    role);
+                var confirmationToken = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+                await _notificationService.NotifyEmailConfirmationAsync(email, confirmationToken);
 
                 return Result<AuthDto>.Success(new AuthDto
                 {
-                    Token = tokenResult.Token,
+                    Token = string.Empty,
                     Email = user.Email!,
                     Role = role,
-                    ExpiresAt = tokenResult.ExpiresAt
+                    ExpiresAt = DateTime.UtcNow,
+                    RequiresEmailConfirmation = true
                 });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Oväntat fel vid registrering för e-post {Email}", email);
-                return Result<AuthDto>.Failure(
-                    "Ett oväntat fel uppstod. Försök igen senare.");
+                return Result<AuthDto>.Failure("Ett oväntat fel uppstod. Försök igen senare.");
             }
         }
 
-        // --------------------------------------------------------
-        // Logga in befintlig användare
-        // --------------------------------------------------------
-        public async Task<Result<AuthDto>> LoginAsync(
-            string email,
-            string password)
+        public async Task<Result<AuthDto>> LoginAsync(string email, string password)
         {
             try
             {
-                var user = await _userManager
-                    .FindByEmailAsync(email);
-
+                var user = await _userManager.FindByEmailAsync(email);
                 if (user == null)
-                    return Result<AuthDto>.Failure(
-                        "Felaktig e-post eller lösenord");
+                    return Result<AuthDto>.Failure("Felaktig e-post eller lösenord");
 
-                // Kontrollera lockout innan lösenordsverifiering
                 if (await _userManager.IsLockedOutAsync(user))
-                    return Result<AuthDto>.Failure(
-                        "Kontot är tillfälligt låst. Försök igen senare.");
+                    return Result<AuthDto>.Failure("Kontot är tillfälligt låst. Försök igen senare.");
 
-                var passwordValid = await _userManager
-                    .CheckPasswordAsync(user, password);
-
+                var passwordValid = await _userManager.CheckPasswordAsync(user, password);
                 if (!passwordValid)
                 {
-                    // Öka räknaren för misslyckade försök
-                    // Vid 5 misslyckanden låses kontot i 15 minuter
                     await _userManager.AccessFailedAsync(user);
-                    return Result<AuthDto>.Failure(
-                        "Felaktig e-post eller lösenord");
+                    return Result<AuthDto>.Failure("Felaktig e-post eller lösenord");
                 }
 
-                // Återställ räknaren vid lyckad inloggning
+                if (!user.EmailConfirmed)
+                    return Result<AuthDto>.Failure(
+                        "E-postadressen är inte bekräftad. Kontrollera din inkorg och bekräfta ditt konto.");
+
                 await _userManager.ResetAccessFailedCountAsync(user);
 
                 var roles = await _userManager.GetRolesAsync(user);
                 var role = roles.FirstOrDefault() ?? Roles.User;
 
-                var tokenResult = _jwtService.GenerateToken(
-                    user.Id,
-                    user.Email!,
-                    role);
+                var tokenResult = _jwtService.GenerateToken(user.Id, user.Email!, role);
 
                 return Result<AuthDto>.Success(new AuthDto
                 {
@@ -166,23 +121,89 @@ namespace NexaPay.Infrastructure.Identity
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Oväntat fel vid inloggning för e-post {Email}", email);
-                return Result<AuthDto>.Failure(
-                    "Ett oväntat fel uppstod. Försök igen senare.");
+                return Result<AuthDto>.Failure("Ett oväntat fel uppstod. Försök igen senare.");
             }
         }
 
-        // --------------------------------------------------------
-        // Hjälpmetod – validera rollnamn
-        // --------------------------------------------------------
-        // Kontrollerar att den angivna rollen är en av våra
-        // definierade roller – skyddar mot ogiltiga rollnamn
-        private static bool IsValidRole(string role)
+        public async Task<Result> ConfirmEmailAsync(string userId, string token)
         {
-            return role == Roles.Admin ||
-                   role == Roles.BankManager ||
-                   role == Roles.Teller ||
-                   role == Roles.Auditor ||
-                   role == Roles.User;
+            try
+            {
+                var user = await _userManager.FindByIdAsync(userId);
+                if (user == null)
+                    return Result.Failure("Ogiltigt användar-ID eller token.");
+
+                var result = await _userManager.ConfirmEmailAsync(user, token);
+                if (!result.Succeeded)
+                {
+                    var errors = string.Join(", ", result.Errors.Select(e => e.Description));
+                    _logger.LogWarning("E-postbekräftelse misslyckades för {UserId}: {Errors}", userId, errors);
+                    return Result.Failure("Ogiltig eller utgången bekräftelselänk.");
+                }
+
+                _logger.LogInformation("E-post bekräftad för {UserId}", userId);
+                return Result.Success();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Oväntat fel vid e-postbekräftelse för {UserId}", userId);
+                return Result.Failure("Ett oväntat fel uppstod. Försök igen senare.");
+            }
         }
+
+        public async Task<Result> ForgotPasswordAsync(string email)
+        {
+            try
+            {
+                var user = await _userManager.FindByEmailAsync(email);
+
+                // Avslöja inte om e-postadressen finns – returnera alltid success
+                if (user != null && user.EmailConfirmed)
+                {
+                    var resetToken = await _userManager.GeneratePasswordResetTokenAsync(user);
+                    await _notificationService.NotifyPasswordResetAsync(email, resetToken);
+                }
+
+                return Result.Success();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Oväntat fel vid lösenordsåterställning för {Email}", email);
+                return Result.Failure("Ett oväntat fel uppstod. Försök igen senare.");
+            }
+        }
+
+        public async Task<Result> ResetPasswordAsync(string email, string token, string newPassword)
+        {
+            try
+            {
+                var user = await _userManager.FindByEmailAsync(email);
+                if (user == null)
+                    return Result.Failure("Ogiltig e-postadress eller token.");
+
+                var result = await _userManager.ResetPasswordAsync(user, token, newPassword);
+                if (!result.Succeeded)
+                {
+                    var errors = string.Join(", ", result.Errors.Select(e => e.Description));
+                    _logger.LogWarning("Lösenordsåterställning misslyckades för {Email}: {Errors}", email, errors);
+                    return Result.Failure("Ogiltig eller utgången återställningslänk.");
+                }
+
+                _logger.LogInformation("Lösenord återställt för {Email}", email);
+                return Result.Success();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Oväntat fel vid lösenordsåterställning för {Email}", email);
+                return Result.Failure("Ett oväntat fel uppstod. Försök igen senare.");
+            }
+        }
+
+        private static bool IsValidRole(string role) =>
+            role == Roles.Admin ||
+            role == Roles.BankManager ||
+            role == Roles.Teller ||
+            role == Roles.Auditor ||
+            role == Roles.User;
     }
 }

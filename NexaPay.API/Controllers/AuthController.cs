@@ -1,10 +1,3 @@
-﻿// ============================================================
-// AuthController.cs – NexaPay.API/Controllers
-// ============================================================
-// Uppdaterad med rollbaserad registrering.
-// Istället för isAdmin (bool) skickar vi nu en rollsträng.
-// ============================================================
-
 using Asp.Versioning;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -30,42 +23,43 @@ namespace NexaPay.API.Controllers
     {
         private readonly IMediator _mediator;
         private readonly ITokenDenylist _tokenDenylist;
+        private readonly IAuthService _authService;
 
-        public AuthController(IMediator mediator, ITokenDenylist tokenDenylist)
+        public AuthController(IMediator mediator, ITokenDenylist tokenDenylist, IAuthService authService)
         {
             _mediator = mediator;
             _tokenDenylist = tokenDenylist;
+            _authService = authService;
         }
 
         // --------------------------------------------------------
         // POST api/auth/register
         // --------------------------------------------------------
         [HttpPost("register")]
-        [ProducesResponseType(typeof(ApiResponse<AuthDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> Register(
-            [FromBody] RegisterRequest request)
+        public async Task<IActionResult> Register([FromBody] RegisterRequest request)
         {
-            // Personalroller skapas bara av Admin via POST /api/admin/users
             if (request.Role != Roles.User)
                 return BadRequest(ApiResponse.Fail(
-                    "Personalroller kan inte registreras via denna endpoint. " +
-                    "Kontakta en Admin."));
+                    "Personalroller kan inte registreras via denna endpoint. Kontakta en Admin."));
 
-            var result = await _mediator.Send(
-                new RegisterCommand
-                {
-                    Email = request.Email,
-                    Password = request.Password,
-                    Role = Roles.User
-                });
+            var result = await _mediator.Send(new RegisterCommand
+            {
+                Email = request.Email,
+                Password = request.Password,
+                Role = Roles.User
+            });
 
-            if (result.IsSuccess)
+            if (!result.IsSuccess)
+                return BadRequest(ApiResponse.Fail(result.Error));
+
+            if (result.Value!.RequiresEmailConfirmation)
                 return Ok(ApiResponse.Ok(
-                    result.Value,
-                    "Användaren registrerades framgångsrikt"));
+                    new { result.Value.Email },
+                    "Registrering lyckades. Kontrollera din e-post och bekräfta ditt konto innan du loggar in."));
 
-            return BadRequest(ApiResponse.Fail(result.Error));
+            return Ok(ApiResponse.Ok(result.Value, "Användaren registrerades framgångsrikt"));
         }
 
         // --------------------------------------------------------
@@ -74,29 +68,73 @@ namespace NexaPay.API.Controllers
         [HttpPost("login")]
         [ProducesResponseType(typeof(ApiResponse<AuthDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status401Unauthorized)]
-        public async Task<IActionResult> Login(
-            [FromBody] LoginRequest request)
+        public async Task<IActionResult> Login([FromBody] LoginRequest request)
         {
-            var result = await _mediator.Send(
-                new LoginCommand
-                {
-                    Email = request.Email,
-                    Password = request.Password
-                });
+            var result = await _mediator.Send(new LoginCommand
+            {
+                Email = request.Email,
+                Password = request.Password
+            });
 
             if (result.IsSuccess)
-                return Ok(ApiResponse.Ok(
-                    result.Value,
-                    "Inloggning lyckades"));
+                return Ok(ApiResponse.Ok(result.Value, "Inloggning lyckades"));
 
             return Unauthorized(ApiResponse.Fail(result.Error));
         }
 
         // --------------------------------------------------------
+        // POST api/auth/confirm-email
+        // --------------------------------------------------------
+        [HttpPost("confirm-email")]
+        [DisableRateLimiting]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> ConfirmEmail([FromBody] ConfirmEmailRequest request)
+        {
+            var result = await _authService.ConfirmEmailAsync(request.UserId, request.Token);
+
+            if (result.IsSuccess)
+                return Ok(ApiResponse.Ok(message: "E-postadressen har bekräftats. Du kan nu logga in."));
+
+            return BadRequest(ApiResponse.Fail(result.Error));
+        }
+
+        // --------------------------------------------------------
+        // POST api/auth/forgot-password
+        // --------------------------------------------------------
+        [HttpPost("forgot-password")]
+        [DisableRateLimiting]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request)
+        {
+            await _authService.ForgotPasswordAsync(request.Email);
+
+            // Returnera alltid success – avslöja inte om e-posten finns
+            return Ok(ApiResponse.Ok(
+                message: "Om e-postadressen finns registrerad skickas ett återställningsmail inom kort."));
+        }
+
+        // --------------------------------------------------------
+        // POST api/auth/reset-password
+        // --------------------------------------------------------
+        [HttpPost("reset-password")]
+        [DisableRateLimiting]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
+        {
+            var result = await _authService.ResetPasswordAsync(
+                request.Email, request.Token, request.NewPassword);
+
+            if (result.IsSuccess)
+                return Ok(ApiResponse.Ok(message: "Lösenordet har återställts. Du kan nu logga in."));
+
+            return BadRequest(ApiResponse.Fail(result.Error));
+        }
+
+        // --------------------------------------------------------
         // POST api/auth/logout
         // --------------------------------------------------------
-        // Återkallar den aktuella JWT-token via denylist.
-        // Alla efterföljande requests med samma token avvisas med 401.
         [HttpPost("logout")]
         [Authorize]
         [DisableRateLimiting]
@@ -116,5 +154,4 @@ namespace NexaPay.API.Controllers
             return Ok(ApiResponse.Ok(message: "Utloggning lyckades"));
         }
     }
-
 }
