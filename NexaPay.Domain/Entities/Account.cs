@@ -9,11 +9,11 @@ namespace NexaPay.Domain.Entities
         private Account() { }
 
         public string AccountNumber { get; private set; } = string.Empty;
-        public string AccountName { get; set; } = string.Empty;
+        public string AccountName { get; private set; } = string.Empty;
         public Money Balance { get; private set; } = Money.Zero(Currency.SEK);
-        public AccountType AccountType { get; set; }
+        public AccountType AccountType { get; private set; }
         public AccountStatus Status { get; private set; } = AccountStatus.Open;
-        public string OwnerId { get; set; } = string.Empty;
+        public string OwnerId { get; private set; } = string.Empty;
 
         public ICollection<Transaction> Transactions { get; set; } = new List<Transaction>();
         public ICollection<Card> Cards { get; set; } = new List<Card>();

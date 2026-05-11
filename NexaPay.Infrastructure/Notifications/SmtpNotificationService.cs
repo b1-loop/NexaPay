@@ -138,7 +138,7 @@ namespace NexaPay.Infrastructure.Notifications
                     Credentials = new NetworkCredential(username, password)
                 };
 
-                var message = new MailMessage
+                using var message = new MailMessage
                 {
                     From = new MailAddress(username, fromName),
                     Subject = subject,

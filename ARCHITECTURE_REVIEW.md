@@ -82,9 +82,6 @@ NexaPay.sln
 | H2 | `NexaPay.API/Controllers/AdminController.cs` | AdminController saknar `[EnableRateLimiting]`. **Medvetet utelämnat i detta projekt** för att underlätta testning. I produktion skulle `[EnableRateLimiting("auth")]` läggas till för att skydda mot massregistrering. |
 | F4 | `SmtpNotificationService.cs` | Bekräftelse- och återställningsmailet exponerar råa tokens och API-endpoints i brödtexten. Kräver frontend-integration. När frontend finns: byt ut brödtexten mot en klickbar länk, t.ex. `https://nexapay.com/confirm-email?userId=X&token=Y`. Frontenden anropar sedan `POST /auth/confirm-email` i bakgrunden – användaren ser bara en knapp. Samma princip för `forgot-password`. |
 | F5 | – | Ingen `GET /api/users/me`-endpoint. Behövs inte förrän frontend byggs – om extra profildata utöver JWT-claims (email, roll, userId) behöver visas ska denna endpoint läggas till då. |
-| A1 | `Account.cs:12,14,16` | `AccountName`, `AccountType` och `OwnerId` har publika setters (`{ get; set; }`). Dessa egenskaper sätts vid skapandet och ska aldrig ändras utifrån – bör vara `{ get; private set; }` för att skydda domäninvarianterna. `RowVersion`, `Transactions` och `Cards` ska förbli publika (EF Core kräver det). |
-| A2 | `SmtpNotificationService.cs:141` | `MailMessage` skapas utan `using`-sats. `MailMessage` implementerar `IDisposable` och ska kasseras explicit: `using var message = new MailMessage { ... }`. Läcka är osannolik i praktiken men strider mot korrekt resurshantering. |
-| A3 | `Queries/**` | Inga validators för Query-objekt (`GetAccountByIdQuery`, `GetAllAccountsQuery`, `GetCardsByAccountQuery`, `GetTransactionsByAccountQuery`). Ogiltiga GUIDs (`Guid.Empty`) passerar `ValidationBehavior` och når handlers utan kontroll. Handlers returnerar `NotFound` vilket är korrekt, men explicit validering ger tydligare felmeddelanden. |
 
 ---
 
@@ -126,3 +123,6 @@ NexaPay.sln
 | – | Fullständig `README.md` och `CODEBASE_GUIDE.md` skapade. |
 | – | `Card.Unblock()` tillagd i domänen; `UnblockCardCommand/Handler/Validator` skapade; `PUT /cards/{id}/unblock` tillagd i `CardsController` (kräver Admin/BankManager). |
 | – | `IAuthService.ChangePasswordAsync` tillagd; `POST /auth/change-password` kräver inloggning och tar `{ currentPassword, newPassword }`. |
+| A1 | `Account.cs` – `AccountName`, `AccountType`, `OwnerId` ändrade till `private set`; domäninvarianterna skyddas nu korrekt. |
+| A2 | `SmtpNotificationService.cs` – `MailMessage` kasseras nu med `using var`. |
+| A3 | Validators skapade för alla fyra Query-objekt: `GetAccountByIdValidator`, `GetAllAccountsValidator`, `GetCardsByAccountValidator`, `GetTransactionsByAccountValidator`. |
