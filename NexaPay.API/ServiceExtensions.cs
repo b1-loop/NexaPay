@@ -335,8 +335,10 @@ namespace NexaPay.API
             // så att CORS-headers sätts på preflight-svar innan redirect
             app.UseCors("CorsPolicy");
 
-            // 4. HTTPS
-            app.UseHttpsRedirection();
+            // 4. HTTPS – bara i produktion
+            // I development kör vi HTTP-only så redirect till :7206 (ej igång) blockerar CORS
+            if (!app.Environment.IsDevelopment())
+                app.UseHttpsRedirection();
 
             // 5. Rate Limiting – före autentisering för maximal effekt
             app.UseRateLimiter();
