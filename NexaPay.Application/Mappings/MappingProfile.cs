@@ -16,7 +16,9 @@ namespace NexaPay.Application.Mappings
                 .ForMember(dest => dest.AccountType,
                     opt => opt.MapFrom(src => src.AccountType.ToString()))
                 .ForMember(dest => dest.Status,
-                    opt => opt.MapFrom(src => src.Status.ToString()));
+                    opt => opt.MapFrom(src => src.Status.ToString()))
+                .ForMember(dest => dest.OwnerId,
+                    opt => opt.MapFrom(src => src.OwnerId));
 
             CreateMap<Card, CardDto>()
                 .ForMember(dest => dest.MaskedCardNumber,
