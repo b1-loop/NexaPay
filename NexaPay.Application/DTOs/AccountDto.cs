@@ -10,5 +10,6 @@ namespace NexaPay.Application.DTOs
         public string AccountType { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; }
+        public string OwnerId { get; set; } = string.Empty;
     }
 }

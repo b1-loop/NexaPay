@@ -25,6 +25,7 @@ using NexaPay.Application.Features.Accounts.Commands.FreezeAccount;
 using NexaPay.Application.Features.Accounts.Commands.UnfreezeAccount;
 using NexaPay.Application.Features.Accounts.Queries.GetAccountById;
 using NexaPay.Application.Features.Accounts.Queries.GetAllAccounts;
+using NexaPay.Application.Features.Accounts.Queries.LookupAccountByNumber;
 using NexaPay.Application.DTOs;
 
 namespace NexaPay.API.Controllers
@@ -62,6 +63,28 @@ namespace NexaPay.API.Controllers
                     UserId = User.GetUserId(),
                     IsStaff = User.IsStaff()
                 });
+
+            if (result.IsSuccess)
+                return Ok(ApiResponse.Ok(result.Value));
+
+            return this.ToErrorResponse(result);
+        }
+
+        // --------------------------------------------------------
+        // GET api/accounts/lookup?number={accountNumber}
+        // --------------------------------------------------------
+        // Öppen för alla inloggade – returnerar bara id+namn för förhandsgranskning
+        [HttpGet("lookup")]
+        [ProducesResponseType(typeof(ApiResponse<AccountLookupDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> Lookup([FromQuery] string number)
+        {
+            if (string.IsNullOrWhiteSpace(number))
+                return BadRequest(ApiResponse.Fail("Kontonummer krävs."));
+
+            var result = await _mediator.Send(
+                new LookupAccountByNumberQuery { AccountNumber = number.Trim() });
 
             if (result.IsSuccess)
                 return Ok(ApiResponse.Ok(result.Value));
