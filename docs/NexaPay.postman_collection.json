@@ -1,0 +1,432 @@
+{
+  "info": {
+    "name": "NexaPay API",
+    "description": "Komplett Postman-collection för NexaPay – ett bank-API byggt med .NET 8 Clean Architecture.\n\n## Kom igång\n1. Sätt collection-variabeln `baseUrl` till din API-URL (standard: http://localhost:5190)\n2. Kör **Auth → Register** för att skapa en användare\n3. Kör **Auth → Login** – token sparas automatiskt i `token`-variabeln via test-scriptet\n4. Alla skyddade endpoints använder {{token}} via collection-level Bearer auth\n\n## Rollkrav\n- **User** – kan hantera egna konton, kort, transaktioner\n- **Admin/BankManager** – full åtkomst, kan skapa personal\n- **Teller** – kan inte överföra eller blockera kort\n- **Auditor** – endast läsbehörighet\n\nStaffroller (Admin/BankManager/Teller/Auditor) kräver @nexapay.com-epost och skapas via **Admin → Create User**.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5190", "type": "string" },
+    { "key": "token", "value": "", "type": "string" },
+    { "key": "accountId", "value": "", "type": "string" },
+    { "key": "cardId", "value": "", "type": "string" },
+    { "key": "userId", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "description": "Registrering, inloggning, lösenordshantering. Rate-limit: 5 req/min/IP.",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "auth", "register"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"testuser@example.com\",\n  \"password\": \"Password1!\",\n  \"role\": \"User\"\n}"
+            },
+            "description": "Skapar ny User-konto. Staffroller (Admin/BankManager/Teller/Auditor) avvisas här – använd Admin → Create User."
+          }
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json?.data?.token) {",
+                  "  pm.collectionVariables.set('token', json.data.token);",
+                  "  console.log('Token sparad i collection-variabel');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"testuser@example.com\",\n  \"password\": \"Password1!\"\n}"
+            },
+            "description": "Loggar in användaren. Test-scriptet sparar JWT-tokenen i collection-variabeln {{token}}."
+          }
+        },
+        {
+          "name": "Get Me",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/auth/me", "host": ["{{baseUrl}}"], "path": ["api", "auth", "me"] },
+            "description": "Returnerar inloggad användares ID, e-post och roll från JWT-claims."
+          }
+        },
+        {
+          "name": "Confirm Email",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/auth/confirm-email", "host": ["{{baseUrl}}"], "path": ["api", "auth", "confirm-email"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"token\": \"BEKRÄFTELSE_TOKEN_FRÅN_MEJL\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Forgot Password",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/auth/forgot-password", "host": ["{{baseUrl}}"], "path": ["api", "auth", "forgot-password"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"testuser@example.com\"\n}"
+            },
+            "description": "Returnerar alltid 200 oavsett om mejlen finns (skydd mot user-enumeration)."
+          }
+        },
+        {
+          "name": "Reset Password",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/auth/reset-password", "host": ["{{baseUrl}}"], "path": ["api", "auth", "reset-password"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"testuser@example.com\",\n  \"token\": \"RESET_TOKEN_FRÅN_MEJL\",\n  \"newPassword\": \"NyttPass1!\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Change Password",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/auth/change-password", "host": ["{{baseUrl}}"], "path": ["api", "auth", "change-password"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"Password1!\",\n  \"newPassword\": \"NyttPass1!\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/api/auth/logout", "host": ["{{baseUrl}}"], "path": ["api", "auth", "logout"] },
+            "description": "Revokerar nuvarande JWT-token via jti i denylist."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Accounts",
+      "description": "CRUD + freeze/unfreeze. Rate-limit: 20 req/min/IP.",
+      "item": [
+        {
+          "name": "Get All Accounts",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/accounts", "host": ["{{baseUrl}}"], "path": ["api", "accounts"] },
+            "description": "Personal ser alla konton, User ser bara sina egna."
+          }
+        },
+        {
+          "name": "Get Account By Id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json?.data?.id) pm.collectionVariables.set('accountId', json.data.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/accounts/{{accountId}}", "host": ["{{baseUrl}}"], "path": ["api", "accounts", "{{accountId}}"] }
+          }
+        },
+        {
+          "name": "Lookup Account By Number",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/accounts/lookup?number=SE1234567890",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "accounts", "lookup"],
+              "query": [{ "key": "number", "value": "SE1234567890" }]
+            },
+            "description": "Returnerar bara id + namn + nummer (för Transfer-förhandsgranskning)."
+          }
+        },
+        {
+          "name": "Create Account",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json?.data?.id) {",
+                  "  pm.collectionVariables.set('accountId', json.data.id);",
+                  "  console.log('AccountId sparad: ' + json.data.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/accounts", "host": ["{{baseUrl}}"], "path": ["api", "accounts"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountName\": \"Mitt sparkonto\",\n  \"accountType\": \"Savings\"\n}"
+            },
+            "description": "Skapar nytt konto. AccountType: Checking | Savings | ISK. Roll: alla utom Auditor."
+          }
+        },
+        {
+          "name": "Freeze Account",
+          "request": {
+            "method": "PUT",
+            "url": { "raw": "{{baseUrl}}/api/accounts/{{accountId}}/freeze", "host": ["{{baseUrl}}"], "path": ["api", "accounts", "{{accountId}}", "freeze"] },
+            "description": "Roll: Admin, BankManager, Teller."
+          }
+        },
+        {
+          "name": "Unfreeze Account",
+          "request": {
+            "method": "PUT",
+            "url": { "raw": "{{baseUrl}}/api/accounts/{{accountId}}/unfreeze", "host": ["{{baseUrl}}"], "path": ["api", "accounts", "{{accountId}}", "unfreeze"] }
+          }
+        },
+        {
+          "name": "Delete Account",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{baseUrl}}/api/accounts/{{accountId}}", "host": ["{{baseUrl}}"], "path": ["api", "accounts", "{{accountId}}"] },
+            "description": "Soft delete (Close). Kräver saldo = 0. Roll: Admin, BankManager, User."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Cards",
+      "description": "Korthantering. Rate-limit: 20 req/min/IP.",
+      "item": [
+        {
+          "name": "Get Cards By Account",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/cards/account/{{accountId}}", "host": ["{{baseUrl}}"], "path": ["api", "cards", "account", "{{accountId}}"] },
+            "description": "Returnerar kort med maskerat kortnummer."
+          }
+        },
+        {
+          "name": "Create Card",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json?.data?.card?.id) pm.collectionVariables.set('cardId', json.data.card.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/cards", "host": ["{{baseUrl}}"], "path": ["api", "cards"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountId\": \"{{accountId}}\",\n  \"cardHolderName\": \"TEST USER\"\n}"
+            },
+            "description": "Returnerar fullt kortnummer + CVV ENDAST denna gång. Roll: alla utom Auditor."
+          }
+        },
+        {
+          "name": "Activate Card",
+          "request": {
+            "method": "PUT",
+            "url": { "raw": "{{baseUrl}}/api/cards/{{cardId}}/activate", "host": ["{{baseUrl}}"], "path": ["api", "cards", "{{cardId}}", "activate"] }
+          }
+        },
+        {
+          "name": "Block Card",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/cards/{{cardId}}/block", "host": ["{{baseUrl}}"], "path": ["api", "cards", "{{cardId}}", "block"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Stulet kort\"\n}"
+            },
+            "description": "Roll: Admin, BankManager."
+          }
+        },
+        {
+          "name": "Unblock Card",
+          "request": {
+            "method": "PUT",
+            "url": { "raw": "{{baseUrl}}/api/cards/{{cardId}}/unblock", "host": ["{{baseUrl}}"], "path": ["api", "cards", "{{cardId}}", "unblock"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Transactions",
+      "description": "Insättningar, uttag, överföringar, fakturabetalningar. Stödjer Idempotency-Key.",
+      "item": [
+        {
+          "name": "Get Transactions By Account",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/transactions/account/{{accountId}}?page=1&pageSize=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "transactions", "account", "{{accountId}}"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "pageSize", "value": "20" }
+              ]
+            },
+            "description": "Paginerad lista av transaktioner."
+          }
+        },
+        {
+          "name": "Deposit",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "{{$guid}}", "description": "Skickas automatiskt med en ny GUID per anrop. Samma key inom kort tid returnerar samma resultat utan att utföra åtgärden igen." }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/transactions/deposit", "host": ["{{baseUrl}}"], "path": ["api", "transactions", "deposit"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountId\": \"{{accountId}}\",\n  \"amount\": 500,\n  \"description\": \"Lön\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Withdraw",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "{{$guid}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/transactions/withdraw", "host": ["{{baseUrl}}"], "path": ["api", "transactions", "withdraw"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountId\": \"{{accountId}}\",\n  \"amount\": 100,\n  \"description\": \"Hyra\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Transfer",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "{{$guid}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/transactions/transfer", "host": ["{{baseUrl}}"], "path": ["api", "transactions", "transfer"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fromAccountId\": \"{{accountId}}\",\n  \"toAccountId\": \"MOTTAGAR_KONTO_ID\",\n  \"amount\": 250,\n  \"description\": \"Hyra mars\"\n}"
+            },
+            "description": "Roll: Admin, BankManager, User."
+          }
+        },
+        {
+          "name": "Pay Invoice",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "{{$guid}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/transactions/invoice-payment", "host": ["{{baseUrl}}"], "path": ["api", "transactions", "invoice-payment"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountId\": \"{{accountId}}\",\n  \"amount\": 350,\n  \"bankgiro\": \"12345678\",\n  \"ocr\": \"123456789\",\n  \"description\": \"Elräkning mars\"\n}"
+            },
+            "description": "OCR valideras med mod-10 (Luhn) på serversidan."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "description": "Endast Admin-roll. Skapar personalanvändare.",
+      "item": [
+        {
+          "name": "Create User (Any Role)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/admin/users", "host": ["{{baseUrl}}"], "path": ["api", "admin", "users"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"teller@nexapay.com\",\n  \"password\": \"Password1!\",\n  \"role\": \"Teller\"\n}"
+            },
+            "description": "Personalroller (Admin/BankManager/Teller/Auditor) kräver @nexapay.com-epost."
+          }
+        },
+        {
+          "name": "List Users",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/admin/users", "host": ["{{baseUrl}}"], "path": ["api", "admin", "users"] }
+          }
+        },
+        {
+          "name": "Delete User",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{baseUrl}}/api/admin/users/{{userId}}", "host": ["{{baseUrl}}"], "path": ["api", "admin", "users", "{{userId}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Health",
+      "description": "Status-endpoint för load balancers.",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/health", "host": ["{{baseUrl}}"], "path": ["health"] },
+            "description": "Returnerar Healthy/Unhealthy för database + redis."
+          }
+        }
+      ]
+    }
+  ]
+}

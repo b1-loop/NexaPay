@@ -3,9 +3,9 @@ using NexaPay.Domain.Enums;
 
 namespace NexaPay.Domain.Interfaces
 {
-    public interface ITransactionRepository
+    // Ärver GetByIdAsync, GetAllAsync, AddAsync från IGenericRepository<Transaction>.
+    public interface ITransactionRepository : IGenericRepository<Transaction>
     {
-        Task AddAsync(Transaction transaction, CancellationToken cancellationToken = default);
         Task<Transaction?> GetByIdempotencyKeyAsync(Guid idempotencyKey, CancellationToken cancellationToken = default);
         Task<(IEnumerable<Transaction> Transactions, int TotalCount)> GetTransactionsByAccountIdPagedAsync(
             Guid accountId,

@@ -1,11 +1,13 @@
 using Microsoft.EntityFrameworkCore;
 using NexaPay.Domain.Entities;
+using NexaPay.Domain.Interfaces;
 
 namespace NexaPay.Infrastructure.Persistence.Repositories
 {
-    // Infrastructure-only base class — not exposed via any domain interface.
-    // Provides _context and _dbSet helpers to concrete repositories.
-    public abstract class Repository<T> where T : BaseEntity
+    // Generisk repository-bas som implementerar IGenericRepository<T> en gång
+    // åt alla konkreta repos (AccountRepository, CardRepository, TransactionRepository).
+    // Eliminerar duplicerad CRUD-kod i varje implementation.
+    public abstract class Repository<T> : IGenericRepository<T> where T : BaseEntity
     {
         protected readonly ApplicationDbContext _context;
         protected readonly DbSet<T> _dbSet;
@@ -16,10 +18,13 @@ namespace NexaPay.Infrastructure.Persistence.Repositories
             _dbSet = context.Set<T>();
         }
 
-        public async Task<T?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+        public virtual async Task<T?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
             => await _dbSet.FindAsync(new object[] { id }, cancellationToken);
 
-        public async Task AddAsync(T entity, CancellationToken cancellationToken = default)
+        public virtual async Task<IEnumerable<T>> GetAllAsync(CancellationToken cancellationToken = default)
+            => await _dbSet.AsNoTracking().ToListAsync(cancellationToken);
+
+        public virtual async Task AddAsync(T entity, CancellationToken cancellationToken = default)
             => await _dbSet.AddAsync(entity, cancellationToken);
     }
 }
