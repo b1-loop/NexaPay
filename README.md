@@ -104,7 +104,7 @@ NexaPay.sln
 │   │   ├── AccountType.cs            – Savings | Checking | ...
 │   │   ├── CardStatus.cs             – Inactive | Active | Blocked | Expired
 │   │   ├── Currency.cs               – SEK | EUR | USD
-│   │   └── TransactionType.cs        – Deposit | Withdrawal | Transfer
+│   │   └── TransactionType.cs        – Deposit | Withdrawal | Transfer | InvoicePayment
 │   ├── Events/
 │   │   ├── IDomainEvent.cs           – Marker interface (: INotification)
 │   │   ├── MoneyDeposited.cs
@@ -305,6 +305,7 @@ Account.Open(accountNumber, accountName, accountType, ownerId, currency)
 | `Deposit(amount, description, idempotencyKey?)` | Status must be Open | `MoneyDeposited` |
 | `Withdraw(amount, description, idempotencyKey?)` | Status must be Open; sufficient balance | `MoneyWithdrawn` |
 | `TransferTo(amount, description, receiver, idempotencyKey?)` | Both accounts Open; sufficient balance | `MoneyTransferred` |
+| `PayInvoice(amount, bankgiro, ocr, description, idempotencyKey?)` | Status must be Open; sufficient balance | `MoneyWithdrawn` |
 | `Freeze()` | Not already Frozen or Closed | — |
 | `Unfreeze()` | Must be Frozen | — |
 | `Close()` | Not already Closed; balance must be zero | `AccountClosed` |
@@ -724,6 +725,7 @@ Each event has a corresponding handler in `NexaPay.Application/Common/EventHandl
 | POST | `/api/transactions/deposit` | CanWrite (not Auditor) | Deposit money |
 | POST | `/api/transactions/withdraw` | CanWrite (not Auditor) | Withdraw money |
 | POST | `/api/transactions/transfer` | Admin, BankManager, User | Transfer between accounts |
+| POST | `/api/transactions/invoice-payment` | CanWrite (not Auditor) | Pay an invoice to a bankgiro/plusgiro with mod-10 validated OCR |
 
 Query parameters for GET transactions: `?page=1&pageSize=20`
 

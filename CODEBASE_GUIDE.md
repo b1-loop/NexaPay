@@ -152,7 +152,7 @@ Oföränderlig post i transaktionsregistret. Skapas av Account-metoderna, aldrig
 | Egenskap | Typ | Beskrivning |
 |---|---|---|
 | `Amount` | Money | Transaktionens belopp |
-| `Type` | TransactionType | Deposit / Withdrawal / Transfer |
+| `Type` | TransactionType | Deposit / Withdrawal / Transfer / InvoicePayment |
 | `Description` | string | Fritext-beskrivning |
 | `BalanceAfterTransaction` | Money | Kontosaldot direkt efter transaktionen |
 | `AccountId` | Guid | FK till kontot |
@@ -768,6 +768,7 @@ Rate limiting: `[EnableRateLimiting("auth")]` – 5 req/min per IP.
 | `Deposit` | POST `/api/transactions/deposit` | Alla utom Auditor |
 | `Withdraw` | POST `/api/transactions/withdraw` | Alla utom Auditor |
 | `Transfer` | POST `/api/transactions/transfer` | Admin, BankManager, User |
+| `PayInvoice` | POST `/api/transactions/invoice-payment` | Alla utom Auditor |
 
 Idempotency-Key: valfri header `Idempotency-Key: {guid}` – förhindrar dubbla transaktioner vid retry.
 
@@ -803,6 +804,7 @@ Data Transfer Objects för inkommande requests (request body). Används för att
 | `DepositRequest` | AccountId, Amount, Description |
 | `WithdrawRequest` | AccountId, Amount, Description |
 | `TransferRequest` | FromAccountId, ToAccountId, Amount, Description |
+| `PayInvoiceRequest` | AccountId, Amount, Bankgiro, Ocr, Description |
 
 ---
 

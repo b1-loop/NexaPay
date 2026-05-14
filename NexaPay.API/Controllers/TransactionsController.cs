@@ -26,6 +26,7 @@ using NexaPay.Application.Common.Constants;
 using NexaPay.Application.Common.Models;
 using NexaPay.Application.DTOs;
 using NexaPay.Application.Features.Transactions.Commands.Deposit;
+using NexaPay.Application.Features.Transactions.Commands.PayInvoice;
 using NexaPay.Application.Features.Transactions.Commands.Transfer;
 using NexaPay.Application.Features.Transactions.Commands.Withdraw;
 using NexaPay.Application.Features.Transactions.Queries.GetTransactionsByAccount;
@@ -158,6 +159,41 @@ namespace NexaPay.API.Controllers
                 return Ok(ApiResponse.Ok(
                     result.Value,
                     "Uttag genomfördes framgångsrikt"));
+
+            return this.ToErrorResponse(result);
+        }
+
+        // --------------------------------------------------------
+        // POST api/transactions/invoice-payment
+        // --------------------------------------------------------
+        // Betalar en faktura till en extern mottagare (bankgiro/plusgiro)
+        // med OCR-referens. Auditor kan INTE betala fakturor – read-only roll.
+        [HttpPost("invoice-payment")]
+        [Authorize(Roles = Roles.CanWrite)]
+        [ProducesResponseType(typeof(ApiResponse<TransactionDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public async Task<IActionResult> PayInvoice(
+            [FromBody] PayInvoiceRequest request)
+        {
+            var result = await _mediator.Send(
+                new PayInvoiceCommand
+                {
+                    AccountId = request.AccountId,
+                    Amount = request.Amount,
+                    Bankgiro = request.Bankgiro,
+                    Ocr = request.Ocr,
+                    Description = request.Description,
+                    UserId = User.GetUserId(),
+                    IsStaff = User.IsStaff(),
+                    IdempotencyKey = GetIdempotencyKey()
+                });
+
+            if (result.IsSuccess)
+                return Ok(ApiResponse.Ok(
+                    result.Value,
+                    "Fakturabetalningen genomfördes framgångsrikt"));
 
             return this.ToErrorResponse(result);
         }

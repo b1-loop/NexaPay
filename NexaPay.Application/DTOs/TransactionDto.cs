@@ -11,5 +11,9 @@ namespace NexaPay.Application.DTOs
         public Guid? ReceiverAccountId { get; set; }
         public Guid AccountId { get; set; }
         public DateTime CreatedAt { get; set; }
+
+        // Sätts bara för fakturabetalningar (Type = InvoicePayment).
+        public string? Bankgiro { get; set; }
+        public string? Ocr { get; set; }
     }
 }

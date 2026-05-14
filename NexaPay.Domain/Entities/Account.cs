@@ -90,6 +90,41 @@ namespace NexaPay.Domain.Entities
             };
         }
 
+        public Transaction PayInvoice(
+            Money amount,
+            string bankgiro,
+            string ocr,
+            string description,
+            Guid? idempotencyKey = null)
+        {
+            if (Status != AccountStatus.Open)
+                throw new InvalidOperationException(
+                    $"Kan inte betala faktura från ett {Status.ToString().ToLower()} konto");
+
+            if (Balance < amount)
+                throw new InvalidOperationException(
+                    $"Otillräckligt saldo. Tillgängligt saldo: {Balance}, Begärt belopp: {amount}");
+
+            Balance = Balance - amount;
+            UpdatedAt = DateTime.UtcNow;
+
+            RaiseDomainEvent(new MoneyWithdrawn(Id, OwnerId, amount, Balance, DateTime.UtcNow));
+
+            return new Transaction
+            {
+                Id = Guid.NewGuid(),
+                Amount = amount,
+                Type = TransactionType.InvoicePayment,
+                Description = description,
+                BalanceAfterTransaction = Balance,
+                AccountId = Id,
+                Bankgiro = bankgiro,
+                Ocr = ocr,
+                IdempotencyKey = idempotencyKey,
+                CreatedAt = DateTime.UtcNow
+            };
+        }
+
         public (Transaction FromTransaction, Transaction ToTransaction) TransferTo(
             Money amount,
             string description,

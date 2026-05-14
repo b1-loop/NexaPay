@@ -54,6 +54,7 @@ Aggregatrot för bankkonton. All kontologik finns här.
 | `Deposit(amount, description, idempotencyKey)` | Lägger till pengar, höjer Balance, skapar Transaction, höjer `MoneyDeposited`-event |
 | `Withdraw(amount, description, idempotencyKey)` | Drar av pengar, kontrollerar att saldo räcker, skapar Transaction, höjer `MoneyWithdrawn`-event |
 | `TransferTo(amount, description, receiver, idempotencyKey)` | Tar pengar från detta konto och lägger på mottagarkontot, returnerar ett par (FromTransaction, ToTransaction), höjer `MoneyTransferred`-event |
+| `PayInvoice(amount, bankgiro, ocr, description, idempotencyKey)` | Drar av pengar för en fakturabetalning till en extern mottagare (bankgiro/plusgiro + OCR), skapar Transaction av typ `InvoicePayment`, höjer `MoneyWithdrawn`-event |
 | `Freeze()` | Sätter `Status = Frozen` – inga transaktioner möjliga |
 | `Unfreeze()` | Sätter `Status = Open` |
 | `Close()` | Sätter `Status = Closed` – kräver att saldo är 0, höjer `AccountClosed`-event |
@@ -440,6 +441,7 @@ Request-klasser i `Controllers/Contracts/` definierar request-body för varje en
 | `DepositRequest` | POST /api/transactions/deposit | AccountId, Amount, Description |
 | `WithdrawRequest` | POST /api/transactions/withdraw | AccountId, Amount, Description |
 | `TransferRequest` | POST /api/transactions/transfer | FromAccountId, ToAccountId, Amount, Description |
+| `PayInvoiceRequest` | POST /api/transactions/invoice-payment | AccountId, Amount, Bankgiro, Ocr, Description |
 | `CreateCardRequest` | POST /api/cards | AccountId, CardHolderName |
 | `BlockCardRequest` | PUT /api/cards/{id}/block | Reason |
 
@@ -484,6 +486,7 @@ Rate limiting: `"financial"`. Stödjer idempotens via `Idempotency-Key`-header (
 | POST /transactions/deposit | CanWrite (ej Auditor) | Insättning |
 | POST /transactions/withdraw | CanWrite (ej Auditor) | Uttag |
 | POST /transactions/transfer | CanTransfer (Admin, BankManager, User) | Överföring mellan konton |
+| POST /transactions/invoice-payment | CanWrite (ej Auditor) | Fakturabetalning till bankgiro/plusgiro med OCR (mod-10-validerad) |
 
 #### `CardsController` – `/api/cards`
 
