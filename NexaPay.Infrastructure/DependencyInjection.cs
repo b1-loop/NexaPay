@@ -91,9 +91,9 @@ namespace NexaPay.Infrastructure
             // --------------------------------------------------------
             // Notification Service
             // --------------------------------------------------------
-            // Placeholder-implementation som loggar notifieringar.
-            // Byt ut mot riktig e-post/SMS-provider inför produktion
-            // genom att ändra registreringen nedan.
+            // SMTP-baserad e-postnotifiering. Om Smtp:Host/Username saknas
+            // i konfigurationen loggar tjänsten en varning och hoppar över
+            // utskicket – appen fungerar alltså även utan SMTP konfigurerat.
             services.AddScoped<INotificationService, SmtpNotificationService>();
 
             // --------------------------------------------------------
