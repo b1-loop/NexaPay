@@ -139,5 +139,75 @@ namespace NexaPay.Tests.Integration.Accounts
 
             response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
         }
+
+        // --------------------------------------------------------
+        // Test 6: Personal skapar konto åt en kund via ownerEmail
+        //          → 201 och kontot tillhör kunden
+        // --------------------------------------------------------
+        [Test]
+        public async Task CreateAccount_AsStaffForExistingUser_AssignsAccountToThatUser()
+        {
+            var customerEmail = $"cust_{Guid.NewGuid()}@test.com";
+            var customerToken = await RegisterAndLoginAsync(customerEmail);
+
+            var adminToken = await CreateAndLoginAsAdminAsync();
+            SetBearerToken(adminToken);
+
+            var createResponse = await Client.PostAsJsonAsync("/api/accounts", new
+            {
+                accountName = "Kundens konto",
+                accountType = 0,
+                ownerEmail = customerEmail
+            });
+            createResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+
+            // Kunden ska se kontot i sin egen lista
+            SetBearerToken(customerToken);
+            var listResponse = await Client.GetAsync("/api/accounts");
+            var body = await listResponse.Content.ReadAsStringAsync();
+            var accounts = JsonDocument.Parse(body).RootElement.GetProperty("data");
+
+            accounts.GetArrayLength().Should().Be(1,
+                "kontot ska tillhöra kunden, inte personalen som skapade det");
+            accounts[0].GetProperty("accountName").GetString().Should().Be("Kundens konto");
+        }
+
+        // --------------------------------------------------------
+        // Test 7: Personal anger en e-post som inte finns → 400
+        // --------------------------------------------------------
+        [Test]
+        public async Task CreateAccount_AsStaffForUnknownEmail_Returns400()
+        {
+            var adminToken = await CreateAndLoginAsAdminAsync();
+            SetBearerToken(adminToken);
+
+            var response = await Client.PostAsJsonAsync("/api/accounts", new
+            {
+                accountName = "Konto",
+                accountType = 0,
+                ownerEmail = $"finns_inte_{Guid.NewGuid()}@test.com"
+            });
+
+            response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        }
+
+        // --------------------------------------------------------
+        // Test 8: Vanlig User försöker skapa konto åt någon annan → 403
+        // --------------------------------------------------------
+        [Test]
+        public async Task CreateAccount_AsRegularUserWithOwnerEmail_Returns403()
+        {
+            var token = await RegisterAndLoginAsync($"u_{Guid.NewGuid()}@test.com");
+            SetBearerToken(token);
+
+            var response = await Client.PostAsJsonAsync("/api/accounts", new
+            {
+                accountName = "Konto",
+                accountType = 0,
+                ownerEmail = "nagon.annan@test.com"
+            });
+
+            response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        }
     }
 }

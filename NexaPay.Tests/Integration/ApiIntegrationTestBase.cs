@@ -57,9 +57,12 @@ namespace NexaPay.Tests.Integration
         // och returnerar en giltig Admin JWT-token.
         // Används för att testa Admin-skyddade endpoints.
         protected async Task<string> CreateAndLoginAsAdminAsync(
-            string email = "admin@nexapay.com",
+            string? email = null,
             string password = "Admin123!")
         {
+            // Unik e-post per anrop – undviker krock med seedad admin@nexapay.com
+            email ??= $"admin_{Guid.NewGuid():N}@nexapay.com";
+
             using var scope = Factory.Services.CreateScope();
             var userManager = scope.ServiceProvider
                 .GetRequiredService<UserManager<IdentityUser>>();

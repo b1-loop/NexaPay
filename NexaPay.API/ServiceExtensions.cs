@@ -114,8 +114,16 @@ namespace NexaPay.API
             // --------------------------------------------------------
             // Rate Limiting
             // --------------------------------------------------------
-            // "auth"      – max 5 req/min per IP på AuthController
-            // "financial" – max 20 req/min per IP på Accounts/Cards/Transactions
+            // "auth"      – AuthController
+            // "financial" – Accounts/Cards/Transactions
+            // Gränserna läses från RateLimiting-sektionen i konfigurationen så de
+            // kan sättas generöst i Development och strikt i Production. Saknas
+            // sektionen används de strikta standardvärdena (5 / 20 per minut).
+            var authLimit       = configuration.GetValue<int?>("RateLimiting:Auth:PermitLimit") ?? 5;
+            var authWindow      = configuration.GetValue<int?>("RateLimiting:Auth:WindowSeconds") ?? 60;
+            var financialLimit  = configuration.GetValue<int?>("RateLimiting:Financial:PermitLimit") ?? 20;
+            var financialWindow = configuration.GetValue<int?>("RateLimiting:Financial:WindowSeconds") ?? 60;
+
             services.AddRateLimiter(options =>
             {
                 options.AddPolicy("auth", httpContext =>
@@ -124,8 +132,8 @@ namespace NexaPay.API
                             .ToString() ?? "unknown",
                         factory: _ => new FixedWindowRateLimiterOptions
                         {
-                            PermitLimit = 5,
-                            Window = TimeSpan.FromMinutes(1),
+                            PermitLimit = authLimit,
+                            Window = TimeSpan.FromSeconds(authWindow),
                             QueueLimit = 0
                         }));
 
@@ -135,8 +143,8 @@ namespace NexaPay.API
                             .ToString() ?? "unknown",
                         factory: _ => new FixedWindowRateLimiterOptions
                         {
-                            PermitLimit = 20,
-                            Window = TimeSpan.FromMinutes(1),
+                            PermitLimit = financialLimit,
+                            Window = TimeSpan.FromSeconds(financialWindow),
                             QueueLimit = 0
                         }));
 

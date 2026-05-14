@@ -436,7 +436,7 @@ Request-klasser i `Controllers/Contracts/` definierar request-body för varje en
 | `ForgotPasswordRequest` | POST /auth/forgot-password | Email |
 | `ResetPasswordRequest` | POST /auth/reset-password | Email, Token, NewPassword |
 | `ChangePasswordRequest` | POST /auth/change-password | CurrentPassword, NewPassword |
-| `CreateAccountRequest` | POST /api/accounts | AccountName, AccountType |
+| `CreateAccountRequest` | POST /api/accounts | AccountName, AccountType, OwnerEmail (valfri – personal kan skapa konto åt en kund) |
 | `DepositRequest` | POST /api/transactions/deposit | AccountId, Amount, Description |
 | `WithdrawRequest` | POST /api/transactions/withdraw | AccountId, Amount, Description |
 | `TransferRequest` | POST /api/transactions/transfer | FromAccountId, ToAccountId, Amount, Description |
@@ -447,7 +447,7 @@ Request-klasser i `Controllers/Contracts/` definierar request-body för varje en
 
 #### `AuthController` – `/api/auth`
 
-Rate limiting: `"auth"` (5 req/min per IP) på hela controllern. Bekräfta-e-post, glömt lösenord, återställ och byt lösenord har `[DisableRateLimiting]`.
+Rate limiting: `"auth"` på hela controllern (gränsen läses från konfiguration – se Rate Limiting nedan). Bekräfta-e-post, glömt lösenord, återställ och byt lösenord har `[DisableRateLimiting]`.
 
 | Endpoint | Auth | Beskrivning |
 |---|---|---|
@@ -469,7 +469,7 @@ Rate limiting: `"financial"` (20 req/min per IP).
 |---|---|---|
 | GET /accounts | Alla inloggade | Staff ser alla, User ser bara sina egna |
 | GET /accounts/{id} | Alla inloggade | Staff ser alla, User bara sina egna |
-| POST /accounts | CanWrite (ej Auditor) | Skapar konto med ownerId från JWT |
+| POST /accounts | CanWrite (ej Auditor) | Skapar konto åt anroparen (ownerId från JWT). Personal kan ange `OwnerEmail` för att skapa konto åt en kund; vanlig User som anger `OwnerEmail` → 403, okänd e-post → 400 |
 | PUT /accounts/{id}/freeze | CanWriteAccounts (Admin, BankManager, Teller) | Fryser konto |
 | PUT /accounts/{id}/unfreeze | CanWriteAccounts | Avfryser konto |
 | DELETE /accounts/{id} | CanDelete (Admin, BankManager, User) | Stänger konto (kräver saldo 0) |
@@ -543,12 +543,12 @@ Personalroller kräver `@nexapay.com`-e-postadress (kontrolleras av `StaffEmailP
 
 ## Rate Limiting
 
-Konfigurerat med **Fixed Window** per IP-adress:
+Konfigurerat med **Fixed Window** per IP-adress. Gränserna läses från `RateLimiting`-sektionen i konfigurationen – `appsettings.json` håller de strikta standardvärdena, `appsettings.Development.json` sätter generösa värden så att lokal testning inte blockeras. Saknas sektionen används standardvärdena nedan.
 
-| Policy | Gräns | Endpoints |
-|---|---|---|
-| `"auth"` | 5 req/min | `AuthController` (förhindrar brute-force) |
-| `"financial"` | 20 req/min | Accounts, Cards, Transactions |
+| Policy | Standard (`appsettings.json`) | Development | Endpoints |
+|---|---|---|---|
+| `"auth"` | 5 req/min | 100 req/min | `AuthController` (förhindrar brute-force) |
+| `"financial"` | 20 req/min | 1000 req/min | Accounts, Cards, Transactions |
 
 Överskridna gränser → **HTTP 429 Too Many Requests**.
 

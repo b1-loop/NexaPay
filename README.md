@@ -536,12 +536,12 @@ app.UseApiMiddleware();
 
 ### Rate Limiting
 
-Two FixedWindow policies:
+Two FixedWindow policies. Limits are read from the `RateLimiting` configuration section — `appsettings.json` holds the strict defaults, `appsettings.Development.json` overrides them with generous values so local testing isn't blocked.
 
-| Policy | Applies to | Limit |
-|---|---|---|
-| `"auth"` | `AuthController` | 5 requests / minute / IP |
-| `"financial"` | `AccountsController`, `CardsController`, `TransactionsController` | 20 requests / minute / IP |
+| Policy | Applies to | Default (`appsettings.json`) | Development |
+|---|---|---|---|
+| `"auth"` | `AuthController` | 5 requests / minute / IP | 100 / minute / IP |
+| `"financial"` | `AccountsController`, `CardsController`, `TransactionsController` | 20 requests / minute / IP | 1000 / minute / IP |
 
 Rejected requests receive `429 Too Many Requests`.  
 `POST /auth/logout` uses `[DisableRateLimiting]` — logout is always allowed.

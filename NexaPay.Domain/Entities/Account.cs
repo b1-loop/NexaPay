@@ -114,10 +114,12 @@ namespace NexaPay.Domain.Entities
 
             RaiseDomainEvent(new MoneyTransferred(Id, receiver.Id, OwnerId, amount, DateTime.UtcNow));
 
+            // Egen Money-instans per transaktion – Money är en EF Core owned type
+            // och en owned-instans kan inte delas mellan två ägar-entiteter.
             var fromTransaction = new Transaction
             {
                 Id = Guid.NewGuid(),
-                Amount = amount,
+                Amount = new Money(amount.Amount, amount.Currency),
                 Type = TransactionType.Transfer,
                 Description = $"Överföring till konto: {description}",
                 BalanceAfterTransaction = Balance,
@@ -130,7 +132,7 @@ namespace NexaPay.Domain.Entities
             var toTransaction = new Transaction
             {
                 Id = Guid.NewGuid(),
-                Amount = amount,
+                Amount = new Money(amount.Amount, amount.Currency),
                 Type = TransactionType.Transfer,
                 Description = $"Överföring från konto: {description}",
                 BalanceAfterTransaction = receiver.Balance,

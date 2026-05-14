@@ -13,6 +13,7 @@
 using Asp.Versioning;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using NexaPay.API.Contracts;
@@ -39,10 +40,12 @@ namespace NexaPay.API.Controllers
     public class AccountsController : ControllerBase
     {
         private readonly IMediator _mediator;
+        private readonly UserManager<IdentityUser> _userManager;
 
-        public AccountsController(IMediator mediator)
+        public AccountsController(IMediator mediator, UserManager<IdentityUser> userManager)
         {
             _mediator = mediator;
+            _userManager = userManager;
         }
 
 
@@ -129,12 +132,29 @@ namespace NexaPay.API.Controllers
         public async Task<IActionResult> Create(
             [FromBody] CreateAccountRequest request)
         {
+            var ownerId = User.GetUserId();
+
+            // Personal kan skapa konto åt en annan användare via dennes e-post.
+            if (!string.IsNullOrWhiteSpace(request.OwnerEmail))
+            {
+                if (!User.IsStaff())
+                    return StatusCode(StatusCodes.Status403Forbidden,
+                        ApiResponse.Fail("Endast personal kan skapa konton åt andra användare."));
+
+                var targetUser = await _userManager.FindByEmailAsync(request.OwnerEmail);
+                if (targetUser is null)
+                    return BadRequest(ApiResponse.Fail(
+                        $"Ingen användare med e-postadressen {request.OwnerEmail} hittades."));
+
+                ownerId = targetUser.Id;
+            }
+
             var result = await _mediator.Send(
                 new CreateAccountCommand
                 {
                     AccountName = request.AccountName,
                     AccountType = request.AccountType,
-                    OwnerId = User.GetUserId()
+                    OwnerId = ownerId
                 });
 
             if (result.IsSuccess)
