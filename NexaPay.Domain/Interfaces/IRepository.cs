@@ -1,3 +1,5 @@
-// Generisk IRepository<T> borttagen – varje aggregat-rot har nu ett
-// eget avsiktsavslöjande interface (IAccountRepository, ICardRepository,
-// ITransactionRepository) utan Update/Delete-läckage in i domänen.
+// Generisk repository-bas finns nu i IGenericRepository<T>.
+// IAccountRepository, ICardRepository och ITransactionRepository
+// ärver från IGenericRepository<T> och lägger till entitet-specifika
+// queries. Update/Remove exponeras inte – aggregaten har egna
+// intention-revealing metoder (Account.Close(), Card.Block() osv).
