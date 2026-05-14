@@ -45,7 +45,8 @@ namespace NexaPay.Tests.Application.Features.Auth
                 .Setup(a => a.RegisterAsync(
                     It.IsAny<string>(),
                     It.IsAny<string>(),
-                    It.IsAny<string>()))
+                    It.IsAny<string>(),
+                    It.IsAny<bool>()))
                 .ReturnsAsync(Result<AuthDto>.Success(new AuthDto
                 {
                     Token = "fake-token",
@@ -85,7 +86,7 @@ namespace NexaPay.Tests.Application.Features.Auth
                 "nexapay.com-epost ska kunna registrera personalroller");
 
             _mockAuthService.Verify(
-                a => a.RegisterAsync("chef@nexapay.com", "Secure1!", Roles.Admin),
+                a => a.RegisterAsync("chef@nexapay.com", "Secure1!", Roles.Admin, It.IsAny<bool>()),
                 Times.Once);
         }
 
@@ -122,7 +123,8 @@ namespace NexaPay.Tests.Application.Features.Auth
                 a => a.RegisterAsync(
                     It.IsAny<string>(),
                     It.IsAny<string>(),
-                    It.IsAny<string>()),
+                    It.IsAny<string>(),
+                    It.IsAny<bool>()),
                 Times.Never,
                 "AuthService ska inte anropas när domänen inte matchar");
         }
@@ -153,7 +155,7 @@ namespace NexaPay.Tests.Application.Features.Auth
                 "extern e-post ska kunna registrera sig med User-roll");
 
             _mockAuthService.Verify(
-                a => a.RegisterAsync("kund@gmail.com", "Secure1!", Roles.User),
+                a => a.RegisterAsync("kund@gmail.com", "Secure1!", Roles.User, It.IsAny<bool>()),
                 Times.Once);
         }
 
@@ -183,7 +185,7 @@ namespace NexaPay.Tests.Application.Features.Auth
                 "nexapay.com-epost ska kunna registrera User-roll");
 
             _mockAuthService.Verify(
-                a => a.RegisterAsync("praktikant@nexapay.com", "Secure1!", Roles.User),
+                a => a.RegisterAsync("praktikant@nexapay.com", "Secure1!", Roles.User, It.IsAny<bool>()),
                 Times.Once);
         }
 
@@ -220,7 +222,8 @@ namespace NexaPay.Tests.Application.Features.Auth
                 a => a.RegisterAsync(
                     It.IsAny<string>(),
                     It.IsAny<string>(),
-                    It.IsAny<string>()),
+                    It.IsAny<string>(),
+                    It.IsAny<bool>()),
                 Times.Never);
         }
     }

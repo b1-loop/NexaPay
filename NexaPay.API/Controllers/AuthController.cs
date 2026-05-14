@@ -56,7 +56,7 @@ namespace NexaPay.API.Controllers
 
             if (result.Value!.RequiresEmailConfirmation)
                 return Ok(ApiResponse.Ok(
-                    new { result.Value.Email },
+                    result.Value,
                     "Registrering lyckades. Kontrollera din e-post och bekräfta ditt konto innan du loggar in."));
 
             return Ok(ApiResponse.Ok(result.Value, "Användaren registrerades framgångsrikt"));
