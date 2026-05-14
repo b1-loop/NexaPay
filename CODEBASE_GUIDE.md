@@ -798,7 +798,7 @@ Data Transfer Objects för inkommande requests (request body). Används för att
 
 | Kontrakt | Fält |
 |---|---|
-| `CreateAccountRequest` | AccountName, AccountType, Currency |
+| `CreateAccountRequest` | AccountName, AccountType, OwnerEmail (valfri – personal kan skapa konto åt en kund) |
 | `CreateCardRequest` | AccountId, CardHolderName |
 | `DepositRequest` | AccountId, Amount, Description |
 | `WithdrawRequest` | AccountId, Amount, Description |
