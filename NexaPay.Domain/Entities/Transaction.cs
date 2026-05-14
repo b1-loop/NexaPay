@@ -13,6 +13,11 @@ namespace NexaPay.Domain.Entities
         public Guid AccountId { get; init; }
         public Account? Account { get; set; }
 
+        // Sätts endast för fakturabetalningar (Type = InvoicePayment):
+        // bankgiro/plusgiro till den externa mottagaren och OCR-referensen.
+        public string? Bankgiro { get; init; }
+        public string? Ocr { get; init; }
+
         // Client-supplied UUID sent in Idempotency-Key header.
         // Unique (filtered) index ensures duplicate requests cannot
         // create duplicate transactions — the handler short-circuits on match.

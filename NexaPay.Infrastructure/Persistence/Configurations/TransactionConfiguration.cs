@@ -51,6 +51,15 @@ namespace NexaPay.Infrastructure.Persistence.Configurations
             builder.Property(t => t.ReceiverAccountId)
                 .IsRequired(false);
 
+            // Sätts bara för fakturabetalningar – null för övriga transaktionstyper.
+            builder.Property(t => t.Bankgiro)
+                .IsRequired(false)
+                .HasMaxLength(20);
+
+            builder.Property(t => t.Ocr)
+                .IsRequired(false)
+                .HasMaxLength(25);
+
             builder.Property(t => t.AccountId)
                 .IsRequired();
 
