@@ -33,6 +33,11 @@ namespace NexaPay.Application.Common.Behaviors
             RequestHandlerDelegate<TResponse> next,
             CancellationToken cancellationToken)
         {
+            // Queries muterar inte state och ska aldrig retry:as på
+            // concurrency-konflikter – de skulle ändå läsa samma data om.
+            if (typeof(TRequest).Name.EndsWith("Query"))
+                return await next();
+
             var attempt = 0;
             while (true)
             {

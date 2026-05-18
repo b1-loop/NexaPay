@@ -175,7 +175,7 @@ namespace NexaPay.Tests.Application.Features.Transactions
                 .Setup(r => r.GetByIdAsync(account.Id, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(account);
             MockTransactionRepository
-                .Setup(r => r.GetByIdempotencyKeyAsync(idempotencyKey, It.IsAny<CancellationToken>()))
+                .Setup(r => r.GetByIdempotencyKeyAsync(idempotencyKey, account.Id, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(existing);
 
             var command = new PayInvoiceCommand

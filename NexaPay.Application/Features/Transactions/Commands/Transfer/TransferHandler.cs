@@ -15,6 +15,7 @@ using AutoMapper;
 using MediatR;
 using NexaPay.Application.Common.Models;
 using NexaPay.Application.DTOs;
+using NexaPay.Domain.Exceptions;
 using NexaPay.Domain.Interfaces;
 using NexaPay.Domain.ValueObjects;
 
@@ -58,10 +59,12 @@ namespace NexaPay.Application.Features.Transactions.Commands.Transfer
                     return Result<TransactionDto>.NotFound(
                         $"Mottagarkonto med ID {request.ToAccountId} hittades inte");
 
+                // Idempotency-nyckeln sitter på fromTransaction (avsändarkontot),
+                // så scope:a uppslagningen till FromAccountId.
                 if (request.IdempotencyKey.HasValue)
                 {
                     var existing = await _unitOfWork.Transactions
-                        .GetByIdempotencyKeyAsync(request.IdempotencyKey.Value, cancellationToken);
+                        .GetByIdempotencyKeyAsync(request.IdempotencyKey.Value, request.FromAccountId, cancellationToken);
                     if (existing != null)
                         return Result<TransactionDto>.Success(_mapper.Map<TransactionDto>(existing));
                 }
@@ -81,7 +84,19 @@ namespace NexaPay.Application.Features.Transactions.Commands.Transfer
 
                 await _unitOfWork.Transactions.AddAsync(fromTransaction, cancellationToken);
                 await _unitOfWork.Transactions.AddAsync(toTransaction, cancellationToken);
-                await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+                try
+                {
+                    await _unitOfWork.SaveChangesAsync(cancellationToken);
+                }
+                catch (IdempotencyConflictException) when (request.IdempotencyKey.HasValue)
+                {
+                    var winner = await _unitOfWork.Transactions
+                        .GetByIdempotencyKeyAsync(request.IdempotencyKey.Value, request.FromAccountId, cancellationToken);
+                    if (winner != null)
+                        return Result<TransactionDto>.Success(_mapper.Map<TransactionDto>(winner));
+                    throw;
+                }
 
                 return Result<TransactionDto>.Success(
                     _mapper.Map<TransactionDto>(fromTransaction));

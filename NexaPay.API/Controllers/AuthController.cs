@@ -103,7 +103,6 @@ namespace NexaPay.API.Controllers
         // POST api/auth/confirm-email
         // --------------------------------------------------------
         [HttpPost("confirm-email")]
-        [DisableRateLimiting]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> ConfirmEmail([FromBody] ConfirmEmailRequest request)
@@ -120,7 +119,6 @@ namespace NexaPay.API.Controllers
         // POST api/auth/forgot-password
         // --------------------------------------------------------
         [HttpPost("forgot-password")]
-        [DisableRateLimiting]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
         public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request)
         {
@@ -135,7 +133,6 @@ namespace NexaPay.API.Controllers
         // POST api/auth/reset-password
         // --------------------------------------------------------
         [HttpPost("reset-password")]
-        [DisableRateLimiting]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
@@ -154,7 +151,6 @@ namespace NexaPay.API.Controllers
         // --------------------------------------------------------
         [HttpPost("change-password")]
         [Authorize]
-        [DisableRateLimiting]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -197,7 +193,7 @@ namespace NexaPay.API.Controllers
         [DisableRateLimiting]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-        public IActionResult Logout()
+        public async Task<IActionResult> Logout()
         {
             var jti = User.FindFirst(JwtRegisteredClaimNames.Jti)?.Value;
             var expClaim = User.FindFirst(JwtRegisteredClaimNames.Exp)?.Value;
@@ -205,7 +201,7 @@ namespace NexaPay.API.Controllers
             if (jti != null && long.TryParse(expClaim, out var expUnix))
             {
                 var expiry = DateTimeOffset.FromUnixTimeSeconds(expUnix).UtcDateTime;
-                _tokenDenylist.Revoke(jti, expiry);
+                await _tokenDenylist.RevokeAsync(jti, expiry, HttpContext.RequestAborted);
             }
 
             return Ok(ApiResponse.Ok(message: "Utloggning lyckades"));

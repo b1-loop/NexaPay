@@ -13,6 +13,7 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.OpenApi.Models;
 using NexaPay.API.Middleware;
 using NexaPay.Infrastructure.Persistence;
+using Serilog;
 using StackExchange.Redis;
 using System.Threading.RateLimiting;
 
@@ -270,10 +271,12 @@ namespace NexaPay.API
                 {
                     if (allowedOrigins.Length > 0)
                     {
+                        // Snäv CORS – endast verb och headers som API:et faktiskt
+                        // använder, inte AllowAnyMethod/AllowAnyHeader.
                         policy
                             .WithOrigins(allowedOrigins)
-                            .AllowAnyMethod()
-                            .AllowAnyHeader();
+                            .WithMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+                            .WithHeaders("Content-Type", "Authorization", "Idempotency-Key", "X-API-Version");
                     }
                     else
                     {
@@ -339,8 +342,16 @@ namespace NexaPay.API
                 await next();
             });
 
-            // 2. Global felhantering
+            // 2a. Correlation-Id först – så alla efterföljande loggar (inkl.
+            // exception-loggning nedan) får CorrelationId-property i scope.
+            app.UseMiddleware<CorrelationIdMiddleware>();
+
+            // 2b. Global felhantering
             app.UseMiddleware<ExceptionMiddleware>();
+
+            // 2c. Serilog request-logging – en rad per request med metod,
+            // path, status och elapsed.
+            app.UseSerilogRequestLogging();
 
             // 3. CORS – måste vara före UseHttpsRedirection
             // så att CORS-headers sätts på preflight-svar innan redirect

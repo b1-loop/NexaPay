@@ -60,18 +60,14 @@ namespace NexaPay.Application.Features.Cards.Commands.CreateCard
             var cvv = GenerateCvv();
             var expiryDate = DateOnly.FromDateTime(DateTime.UtcNow.AddYears(3));
 
-            var card = new Card
-            {
-                Id = Guid.NewGuid(),
-                // Full PAN is never persisted — only an opaque token + last 4 digits.
-                // Explicit RNG bytes (128-bit entropy) rather than Guid.NewGuid().
-                CardToken = Convert.ToHexString(RandomNumberGenerator.GetBytes(16)),
-                Last4Digits = last4,
-                CardHolderName = request.CardHolderName.ToUpper(),
-                ExpiryDate = expiryDate,
-                AccountId = request.AccountId,
-                CreatedAt = DateTime.UtcNow
-            };
+            // Full PAN is never persisted — only an opaque token + last 4 digits.
+            // Explicit RNG bytes (128-bit entropy) rather than Guid.NewGuid().
+            var card = Card.Issue(
+                cardToken: Convert.ToHexString(RandomNumberGenerator.GetBytes(16)),
+                last4Digits: last4,
+                cardHolderName: request.CardHolderName.ToUpper(),
+                expiryDate: expiryDate,
+                accountId: request.AccountId);
 
             await _unitOfWork.Cards.AddAsync(card, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);

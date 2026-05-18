@@ -179,7 +179,13 @@ namespace NexaPay.Domain.Entities
             receiver.Balance = receiver.Balance + amount;
             receiver.UpdatedAt = DateTime.UtcNow;
 
+            // Två events – ett till avsändaren ("Du skickade X") och ett
+            // till mottagaren ("Du fick X"). Mottagar-eventet raise:as
+            // på mottagar-aggregatet så dispatchet hamnar under den
+            // ägarens notifikation.
             RaiseDomainEvent(new MoneyTransferred(Id, receiver.Id, OwnerId, amount, DateTime.UtcNow));
+            receiver.RaiseDomainEvent(new MoneyReceived(
+                receiver.Id, receiver.OwnerId, Id, amount, receiver.Balance, DateTime.UtcNow));
 
             // Egen Money-instans per transaktion – Money är en EF Core owned type
             // och en owned-instans kan inte delas mellan två ägar-entiteter.

@@ -27,10 +27,14 @@ namespace NexaPay.Infrastructure.Identity
                 TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(5));
         }
 
-        public void Revoke(string jti, DateTime expiry) => _revoked[jti] = expiry;
+        public Task RevokeAsync(string jti, DateTime expiry, CancellationToken cancellationToken = default)
+        {
+            _revoked[jti] = expiry;
+            return Task.CompletedTask;
+        }
 
-        public bool IsRevoked(string jti) =>
-            _revoked.TryGetValue(jti, out var expiry) && expiry > DateTime.UtcNow;
+        public Task<bool> IsRevokedAsync(string jti, CancellationToken cancellationToken = default) =>
+            Task.FromResult(_revoked.TryGetValue(jti, out var expiry) && expiry > DateTime.UtcNow);
 
         private void Cleanup()
         {

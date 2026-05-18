@@ -9,6 +9,7 @@
 using NexaPay.Application;
 using NexaPay.Infrastructure;
 using NexaPay.API;
+using Serilog;
 
 namespace NexaPay.API
 {
@@ -20,6 +21,14 @@ namespace NexaPay.API
             // Bygg applikationen
             // ============================================================
             var builder = WebApplication.CreateBuilder(args);
+
+            // Strukturerad loggning via Serilog. Konfigureras från
+            // "Serilog"-sektionen i appsettings; Console-sink som default
+            // skriver JSON-rader i prod och människovänligt i dev.
+            builder.Host.UseSerilog((ctx, lc) => lc
+                .ReadFrom.Configuration(ctx.Configuration)
+                .Enrich.FromLogContext()
+                .WriteTo.Console());
 
             // --------------------------------------------------------
             // Registrera tj�nster � varje rad har ett tydligt ansvar

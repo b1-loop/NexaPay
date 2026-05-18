@@ -102,9 +102,14 @@ namespace NexaPay.API
                 // ------------------------------------------------
                 // Steg 3: Seed användare (dev-konton per roll)
                 // ------------------------------------------------
-                // Skapar ett konto per roll med EmailConfirmed = true
-                // Körs bara om kontot inte redan finns – idempotent
-                await SeedUsersAsync(services);
+                // Skapar ett konto per roll med EmailConfirmed = true.
+                // Körs ENBART i Development – seedade konton med kända lösenord
+                // får aldrig hamna i produktion. I prod skapas administratörer
+                // manuellt eller via ett separat bootstrap-steg.
+                if (app.Environment.IsDevelopment())
+                {
+                    await SeedUsersAsync(services);
+                }
 
                 // Logga att allt gick bra
                 app.Logger.LogInformation(

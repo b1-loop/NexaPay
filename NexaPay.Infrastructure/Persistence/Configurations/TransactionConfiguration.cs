@@ -90,9 +90,12 @@ namespace NexaPay.Infrastructure.Persistence.Configurations
             builder.HasIndex(t => t.AccountId);
             builder.HasIndex(t => t.CreatedAt);
 
-            // Filtered unique index: only non-NULL keys are checked for uniqueness.
-            // NULL (no key supplied) rows are excluded so legacy inserts still work.
-            builder.HasIndex(t => t.IdempotencyKey)
+            // Composite filtered unique index – idempotency-nyckeln är unik
+            // PER KONTO, inte globalt. Detta hindrar User B från att råka
+            // (eller avsiktligt) återanvända User A:s nyckel och få tillbaka
+            // A:s transaktion. NULL-rader exkluderas så vanliga inserts (utan
+            // Idempotency-Key) inte kolliderar.
+            builder.HasIndex(t => new { t.IdempotencyKey, t.AccountId })
                 .IsUnique()
                 .HasFilter("[IdempotencyKey] IS NOT NULL");
 

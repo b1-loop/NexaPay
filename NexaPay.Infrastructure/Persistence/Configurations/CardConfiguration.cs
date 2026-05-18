@@ -51,6 +51,12 @@ namespace NexaPay.Infrastructure.Persistence.Configurations
             builder.Property(c => c.UpdatedAt)
                 .IsRequired(false);
 
+            // Optimistic concurrency – varje rad har ett RowVersion-fält
+            // som EF jämför vid SaveChanges. Hindrar tyst data-loss vid
+            // samtidiga Block/Unblock-anrop.
+            builder.Property(c => c.RowVersion)
+                .IsRowVersion();
+
             // --------------------------------------------------------
             // Index
             // --------------------------------------------------------

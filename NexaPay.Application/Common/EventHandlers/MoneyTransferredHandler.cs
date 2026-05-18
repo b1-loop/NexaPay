@@ -2,18 +2,19 @@
 // MoneyTransferredHandler.cs – NexaPay.Application/Common/EventHandlers
 // ============================================================
 // Reagerar när en överföring genomförts. Loggar och notifierar
-// avsändaren – mottagaren får en separat MoneyDeposited-händelse
-// från Account-aggregatet.
+// AVSÄNDAREN. Mottagaren får en separat MoneyReceived-händelse
+// som hanteras av MoneyReceivedHandler.
 // ============================================================
 
 using MediatR;
 using Microsoft.Extensions.Logging;
+using NexaPay.Application.Common.Events;
 using NexaPay.Application.Common.Interfaces;
 using NexaPay.Domain.Events;
 
 namespace NexaPay.Application.Common.EventHandlers
 {
-    public class MoneyTransferredHandler : INotificationHandler<MoneyTransferred>
+    public class MoneyTransferredHandler : INotificationHandler<DomainEventNotification<MoneyTransferred>>
     {
         private readonly ILogger<MoneyTransferredHandler> _logger;
         private readonly INotificationService _notifications;
@@ -26,8 +27,9 @@ namespace NexaPay.Application.Common.EventHandlers
             _notifications = notifications;
         }
 
-        public async Task Handle(MoneyTransferred notification, CancellationToken cancellationToken)
+        public async Task Handle(DomainEventNotification<MoneyTransferred> wrapper, CancellationToken cancellationToken)
         {
+            var notification = wrapper.Event;
             _logger.LogInformation(
                 "MoneyTransferred: FromAccountId={FromAccountId} ToAccountId={ToAccountId} " +
                 "OwnerId={OwnerId} Amount={Amount} At={OccurredAt}",

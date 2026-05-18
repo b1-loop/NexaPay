@@ -145,16 +145,12 @@ namespace NexaPay.Tests
             Guid accountId = default,
             CardStatus status = CardStatus.Active)
         {
-            var card = new Card
-            {
-                Id = Guid.NewGuid(),
-                CardToken = Guid.NewGuid().ToString(),
-                Last4Digits = "9010",
-                CardHolderName = "TEST USER",
-                ExpiryDate = DateOnly.FromDateTime(DateTime.UtcNow.AddYears(3)),
-                AccountId = accountId == default ? Guid.NewGuid() : accountId,
-                CreatedAt = DateTime.UtcNow
-            };
+            var card = Card.Issue(
+                cardToken: Guid.NewGuid().ToString(),
+                last4Digits: "9010",
+                cardHolderName: "TEST USER",
+                expiryDate: DateOnly.FromDateTime(DateTime.UtcNow.AddYears(3)),
+                accountId: accountId == default ? Guid.NewGuid() : accountId);
 
             switch (status)
             {
