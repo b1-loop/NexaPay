@@ -1,3 +1,11 @@
+// ============================================================
+// UnblockCardCommand.cs
+// NexaPay.Application/Features/Cards/Commands/UnblockCard
+// ============================================================
+// MediatR-kommando för att avblockera ett kort.
+// AdminId loggas i audit-spåret för spårbarhet.
+// ============================================================
+
 using MediatR;
 using NexaPay.Application.Common.Models;
 

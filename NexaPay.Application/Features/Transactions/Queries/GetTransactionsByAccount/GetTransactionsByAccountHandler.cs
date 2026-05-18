@@ -1,3 +1,15 @@
+// ============================================================
+// GetTransactionsByAccountHandler.cs
+// NexaPay.Application/Features/Transactions/Queries/GetTransactionsByAccount
+// ============================================================
+// Returnerar transaktionshistorik för ett konto som paginerat
+// resultat. Använder lättviktiga "exists/ownedBy"-checkar
+// istället för att ladda hela Account-aggregatet – vi behöver
+// bara verifiera behörighet, inte mutera state.
+// Page/PageSize klampas till säkra gränser (1..100) för att
+// undvika DoS via gigantiska sidor.
+// ============================================================
+
 using AutoMapper;
 using MediatR;
 using NexaPay.Application.Common.Models;

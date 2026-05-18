@@ -1,3 +1,12 @@
+// ============================================================
+// CreateAccountRequest.cs – NexaPay.API/Contracts
+// ============================================================
+// HTTP-body för POST /api/accounts. OwnerEmail är valfri och
+// används av personal för att skapa konto åt en angiven kund.
+// Vanliga användare lämnar fältet tomt – då blir den inloggade
+// kontoägaren.
+// ============================================================
+
 using NexaPay.Domain.Enums;
 
 namespace NexaPay.API.Contracts

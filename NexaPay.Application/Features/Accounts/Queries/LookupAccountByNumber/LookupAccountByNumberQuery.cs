@@ -1,3 +1,11 @@
+// ============================================================
+// LookupAccountByNumberQuery.cs
+// NexaPay.Application/Features/Accounts/Queries/LookupAccountByNumber
+// ============================================================
+// MediatR-query + smal DTO för konto-uppslag (Transfer-sidan).
+// AccountLookupDto exponerar bara id + namn + kontonummer.
+// ============================================================
+
 using MediatR;
 using NexaPay.Application.Common.Models;
 

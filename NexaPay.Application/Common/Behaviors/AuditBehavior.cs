@@ -1,3 +1,16 @@
+// ============================================================
+// AuditBehavior.cs – NexaPay.Application/Common/Behaviors
+// ============================================================
+// Skriver en audit-rad för varje kommando (Command) – aldrig
+// för queries, eftersom queries inte förändrar någon state.
+// Audit-raden innehåller: vilket kommando, av vem (UserId via
+// reflection), om det lyckades eller misslyckades och när.
+//
+// Körs SIST i pipeline (efter ConcurrencyRetry) så vi auditerar
+// det slutliga utfallet – ett misslyckat första försök som
+// retryades framgångsrikt loggas som "lyckat".
+// ============================================================
+
 using MediatR;
 using Microsoft.Extensions.Logging;
 using NexaPay.Application.Common.Interfaces;

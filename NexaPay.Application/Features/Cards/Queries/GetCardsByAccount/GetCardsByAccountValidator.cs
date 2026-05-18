@@ -1,3 +1,10 @@
+// ============================================================
+// GetCardsByAccountValidator.cs
+// NexaPay.Application/Features/Cards/Queries/GetCardsByAccount
+// ============================================================
+// FluentValidation-regler för GetCardsByAccountQuery.
+// ============================================================
+
 using FluentValidation;
 
 namespace NexaPay.Application.Features.Cards.Queries.GetCardsByAccount

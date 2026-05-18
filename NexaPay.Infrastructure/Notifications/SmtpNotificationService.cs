@@ -1,3 +1,19 @@
+// ============================================================
+// SmtpNotificationService.cs – NexaPay.Infrastructure/Notifications
+// ============================================================
+// Skickar verkliga mejl via SMTP (förkonfigurerat för Gmail).
+//
+// Beteenden:
+//   * Om Smtp:Host eller Smtp:Username saknas i appsettings
+//     loggas en VARNING och utskicket hoppas över. Appen kraschar
+//     INTE – så lokala miljöer utan SMTP fungerar fortfarande.
+//   * Misslyckade mejl loggas som Error men kastas inte vidare –
+//     vi vill inte att en transaktion rullas tillbaka för att
+//     mailservern är nere.
+//   * Konfirmations- och reset-länkar bygger en URL mot FrontendUrl
+//     (default localhost:5174) med rätt URL-kodning på token.
+// ============================================================
+
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;

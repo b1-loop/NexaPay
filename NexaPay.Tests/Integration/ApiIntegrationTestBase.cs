@@ -1,3 +1,13 @@
+// ============================================================
+// ApiIntegrationTestBase.cs – NexaPay.Tests/Integration
+// ============================================================
+// Gemensam basklass för integrationstester. Ger:
+//   * HttpClient mot in-memory-servern.
+//   * Seedade testanvändare (Admin + User) som inloggas via
+//     riktiga /api/auth/login-anrop så vi får giltiga JWT.
+//   * Hjälpmetoder för att sätta Authorization-headern.
+// ============================================================
+
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
 using NexaPay.Application.Common.Constants;

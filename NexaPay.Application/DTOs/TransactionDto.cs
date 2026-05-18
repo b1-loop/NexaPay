@@ -1,3 +1,12 @@
+// ============================================================
+// TransactionDto.cs – NexaPay.Application/DTOs
+// ============================================================
+// API-vänlig representation av en transaktion. Money plattas
+// ut till Amount + Currency, enums blir strängar, och de extra
+// faktura-fälten (Bankgiro/Ocr) följer endast med när Type är
+// InvoicePayment.
+// ============================================================
+
 namespace NexaPay.Application.DTOs
 {
     public class TransactionDto

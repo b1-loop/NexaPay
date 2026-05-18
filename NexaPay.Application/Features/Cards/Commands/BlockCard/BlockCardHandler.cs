@@ -1,3 +1,13 @@
+// ============================================================
+// BlockCardHandler.cs
+// NexaPay.Application/Features/Cards/Commands/BlockCard
+// ============================================================
+// Blockerar ett kort via Card.Block(). Endast Admin och
+// BankManager får anropa endpointen (kontrolleras i Controller).
+// Domän-eventet CardBlocked publiceras vidare till sin handler
+// som skickar notifiering till ägaren.
+// ============================================================
+
 using MediatR;
 using NexaPay.Application.Common.Models;
 using NexaPay.Domain.Interfaces;

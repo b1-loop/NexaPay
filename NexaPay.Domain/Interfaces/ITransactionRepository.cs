@@ -1,9 +1,19 @@
+// ============================================================
+// ITransactionRepository.cs – NexaPay.Domain/Interfaces
+// ============================================================
+// Repository-kontrakt för transaktioner. Förutom grundläggande
+// CRUD exponeras:
+//   * GetByIdempotencyKey – för att short-circuita dubbla POSTs.
+//   * GetTransactionsByAccountIdPaged – pagering för historik.
+//   * GetTransactionsByTypeAsync – för rapporter (t.ex. alla
+//     uttag under en period).
+// ============================================================
+
 using NexaPay.Domain.Entities;
 using NexaPay.Domain.Enums;
 
 namespace NexaPay.Domain.Interfaces
 {
-    // Ärver GetByIdAsync, GetAllAsync, AddAsync från IGenericRepository<Transaction>.
     public interface ITransactionRepository : IGenericRepository<Transaction>
     {
         Task<Transaction?> GetByIdempotencyKeyAsync(Guid idempotencyKey, CancellationToken cancellationToken = default);

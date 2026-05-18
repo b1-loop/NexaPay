@@ -1,3 +1,19 @@
+// ============================================================
+// Result.cs – NexaPay.Application/Common/Models
+// ============================================================
+// Result-mönstret: handlers returnerar Result<T> istället för
+// att kasta undantag för "förväntade" fel (NotFound, business
+// rule violation). Endast oväntade fel (NullReferenceException,
+// DB-fel) kastas. Kontroller mappar Result till HTTP-status:
+//   * IsSuccess → 200 OK
+//   * NotFound  → 404 NotFound
+//   * Failure   → 400 BadRequest
+//
+// Två varianter:
+//   * Result      – för operationer utan returvärde (Delete osv).
+//   * Result<T>   – för operationer som ger data tillbaka.
+// ============================================================
+
 namespace NexaPay.Application.Common.Models
 {
     public enum ResultErrorType { None, NotFound, BusinessRule }

@@ -1,77 +1,113 @@
-# NexaPay
+# NexaPay – Backend (.NET 8 Web API)
 
-A production-grade banking API built with .NET 8 and Clean Architecture. NexaPay handles bank accounts, card management, and financial transactions — with full role-based access control, JWT authentication, idempotent operations, domain events, optimistic concurrency, and a 4-stage MediatR pipeline.
+Ett modernt bank-API byggt med .NET 8 och **Clean Architecture**. NexaPay hanterar bankkonton, betalkort och finansiella transaktioner med fullständig rollbaserad åtkomstkontroll, JWT-autentisering, idempotenta operationer, domain events, optimistisk samtidighetskontroll och en MediatR-pipeline i fyra steg.
+
+> **Backend-repo:** https://github.com/b1-loop/NexaPay
+> **Frontend-repo:** https://github.com/Haval-Jalal/NexaPay-FE
 
 ---
 
-## Table of Contents
+## Innehåll
 
-- [What NexaPay Does](#what-nexapay-does)
-- [Tech Stack](#tech-stack)
-- [Architecture](#architecture)
-- [Project Structure](#project-structure)
-- [Domain Layer](#domain-layer)
-- [Application Layer](#application-layer)
-- [Infrastructure Layer](#infrastructure-layer)
-- [API Layer](#api-layer)
-- [Authentication & Authorization](#authentication--authorization)
-- [Request Pipeline](#request-pipeline)
+- [Vad NexaPay gör](#vad-nexapay-gör)
+- [Snabbstart](#snabbstart)
+- [Tech stack](#tech-stack)
+- [Arkitektur](#arkitektur)
+- [Projektstruktur](#projektstruktur)
+- [Domänlager (Domain)](#domänlager-domain)
+- [Applikationslager (Application)](#applikationslager-application)
+- [Infrastrukturlager (Infrastructure)](#infrastrukturlager-infrastructure)
+- [API-lager (API)](#api-lager-api)
+- [Autentisering och behörighet](#autentisering-och-behörighet)
+- [Request-pipeline](#request-pipeline)
 - [Domain Events](#domain-events)
-- [API Endpoints](#api-endpoints)
-- [Role-Based Access Control](#role-based-access-control)
-- [Idempotency](#idempotency)
-- [Testing](#testing)
-- [Getting Started](#getting-started)
-- [Configuration Reference](#configuration-reference)
+- [API-endpoints](#api-endpoints)
+- [Rollbaserad behörighet (RBAC)](#rollbaserad-behörighet-rbac)
+- [Idempotens](#idempotens)
+- [Databas och migrationer](#databas-och-migrationer)
+- [Tester](#tester)
+- [Installation](#installation)
+- [Konfiguration](#konfiguration)
+- [Säkerhet](#säkerhet)
+- [Bidra till projektet](#bidra-till-projektet)
+- [Diagram och dokumentation](#diagram-och-dokumentation)
+- [Licens och författare](#licens-och-författare)
 
 ---
 
-## What NexaPay Does
+## Vad NexaPay gör
 
-NexaPay is a backend API for a bank. It allows:
+NexaPay är ett backend-API för en bank. Det låter:
 
-- Customers to **register**, **log in**, create **bank accounts**, issue **cards**, and perform **deposits**, **withdrawals**, and **transfers**
-- Bank **staff** (Admin, BankManager, Teller, Auditor) to manage customers and monitor all accounts
-- **Admins** to create staff accounts with restricted roles
-- Financial operations to be performed **idempotently** — sending the same request twice only executes once
-- All write operations to be **audited** and **logged** automatically
+- **Kunder** registrera sig, logga in, bekräfta e-post, skapa **bankkonton**, beställa **kort** och göra **insättningar**, **uttag**, **överföringar** och **fakturabetalningar**.
+- **Bankpersonal** (Admin, BankManager, Teller, Auditor) hantera kunder och se alla konton, med olika behörigheter per roll.
+- **Admin** skapa personalkonton med begränsade roller.
+- Finansiella operationer utföras **idempotent** – om samma request skickas två gånger genomförs den bara en gång.
+- Alla skrivoperationer **auditeras** och **loggas** automatiskt.
 
 ---
 
-## Tech Stack
+## Snabbstart
 
-| Layer | Technology |
+```bash
+# 1. Klona repot
+git clone https://github.com/b1-loop/NexaPay.git
+cd NexaPay
+
+# 2. Återställ paket
+dotnet restore
+
+# 3. Konfigurera connection string i appsettings.Development.json
+#    (default: Server=localhost;Database=NexaPay;Trusted_Connection=True;)
+
+# 4. Kör API:et (migrations + roller seedas automatiskt)
+cd NexaPay.API
+dotnet run
+
+# 5. Öppna Swagger
+#    http://localhost:5190/swagger
+```
+
+API:et startar på `http://localhost:5190` (HTTP) och `https://localhost:7206` (HTTPS).
+
+---
+
+## Tech stack
+
+| Område | Teknik |
 |---|---|
-| Runtime | .NET 8 |
-| Web framework | ASP.NET Core 8 |
-| ORM | Entity Framework Core 8 |
-| Mediator | MediatR 14 |
-| Validation | FluentValidation |
-| Mapping | AutoMapper 16 |
-| Identity | ASP.NET Core Identity |
-| Authentication | JWT Bearer (HS256) |
-| Cache / Token denylist | Redis (StackExchange.Redis) or in-memory |
-| API versioning | Asp.Versioning.Mvc 8 |
-| Rate limiting | ASP.NET Core built-in (`RateLimiterMiddleware`) |
+| Runtime | **.NET 8 SDK** |
+| Webbramverk | **ASP.NET Core 8** |
+| ORM | **Entity Framework Core 8** |
+| Mediator | **MediatR 14** |
+| Validering | **FluentValidation** |
+| Object mapping | **AutoMapper 16** |
+| Identity | **ASP.NET Core Identity** |
+| Autentisering | **JWT Bearer (HS256)** |
+| Cache / token-denylist | **Redis** (StackExchange.Redis) eller in-memory |
+| API-versionering | **Asp.Versioning.Mvc 8** |
+| Rate limiting | ASP.NET Core inbyggd (`RateLimiterMiddleware`) |
 | Health checks | `Microsoft.Extensions.Diagnostics.HealthChecks` |
-| API docs | Swagger / Swashbuckle |
-| Testing | NUnit + FluentAssertions + Moq |
-| Test host | `Microsoft.AspNetCore.Mvc.Testing` |
-| Database | SQL Server |
+| API-dokumentation | **Swagger** (Swashbuckle) + Postman-collection |
+| Tester | **NUnit** + **FluentAssertions** + **Moq** |
+| Test-host | `Microsoft.AspNetCore.Mvc.Testing` |
+| Databas | **SQL Server** (prod) + EF Core InMemory (tester) |
+
+**Totalt antal tester:** **218** (enhetstester + integrationstester).
 
 ---
 
-## Architecture
+## Arkitektur
 
-NexaPay follows **Clean Architecture**. Dependencies only point inward — outer layers depend on inner layers, never the reverse.
+NexaPay följer **Clean Architecture**. Beroenden pekar endast inåt – yttre lager beror på inre lager, aldrig tvärtom.
 
 ```
 ┌──────────────────────────────────────────────┐
-│                  NexaPay.API                 │  ← HTTP, Controllers, Middleware
+│                NexaPay.API                   │  ← HTTP, Controllers, Middleware
 │  ┌────────────────────────────────────────┐  │
-│  │          NexaPay.Application           │  │  ← CQRS Handlers, Validators, Behaviors
+│  │          NexaPay.Application           │  │  ← CQRS, Handlers, Validators, Behaviors
 │  │  ┌──────────────────────────────────┐  │  │
-│  │  │        NexaPay.Domain            │  │  │  ← Entities, Value Objects, Events
+│  │  │         NexaPay.Domain           │  │  │  ← Entiteter, Value Objects, Events
 │  │  └──────────────────────────────────┘  │  │
 │  └────────────────────────────────────────┘  │
 │  ┌────────────────────────────────────────┐  │
@@ -80,832 +116,859 @@ NexaPay follows **Clean Architecture**. Dependencies only point inward — outer
 └──────────────────────────────────────────────┘
 ```
 
-**Domain** has no external NuGet dependencies — it is pure C#.  
-**Application** depends only on Domain. It defines interfaces that Infrastructure implements.  
-**Infrastructure** implements those interfaces with concrete technology (SQL Server, Redis, ASP.NET Identity).  
-**API** wires everything together and exposes HTTP endpoints.
+- **Domain** har INGA externa NuGet-paket – det är ren C#-kod.
+- **Application** beror endast på Domain. Definierar interface som Infrastructure implementerar.
+- **Infrastructure** implementerar interfacen mot konkret teknik (SQL Server, Redis, ASP.NET Identity).
+- **API** kopplar ihop allt och exponerar HTTP-endpoints.
+
+Se även `DOMAIN_DIAGRAM.md` (UML klassdiagram) och `USER_FLOW.md` (sekvens- och dataflödesdiagram).
 
 ---
 
-## Project Structure
+## Projektstruktur
 
 ```
 NexaPay.sln
-├── NexaPay.Domain/
-│   ├── Entities/
-│   │   ├── BaseEntity.cs             – Id, CreatedAt, UpdatedAt, domain events list
-│   │   ├── Account.cs                – Core aggregate: Open(), Deposit(), Withdraw(), TransferTo(), Freeze(), Unfreeze(), Close()
-│   │   ├── Card.cs                   – Activate(), Block(), MarkAsExpired()
-│   │   └── Transaction.cs            – Immutable record of a financial operation
-│   ├── ValueObjects/
-│   │   └── Money.cs                  – Sealed, immutable, enforces same-currency arithmetic
-│   ├── Enums/
-│   │   ├── AccountStatus.cs          – Open | Frozen | Closed
-│   │   ├── AccountType.cs            – Savings | Checking | ...
-│   │   ├── CardStatus.cs             – Inactive | Active | Blocked | Expired
-│   │   ├── Currency.cs               – SEK | EUR | USD
-│   │   └── TransactionType.cs        – Deposit | Withdrawal | Transfer | InvoicePayment
-│   ├── Events/
-│   │   ├── IDomainEvent.cs           – Marker interface (: INotification)
-│   │   ├── MoneyDeposited.cs
-│   │   ├── MoneyWithdrawn.cs
-│   │   ├── MoneyTransferred.cs
-│   │   ├── CardBlocked.cs
-│   │   └── AccountClosed.cs
-│   ├── Interfaces/
-│   │   ├── IAccountRepository.cs
-│   │   ├── ICardRepository.cs
-│   │   ├── ITransactionRepository.cs
-│   │   └── IUnitOfWork.cs            – SaveChangesAsync() + DispatchDomainEventsAsync()
-│   ├── Exceptions/
-│   │   └── ConcurrencyException.cs   – Thrown by UnitOfWork on DbUpdateConcurrencyException
-│   └── Policy/
-│       └── TransactionPolicy.cs      – Max transfer limits, daily caps
+├── NexaPay.Domain/              – Domänlogik (ren C#, inga externa beroenden)
+│   ├── Entities/                – Account, Card, Transaction, BaseEntity
+│   ├── ValueObjects/            – Money (immutabel, valuta-säker)
+│   ├── Enums/                   – AccountStatus, AccountType, CardStatus, Currency, TransactionType
+│   ├── Events/                  – MoneyDeposited, MoneyWithdrawn, MoneyTransferred, CardBlocked, AccountClosed
+│   ├── Interfaces/              – IAccountRepository, ICardRepository, ITransactionRepository, IUnitOfWork, IGenericRepository
+│   ├── Exceptions/              – ConcurrencyException
+│   └── Policy/                  – OcrPolicy (mod-10), TransactionPolicy (gränsvärden)
 │
-├── NexaPay.Application/
-│   ├── DependencyInjection.cs        – AddApplication(): MediatR, AutoMapper, FluentValidation, behaviors
+├── NexaPay.Application/         – CQRS-handlers, validators, behaviors, mappings
+│   ├── DependencyInjection.cs   – AddApplication(): MediatR + AutoMapper + FluentValidation + behaviors
 │   ├── Common/
-│   │   ├── Behaviors/
-│   │   │   ├── LoggingBehavior.cs         – Logs every request + elapsed time + slow-request warnings
-│   │   │   ├── ValidationBehavior.cs      – Runs all FluentValidation validators, short-circuits on failure
-│   │   │   ├── ConcurrencyRetryBehavior.cs – Catches ConcurrencyException, retries up to 2 times
-│   │   │   └── AuditBehavior.cs           – Writes audit records for commands after they succeed
-│   │   ├── Constants/
-│   │   │   └── Roles.cs              – String constants: Admin, BankManager, Teller, Auditor, User + combined role sets
-│   │   ├── EventHandlers/
-│   │   │   ├── MoneyDepositedHandler.cs
-│   │   │   ├── MoneyWithdrawnHandler.cs
-│   │   │   ├── MoneyTransferredHandler.cs
-│   │   │   ├── CardBlockedHandler.cs
-│   │   │   └── AccountClosedHandler.cs
-│   │   ├── Interfaces/
-│   │   │   ├── IAuthService.cs       – RegisterAsync(), LoginAsync()
-│   │   │   ├── IJwtService.cs        – GenerateToken()
-│   │   │   ├── ITokenDenylist.cs     – Revoke(), IsRevoked()
-│   │   │   └── IAppSettings.cs       – StaffDomain, JwtKey, ...
-│   │   ├── Models/
-│   │   │   ├── Result.cs             – Result<T>: IsSuccess, IsFailure, Value, Error
-│   │   │   └── PagedResult.cs        – Items, TotalCount, Page, PageSize, TotalPages, HasNextPage, HasPreviousPage
-│   │   └── Policies/
-│   │       └── StaffEmailPolicy.cs   – IStaffEmailPolicy: Validate(email, role) — enforces @nexapay.com for staff roles
-│   ├── DTOs/
-│   │   ├── AccountDto.cs
-│   │   ├── CardDto.cs
-│   │   ├── TransactionDto.cs
-│   │   ├── AuthDto.cs                – Token, Email, Role, ExpiresAt
-│   │   └── CreateCardResponse.cs
-│   ├── Features/
-│   │   ├── Accounts/
-│   │   │   ├── Commands/
-│   │   │   │   ├── CreateAccount/    – CreateAccountCommand + Handler + Validator
-│   │   │   │   └── DeleteAccount/    – DeleteAccountCommand + Handler + Validator
-│   │   │   └── Queries/
-│   │   │       ├── GetAccountById/   – GetAccountByIdQuery + Handler
-│   │   │       └── GetAllAccounts/   – GetAllAccountsQuery + Handler
-│   │   ├── Auth/
-│   │   │   └── Commands/
-│   │   │       ├── Login/            – LoginCommand + Handler + Validator
-│   │   │       └── Register/         – RegisterCommand + Handler + Validator (uses IStaffEmailPolicy)
-│   │   ├── Cards/
-│   │   │   ├── Commands/
-│   │   │   │   ├── CreateCard/       – CreateCardCommand + Handler + Validator
-│   │   │   │   ├── ActivateCard/     – ActivateCardCommand + Handler
-│   │   │   │   └── BlockCard/        – BlockCardCommand + Handler
-│   │   │   └── Queries/
-│   │   │       └── GetCardsByAccount/ – GetCardsByAccountQuery + Handler
-│   │   └── Transactions/
-│   │       ├── Commands/
-│   │       │   ├── Deposit/          – DepositCommand + Handler + Validator (idempotency-aware)
-│   │       │   ├── Withdraw/         – WithdrawCommand + Handler + Validator (idempotency-aware)
-│   │       │   └── Transfer/         – TransferCommand + Handler + Validator (idempotency-aware)
-│   │       └── Queries/
-│   │           └── GetTransactionsByAccount/ – Paginated query
-│   └── Mappings/
-│       └── MappingProfile.cs         – AutoMapper profiles for all entity → DTO mappings
+│   │   ├── Behaviors/           – LoggingBehavior, ValidationBehavior, ConcurrencyRetryBehavior, AuditBehavior
+│   │   ├── Constants/Roles.cs   – Rollnamn + kombinerade rollset
+│   │   ├── EventHandlers/       – Reagerar på domain events (skickar mail, loggar)
+│   │   ├── Interfaces/          – IAuthService, IAuditService, INotificationService, ITokenDenylist, IAppSettings
+│   │   ├── Models/              – Result<T>, PagedResult<T>, IResult
+│   │   └── Policies/            – StaffEmailPolicy (kräver @nexapay.com för personalroller)
+│   ├── DTOs/                    – AccountDto, CardDto, TransactionDto, AuthDto, CreateCardResponse
+│   ├── Features/                – Ett mappområde per resurs + Commands/Queries
+│   │   ├── Accounts/            – CreateAccount, DeleteAccount, FreezeAccount, UnfreezeAccount, GetAccountById, GetAllAccounts, LookupAccountByNumber
+│   │   ├── Auth/                – Register, Login
+│   │   ├── Cards/               – CreateCard, ActivateCard, BlockCard, UnblockCard, GetCardsByAccount
+│   │   └── Transactions/        – Deposit, Withdraw, Transfer, PayInvoice, GetTransactionsByAccount
+│   └── Mappings/MappingProfile.cs
 │
-├── NexaPay.Infrastructure/
-│   ├── DependencyInjection.cs        – AddInfrastructure(): EF Core, repositories, JWT, Redis, token denylist
-│   ├── Settings/
-│   │   └── AppSettings.cs            – Reads Jwt:Key, Jwt:Issuer, StaffDomain from configuration
+├── NexaPay.Infrastructure/      – Persistens + Identity + externa tjänster
+│   ├── DependencyInjection.cs   – AddInfrastructure(): EF Core + repositories + JWT + Redis
+│   ├── Settings/AppSettings.cs  – Läser konfiguration
 │   ├── Identity/
-│   │   ├── AuthService.cs            – Implements IAuthService using UserManager<IdentityUser> + RoleManager
-│   │   ├── JwtService.cs             – Generates HS256 JWT with claims (sub, email, role, jti, exp)
-│   │   ├── InMemoryTokenDenylist.cs  – Thread-safe ConcurrentDictionary, timer-based cleanup
-│   │   └── RedisTokenDenylist.cs     – Redis SET with TTL matching token expiry
-│   └── Persistence/
-│       ├── ApplicationDbContext.cs   – Inherits IdentityDbContext<IdentityUser>, owns all entities
-│       ├── UnitOfWork.cs             – Wraps SaveChangesAsync(), dispatches domain events via IPublisher
-│       ├── Configurations/
-│       │   ├── AccountConfiguration.cs    – RowVersion concurrency token, owned Money type, indexes
-│       │   ├── CardConfiguration.cs       – CardNumber unique index
-│       │   └── TransactionConfiguration.cs – IdempotencyKey filtered unique index
-│       ├── Repositories/
-│       │   ├── AccountRepository.cs
-│       │   ├── CardRepository.cs
-│       │   ├── TransactionRepository.cs
-│       │   └── BaseRepository.cs     – Generic CRUD + AsNoTracking reads
-│       └── Migrations/               – 9 EF Core migrations (SQL Server)
+│   │   ├── AuthService.cs       – Implementerar IAuthService med UserManager + RoleManager
+│   │   ├── JwtService.cs        – Skapar JWT med claims (sub, jti, email, role)
+│   │   ├── InMemoryTokenDenylist.cs
+│   │   └── RedisTokenDenylist.cs
+│   ├── Notifications/
+│   │   ├── SmtpNotificationService.cs – Skickar mail via SMTP (Gmail)
+│   │   └── LoggingNotificationService.cs – Loggar istället för att maila (test/dev)
+│   ├── Persistence/
+│   │   ├── ApplicationDbContext.cs    – Ärver IdentityDbContext
+│   │   ├── EfAuditService.cs          – Skriver AuditLog-rader
+│   │   ├── AuditLog.cs                – Audit-tabell
+│   │   ├── Configurations/            – EF Fluent API per entitet
+│   │   ├── Repositories/              – Generic Repository<T> + konkreta implementationer
+│   │   └── UnitOfWork.cs              – SaveChanges + dispatch av domain events
+│   └── Migrations/              – 11 EF Core-migrationer (SQL Server)
 │
-├── NexaPay.API/
-│   ├── Program.cs                    – Composition root: AddApplication + AddInfrastructure + AddIdentityServices + AddApiServices
-│   ├── ServiceExtensions.cs          – AddIdentityServices(), AddApiServices(), UseApiMiddleware()
-│   ├── DatabaseExtensions.cs         – InitialiseDatabaseAsync(): migrations + role seeding
-│   ├── ApiResponse.cs                – Envelope type: { success, message, data, errors }
-│   ├── Contracts/                    – Request DTOs (one file per contract)
-│   │   ├── CreateAccountRequest.cs
-│   │   ├── CreateCardRequest.cs
-│   │   ├── BlockCardRequest.cs
-│   │   ├── DepositRequest.cs
-│   │   ├── WithdrawRequest.cs
-│   │   ├── TransferRequest.cs
-│   │   ├── RegisterRequest.cs
-│   │   ├── LoginRequest.cs
-│   │   └── AdminCreateUserRequest.cs
-│   ├── Controllers/
-│   │   ├── AuthController.cs         – POST /register, /login, /logout
-│   │   ├── AccountsController.cs     – GET /accounts, GET /accounts/{id}, POST /accounts, DELETE /accounts/{id}
-│   │   ├── CardsController.cs        – GET /cards/account/{id}, POST /cards, PUT /cards/{id}/activate, PUT /cards/{id}/block
-│   │   ├── TransactionsController.cs – GET /transactions/account/{id}, POST /deposit, /withdraw, /transfer
-│   │   └── AdminController.cs        – POST /admin/users (Admin-only)
-│   ├── Extensions/
-│   │   ├── ClaimsPrincipalExtensions.cs – GetUserId(), IsStaff() helpers on ClaimsPrincipal
-│   │   └── ResultExtensions.cs       – ToErrorResponse() maps Result errors to HTTP responses
-│   └── Middleware/
-│       └── ExceptionMiddleware.cs    – Global exception handler, converts unhandled exceptions to RFC 7807 problem details
+├── NexaPay.API/                 – HTTP-lagret
+│   ├── Program.cs               – Minimal composition root
+│   ├── ServiceExtensions.cs     – AddIdentityServices(), AddApiServices(), UseApiMiddleware()
+│   ├── DatabaseExtensions.cs    – InitialiseDatabaseAsync() (migrations + seed)
+│   ├── ApiResponse.cs           – Standardiserat svarsomslag
+│   ├── Contracts/               – Request DTOs (record types)
+│   ├── Controllers/             – AccountsController, AuthController, CardsController, TransactionsController, AdminController
+│   ├── Extensions/              – ClaimsPrincipalExtensions, ResultExtensions
+│   └── Middleware/              – ExceptionMiddleware (global felhantering)
 │
-└── NexaPay.Tests/
-    ├── TestBase.cs
-    ├── Application/
-    │   ├── Behaviors/
-    │   │   └── ConcurrencyRetryBehaviorTests.cs – 5 unit tests
-    │   ├── Features/
-    │   │   ├── Auth/RegisterHandlerTests.cs      – 5 unit tests (domain role restriction)
-    │   │   ├── Accounts/                         – CreateAccount, DeleteAccount handler tests
-    │   │   ├── Cards/                            – CreateCard, BlockCard handler tests
-    │   │   └── Transactions/                     – Deposit, Withdraw, Transfer handler tests
-    │   └── Validators/                           – FluentValidation validator tests
-    ├── Domain/                                   – Money, Account, Card domain logic tests
-    ├── Infrastructure/                           – Repository + UnitOfWork tests
-    └── Integration/
-        ├── NexaPayWebApplicationFactory.cs       – In-memory DB + role seeding
-        ├── ApiIntegrationTestBase.cs             – Login helper, authenticated client
-        ├── Accounts/                             – Full HTTP integration tests
-        ├── Auth/                                 – Register/Login/Logout HTTP tests
-        └── RateLimiting/
-            └── RateLimitingIntegrationTests.cs   – Verifies 429 responses
+├── NexaPay.Tests/               – 218 tester
+│   ├── TestBase.cs              – Gemensam mock-setup
+│   ├── Application/
+│   │   ├── Behaviors/           – Tester på pipeline behaviors
+│   │   ├── Features/            – Handler-tester per feature (alla CRUD)
+│   │   └── Validators/          – FluentValidation-validator-tester
+│   ├── Domain/                  – Account-, Money-, OcrPolicy-tester
+│   ├── Infrastructure/          – AuthService-tester
+│   └── Integration/             – End-to-end HTTP-tester via test-host
+│
+└── docs/
+    └── NexaPay.postman_collection.json   – 29 endpoints, autosparar JWT
 ```
 
 ---
 
-## Domain Layer
+## Domänlager (Domain)
 
-The domain layer has **zero external NuGet dependencies**. All business rules live here.
+Domänlagret har **noll** externa NuGet-paket. All affärslogik lever här.
 
 ### BaseEntity
 
-```
-BaseEntity
-  Id          : Guid
-  CreatedAt   : DateTime
-  UpdatedAt   : DateTime?
-  DomainEvents: List<IDomainEvent>   (private)
-
-  RaiseDomainEvent(event) – adds to the private list
-  ClearDomainEvents()     – called by UnitOfWork after dispatch
-```
-
-### Account (Aggregate Root)
-
-Account is the central aggregate. It enforces all business rules around money:
-
-```
-Account : BaseEntity
-  AccountNumber : string          (read-only after creation)
-  AccountName   : string
-  Balance       : Money           (private set — only changed via domain methods)
-  AccountType   : AccountType
-  Status        : AccountStatus   (Open | Frozen | Closed)
-  OwnerId       : string          (Identity user ID)
-  RowVersion    : byte[]          (optimistic concurrency token)
-
-  Transactions  : ICollection<Transaction>
-  Cards         : ICollection<Card>
-```
-
-**Factory:**
 ```csharp
-Account.Open(accountNumber, accountName, accountType, ownerId, currency)
-// Private constructor — ensures all accounts start with zero balance and Open status
+abstract class BaseEntity
+{
+    Guid Id;
+    DateTime CreatedAt;
+    DateTime? UpdatedAt;
+
+    private List<IDomainEvent> _domainEvents;  // intern lista
+    IReadOnlyList<IDomainEvent> DomainEvents;  // skrivskyddad vy
+
+    protected void RaiseDomainEvent(IDomainEvent e);  // bara subklasser
+    public IReadOnlyList<IDomainEvent> PopDomainEvents();  // anropas av UnitOfWork
+}
 ```
 
-**Domain methods (enforce invariants, raise events, return Transactions):**
+### Account (aggregat-rot)
 
-| Method | Guard conditions | Event raised |
-|---|---|---|
-| `Deposit(amount, description, idempotencyKey?)` | Status must be Open | `MoneyDeposited` |
-| `Withdraw(amount, description, idempotencyKey?)` | Status must be Open; sufficient balance | `MoneyWithdrawn` |
-| `TransferTo(amount, description, receiver, idempotencyKey?)` | Both accounts Open; sufficient balance | `MoneyTransferred` |
-| `PayInvoice(amount, bankgiro, ocr, description, idempotencyKey?)` | Status must be Open; sufficient balance | `MoneyWithdrawn` |
-| `Freeze()` | Not already Frozen or Closed | — |
-| `Unfreeze()` | Must be Frozen | — |
-| `Close()` | Not already Closed; balance must be zero | `AccountClosed` |
+```csharp
+class Account : BaseEntity
+{
+    string AccountNumber;           // unikt index
+    string AccountName;
+    Money Balance;                  // privat-set, ändras bara via metoder
+    AccountType AccountType;
+    AccountStatus Status;           // Open | Frozen | Closed
+    string OwnerId;                 // Identity-användarens id
+    byte[] RowVersion;              // optimistisk concurrency
+
+    static Account Open(...);                                            // fabriksmetod
+    Transaction Deposit(Money, description, idempotencyKey?);            // raises MoneyDeposited
+    Transaction Withdraw(Money, description, idempotencyKey?);           // raises MoneyWithdrawn
+    Transaction PayInvoice(Money, bankgiro, ocr, ..., idempotencyKey?);  // raises MoneyWithdrawn
+    (Transaction, Transaction) TransferTo(amount, ..., receiver, ...);   // raises MoneyTransferred
+    void Freeze();
+    void Unfreeze();
+    void Close();                                                        // raises AccountClosed
+}
+```
 
 ### Money (Value Object)
 
 ```csharp
 sealed class Money : IEquatable<Money>
-  Amount   : decimal   // always 2 decimal places (MidpointRounding.AwayFromZero)
-  Currency : Currency  // SEK | EUR | USD
-
-  Money.Zero(currency)   // factory for zero balance
-  + - > < >= <=          // operators — throws if currencies differ
-  ToString()             // "1234.56 SEK"
-```
-
-Money prevents mixing currencies at compile-time semantics: `100 SEK + 50 EUR` throws `InvalidOperationException`.
-
-### Card
-
-```
-Card : BaseEntity
-  CardNumber    : string      (unique)
-  CardHolderName: string
-  ExpiryDate    : DateTime
-  Status        : CardStatus  (Inactive | Active | Blocked | Expired)
-  AccountId     : Guid
-
-  Activate()         – must be Inactive
-  Block(reason)      – raises CardBlocked event
-  MarkAsExpired()    – sets status to Expired
-```
-
-### Domain Events
-
-All events implement `IDomainEvent : INotification` (MediatR). They are raised by domain methods and dispatched by `UnitOfWork` **after** a successful `SaveChangesAsync()`.
-
-| Event | Raised by | Payload |
-|---|---|---|
-| `MoneyDeposited` | `Account.Deposit()` | AccountId, OwnerId, Amount, BalanceAfter, Timestamp |
-| `MoneyWithdrawn` | `Account.Withdraw()` | AccountId, OwnerId, Amount, BalanceAfter, Timestamp |
-| `MoneyTransferred` | `Account.TransferTo()` | FromAccountId, ToAccountId, OwnerId, Amount, Timestamp |
-| `CardBlocked` | `Card.Block()` | CardId, AccountId, Reason, Timestamp |
-| `AccountClosed` | `Account.Close()` | AccountId, OwnerId, Timestamp |
-
----
-
-## Application Layer
-
-### CQRS with MediatR
-
-Every operation is a **Command** (write) or **Query** (read). Controllers never call repositories directly — they send a Command or Query through MediatR, which routes it to the correct Handler.
-
-```
-Controller → IMediator.Send(command) → Pipeline Behaviors → Handler → Repository
-```
-
-### Pipeline Behaviors (in order)
-
-Behaviors wrap every MediatR request like nested middleware:
-
-```
-Request
-  └─ LoggingBehavior          (1st)  logs request start + elapsed time
-       └─ ValidationBehavior  (2nd)  runs FluentValidation, returns failure on error
-            └─ ConcurrencyRetryBehavior (3rd)  catches ConcurrencyException, retries ≤ 2 times
-                 └─ AuditBehavior    (4th)  writes audit record after command succeeds
-                      └─ Handler     (actual business logic)
-```
-
-**LoggingBehavior**
-- Logs request name and data with `ILogger`
-- Implements `ISensitiveRequest` on requests like `LoginCommand` — data is suppressed, only the request name is logged
-- Logs a `Warning` if elapsed time exceeds 500ms
-
-**ValidationBehavior**
-- Collects all `IValidator<TRequest>` from DI (registered by `AddValidatorsFromAssembly`)
-- Runs all validators in parallel via `ValidateAsync`
-- If any fail, returns `Result.Failure(errors)` without calling the handler
-
-**ConcurrencyRetryBehavior**
-- Catches `ConcurrencyException` (wraps `DbUpdateConcurrencyException`)
-- Retries the handler up to `MaxRetries = 2` (3 total attempts)
-- Re-throws on the 3rd failure
-- Other exceptions pass through without retry
-
-**AuditBehavior**
-- Runs only on `ICommand` (not queries)
-- After the handler returns success, writes an audit log entry
-
-### Result Pattern
-
-All handlers return `Result<T>` — never throw for business logic failures:
-
-```csharp
-Result<T>.Success(value)   // IsSuccess = true, Value = value
-Result<T>.Failure(error)   // IsFailure = true, Error = error message
-```
-
-Controllers call `result.IsSuccess` and map to HTTP status codes via `ResultExtensions.ToErrorResponse()`.
-
-### StaffEmailPolicy
-
-Extracted from `RegisterHandler` into a named, testable policy:
-
-```csharp
-interface IStaffEmailPolicy
 {
-    string? Validate(string email, string role);
-    // Returns null if allowed, error message if not
+    decimal Amount;       // alltid 2 decimaler (MidpointRounding.AwayFromZero)
+    Currency Currency;    // SEK | EUR | USD
+
+    static Money Zero(currency);
+    +, -, >, <, >=, <=    // operatorer – kastar om valutorna är olika
 }
 ```
 
-Rule: Any role other than `User` requires an `@nexapay.com` email address. This is enforced in `RegisterHandler` and tested independently.
+Money förhindrar att vi blandar valutor: `100 SEK + 50 EUR` kastar `InvalidOperationException`.
 
-### Validators
+### Card
 
-Every Command has a corresponding `FluentValidation` validator. Examples:
+```csharp
+class Card : BaseEntity
+{
+    string CardToken;        // intern token (PAN sparas aldrig)
+    string Last4Digits;      // sista 4 siffror (för UI)
+    string CardHolderName;
+    DateOnly ExpiryDate;
+    CardStatus Status;       // Inactive | Active | Blocked | Expired
 
-- `DepositCommandValidator` — AccountId not empty, Amount > 0 and ≤ daily limit
-- `RegisterCommandValidator` — valid email format, password complexity
-- `CreateAccountCommandValidator` — non-empty account name, valid AccountType
+    void Activate();
+    void Block();      // raises CardBlocked
+    void Unblock();
+    void MarkAsExpired();
+}
+```
+
+### Transaction (oföränderlig)
+
+Alla properties är `init` – en transaktion ändras aldrig efter att den skapats. Detta uppfyller bankregler om revisionsbarhet.
+
+```csharp
+class Transaction : BaseEntity
+{
+    Money Amount;
+    TransactionType Type;             // Deposit | Withdrawal | Transfer | InvoicePayment
+    string Description;
+    Money BalanceAfterTransaction;    // saldo direkt EFTER händelsen
+    Guid? ReceiverAccountId;          // bara för Transfer
+    Guid AccountId;
+    string? Bankgiro;                 // bara för InvoicePayment
+    string? Ocr;                      // bara för InvoicePayment
+    Guid? IdempotencyKey;             // filtrerat unikt index i SQL
+}
+```
 
 ---
 
-## Infrastructure Layer
+## Applikationslager (Application)
+
+### CQRS med MediatR
+
+Varje operation är ett **Command** (skriv) eller en **Query** (läs). Controllers anropar aldrig repositories direkt – de skickar ett Command/Query via MediatR som routes till rätt Handler.
+
+```
+Controller → IMediator.Send(command) → Pipeline Behaviors → Handler → Repository → DB
+```
+
+### Pipeline Behaviors
+
+Fyra behaviors körs i specifik ordning runt varje handler:
+
+```
+Request
+  └─ 1. LoggingBehavior            (loggar request + tid)
+       └─ 2. ValidationBehavior    (kör FluentValidation, kortsluter vid fel)
+            └─ 3. ConcurrencyRetryBehavior (försöker igen ≤ 2 ggr vid ConcurrencyException)
+                 └─ 4. AuditBehavior  (skriver audit-rad efter handler)
+                      └─ Handler (faktisk affärslogik)
+```
+
+| Behavior | Funktion |
+|---|---|
+| `LoggingBehavior` | Loggar request + svarstid. Markerar requests med `ISensitiveRequest` (t.ex. LoginCommand) så att lösenord aldrig hamnar i loggar. Varnar vid > 500 ms. |
+| `ValidationBehavior` | Kör alla `IValidator<TRequest>` parallellt. Vid fel kastas `ValidationException` som översätts till HTTP 400. |
+| `ConcurrencyRetryBehavior` | Försöker köra handler igen vid `ConcurrencyException` (DB-collision). MaxRetries = 2 (3 totalt försök). |
+| `AuditBehavior` | Skriver audit-rad för alla kommandon (inte queries). Körs sist – auditerar slutligt utfall. |
+
+### Result-mönstret
+
+Handlers returnerar `Result<T>` istället för att kasta undantag för förväntade fel:
+
+```csharp
+Result<T>.Success(value)        // IsSuccess = true
+Result<T>.Failure(error)        // BusinessRule – 400
+Result<T>.NotFound(error)       // NotFound – 404
+```
+
+`ResultExtensions.ToErrorResponse()` mappar resultat till rätt HTTP-status.
+
+### Domain Events
+
+Events publiceras EFTER lyckad `SaveChanges` – aldrig om transaktionen rullas tillbaka:
+
+```
+UnitOfWork.SaveChangesAsync()
+  1. Samla in alla events från tracked entities
+  2. DbContext.SaveChangesAsync()  ← DB-skrivning
+  3. För varje event: IPublisher.Publish(event)  ← MediatR
+  4. Rensa events-listan
+```
+
+| Event | Triggas av | Handler |
+|---|---|---|
+| `MoneyDeposited` | `Account.Deposit()` | Loggar + mailar ägaren |
+| `MoneyWithdrawn` | `Account.Withdraw()`, `PayInvoice()` | Loggar + mailar ägaren |
+| `MoneyTransferred` | `Account.TransferTo()` | Loggar + mailar avsändaren |
+| `CardBlocked` | `Card.Block()` | Loggar (Warning) + mailar ägaren |
+| `AccountClosed` | `Account.Close()` | Loggar + skickar avslutningsmejl |
+
+---
+
+## Infrastrukturlager (Infrastructure)
 
 ### Entity Framework Core
 
-`ApplicationDbContext` inherits `IdentityDbContext<IdentityUser>`. It owns:
-- `DbSet<Account>`
-- `DbSet<Card>`
-- `DbSet<Transaction>`
+`ApplicationDbContext` ärver `IdentityDbContext<IdentityUser>` och innehåller:
+- `DbSet<Account>` – alla konton
+- `DbSet<Card>` – alla kort
+- `DbSet<Transaction>` – immutable transaktionslogg
+- `DbSet<AuditLog>` – audit-spår
 
-**SQL Server retry policy** — configured with `EnableRetryOnFailure(maxRetryCount: 3, maxRetryDelay: 5s)` for transient failures.
+**Globalt query-filter:** stängda konton döljs i alla queries om man inte explicit anropar `IgnoreQueryFilters()`.
 
-**Entity configurations** (via `IEntityTypeConfiguration<T>`):
+**Owned types:** `Money` lagras som två kolumner (Amount + Currency) på samma rad som ägar-entiteten.
 
-- `AccountConfiguration` — configures `Money` as an owned type (stored as `Balance_Amount` + `Balance_Currency` columns), adds `RowVersion` as a concurrency token, unique index on `AccountNumber`
-- `TransactionConfiguration` — filtered unique index on `IdempotencyKey` (only non-null values): `CREATE UNIQUE INDEX ... WHERE IdempotencyKey IS NOT NULL`
-- `CardConfiguration` — unique index on `CardNumber`
+**Filtered unique index** på `Transactions.IdempotencyKey` – endast non-NULL värden är unika. Hjärtat i dubbla-POST-skyddet.
 
-### Unit of Work
+**Retry policy:** EF Core är konfigurerad med `EnableRetryOnFailure(3, 5s)` för transienta SQL-fel.
+
+### Generic Repository
+
+```csharp
+abstract class Repository<T> : IGenericRepository<T>
+{
+    Task<T?> GetByIdAsync(Guid id);
+    Task<IEnumerable<T>> GetAllAsync();
+    Task AddAsync(T entity);
+}
+```
+
+`AccountRepository`, `CardRepository` och `TransactionRepository` ärver basen och lägger till entitet-specifika queries (t.ex. `GetByAccountNumberAsync`, `GetByIdempotencyKeyAsync`).
+
+`Update` och `Remove` exponeras avsiktligt INTE generiskt – muteringar görs via intention-revealing metoder på aggregaten själva (`Account.Close()`, `Card.Block()`).
+
+### UnitOfWork
 
 ```csharp
 class UnitOfWork : IUnitOfWork
 {
-    Task SaveChangesAsync()
-    // 1. Calls DbContext.SaveChangesAsync()
-    // 2. Collects all domain events from all tracked entities
-    // 3. Dispatches them via IPublisher (MediatR)
-    // 4. Clears the events list on each entity
+    IAccountRepository Accounts { get; }
+    ICardRepository Cards { get; }
+    ITransactionRepository Transactions { get; }
+
+    Task<int> SaveChangesAsync(CancellationToken);
 }
 ```
 
-This ensures domain events are only dispatched after the database write succeeds.
+Samordnar alla repositories under en gemensam DbContext-transaktion. Hanterar både `DbUpdateConcurrencyException` (→ `ConcurrencyException`) och dispatch av domain events efter lyckad save.
 
-### Identity & Authentication
+### Identity och JWT
 
-**AuthService** (`IAuthService`) wraps ASP.NET Core Identity:
-- `RegisterAsync(email, password, role)` — creates `IdentityUser`, assigns role
-- `LoginAsync(email, password)` — validates credentials, returns JWT via `IJwtService`
-
-**JwtService** generates tokens with claims:
-- `sub` — user ID
-- `email` — email address
-- `role` — assigned role
-- `jti` — unique token ID (used for denylist)
-- `exp` — expiry (configurable, default 24h)
-
-Signed with HS256. Key must be ≥ 32 bytes — enforced at startup with an `InvalidOperationException`.
-
-**Token Denylist** — supports logout by revoking tokens before they expire:
-
-| Implementation | When used | Persistence |
-|---|---|---|
-| `InMemoryTokenDenylist` | No Redis configured | Process memory — lost on restart |
-| `RedisTokenDenylist` | `ConnectionStrings:Redis` set | Redis SET with TTL — survives restarts, works across multiple instances |
-
-`OnTokenValidated` in `JwtBearerEvents` checks the denylist on every authenticated request.
-
-### Repositories
-
-All repositories inherit from `BaseRepository<T>`:
-
-| Method | Notes |
+| Klass | Ansvar |
 |---|---|
-| `GetByIdAsync(id)` | Tracked (for writes) |
-| `GetAllAsync()` | Tracked |
-| `GetByAccountNumberAsync(number)` | `AsNoTracking()` — read-only query |
-| `AddAsync(entity)` | |
-| `Remove(entity)` | |
+| `AuthService` | Implementerar `IAuthService` mot `UserManager` + `RoleManager`. Hanterar registrering, inloggning, e-postbekräftelse, lösenordsåterställning. |
+| `JwtService` | Skapar HS256-tokens med claims: `sub` (userId), `jti` (token-id för revokering), `email`, `role`, `exp`. Default 24h livstid. |
+| `InMemoryTokenDenylist` | ConcurrentDictionary + timer-rensning. Förlorar state vid omstart. |
+| `RedisTokenDenylist` | Redis SET med TTL. Skalar över flera serverinstanser. Fail-open vid Redis-fel. |
+
+`OnTokenValidated` i `JwtBearerEvents` kollar denylisten på varje request. Logout revoker token-id (jti).
+
+### Notifications
+
+`SmtpNotificationService` skickar verkliga mejl via SMTP (Gmail-default). Om SMTP inte är konfigurerat loggas bara en varning – appen kraschar inte. `LoggingNotificationService` används i tester.
 
 ---
 
-## API Layer
+## API-lager (API)
 
-### Program.cs — Startup Order
+### Program.cs
 
 ```csharp
-// 1. Register services
-builder.Services.AddApplication();           // MediatR, AutoMapper, FluentValidation, behaviors
-builder.Services.AddInfrastructure(config);  // EF Core, repositories, JWT, Redis
-builder.Services.AddIdentityServices();      // ASP.NET Identity + JWT scheme fix
-builder.Services.AddApiServices(config);     // Controllers, Swagger, CORS, rate limiting, health checks
+var builder = WebApplication.CreateBuilder(args);
 
-// 2. Build
+builder.Services.AddApplication();              // Application
+builder.Services.AddInfrastructure(builder.Configuration);  // Infrastructure
+builder.Services.AddIdentityServices();         // Identity + JWT scheme fix
+builder.Services.AddApiServices(builder.Configuration);     // Controllers, Swagger, CORS, rate limiting
+
 var app = builder.Build();
-
-// 3. Database
-await app.InitialiseDatabaseAsync();         // Migrations + seed roles
-
-// 4. Middleware pipeline
+await app.InitialiseDatabaseAsync();            // migrations + role seed
 app.UseApiMiddleware();
+app.Run();
 ```
 
-### Middleware Pipeline (in order)
+### Middleware-pipeline
 
 ```
-1. ExceptionMiddleware    – catches all unhandled exceptions → 500 problem details
-2. UseHttpsRedirection    – redirects HTTP → HTTPS
-3. UseCors               – CORS policy (origins from config)
-4. UseRateLimiter         – 429 before auth to block unauthenticated hammering
-5. UseAuthentication      – validates JWT, populates ClaimsPrincipal
-6. UseAuthorization       – checks [Authorize] attributes and role requirements
-7. MapControllers         – routes to controller actions
-8. MapHealthChecks        – /health (no auth required)
+1. Security headers          (X-Content-Type-Options, X-Frame-Options, Referrer-Policy)
+2. ExceptionMiddleware       (global felhantering)
+3. UseCors                   (FE-origins från config)
+4. UseHttpsRedirection       (endast i Production)
+5. UseRateLimiter            (429 innan auth)
+6. UseAuthentication         (JWT-validering + denylist-koll)
+7. UseAuthorization          ([Authorize(Roles=…)])
+8. MapControllers
+9. MapHealthChecks("/health")
 ```
 
 ### Rate Limiting
 
-Two FixedWindow policies. Limits are read from the `RateLimiting` configuration section — `appsettings.json` holds the strict defaults, `appsettings.Development.json` overrides them with generous values so local testing isn't blocked.
+Två FixedWindow-policies. Gränserna läses från `RateLimiting`-sektionen i appsettings.
 
-| Policy | Applies to | Default (`appsettings.json`) | Development |
+| Policy | Endpoints | Default | Dev |
 |---|---|---|---|
-| `"auth"` | `AuthController` | 5 requests / minute / IP | 100 / minute / IP |
-| `"financial"` | `AccountsController`, `CardsController`, `TransactionsController` | 20 requests / minute / IP | 1000 / minute / IP |
+| `"auth"` | AuthController | 5 req/min/IP | 100 / min |
+| `"financial"` | Accounts/Cards/Transactions | 20 req/min/IP | 1000 / min |
 
-Rejected requests receive `429 Too Many Requests`.  
-`POST /auth/logout` uses `[DisableRateLimiting]` — logout is always allowed.
+Avvisade requests får `429 Too Many Requests`. `POST /api/auth/logout` har `[DisableRateLimiting]`.
 
-### Health Checks
+### Health checks
 
-`GET /health` — no authentication required (used by load balancers):
+`GET /health` – ingen autentisering (används av load balancers):
 
-| Check | Implementation | Healthy condition |
+| Check | Implementation | Healthy |
 |---|---|---|
-| `database` | `AddDbContextCheck<ApplicationDbContext>` | `SELECT 1` succeeds |
-| `redis` | `RedisHealthCheck : IHealthCheck` | `IConnectionMultiplexer.IsConnected` = true (or "not configured" = Healthy) |
+| `database` | `AddDbContextCheck<ApplicationDbContext>` | `SELECT 1` lyckas |
+| `redis` | `RedisHealthCheck` | `IConnectionMultiplexer.IsConnected` (eller "ej konfigurerat" = Healthy) |
 
-### API Versioning
+### API-versionering
 
-All controllers are tagged `[ApiVersion("1.0")]`. Version is supplied via:
+Alla controllers är taggade `[ApiVersion("1.0")]`. Version skickas via:
 - Query string: `?api-version=1.0`
 - Header: `X-API-Version: 1.0`
-- Omitted: defaults to `1.0` (`AssumeDefaultVersionWhenUnspecified = true`)
+- Utelämnad: default 1.0
 
-### Contracts
+### ApiResponse
 
-Request bodies are defined as `record` types in `NexaPay.API/Contracts/` — one file per contract. This separates the API surface from the application commands.
+Standardiserat svarsomslag:
 
-### Extensions
-
-**`ClaimsPrincipalExtensions`**
-```csharp
-User.GetUserId()  // reads "sub" claim → string
-User.IsStaff()    // true if role is Admin, BankManager, Teller, or Auditor
+```json
+{ "success": true, "message": "...", "data": { ... }, "timestamp": "..." }
 ```
 
-**`ResultExtensions`**
-```csharp
-this.ToErrorResponse(result)
-// Maps Result.Error → 404 Not Found (if "not found"), 403 Forbidden, or 400 Bad Request
-```
+Vid fel returneras `errors` som dictionary (vid valideringsfel) eller bara `message` (vid affärsregelbrott).
 
 ---
 
-## Authentication & Authorization
+## Autentisering och behörighet
 
-### Registration Flow
-
-```
-POST /api/auth/register
-  └─ AuthController enforces Role = "User" only (staff roles rejected at API layer)
-       └─ RegisterCommand → RegisterHandler
-            └─ StaffEmailPolicy.Validate(email, role)  ← only User role reaches here, always passes
-                 └─ IAuthService.RegisterAsync()
-                      └─ UserManager.CreateAsync() + AddToRoleAsync()
-                           └─ JwtService.GenerateToken()
-                                └─ AuthDto { Token, Email, Role, ExpiresAt }
-```
-
-Staff accounts (Admin, BankManager, Teller, Auditor) are created exclusively via:
-```
-POST /api/admin/users   [Authorize(Roles = "Admin")]
-```
-The `StaffEmailPolicy` enforces that staff roles require an `@nexapay.com` email.
-
-### Login Flow
+### Registreringsflöde
 
 ```
-POST /api/auth/login
-  └─ LoginCommand → LoginHandler
-       └─ IAuthService.LoginAsync()
-            └─ UserManager.FindByEmailAsync() + CheckPasswordAsync()
-                 └─ Lockout checked (5 failed attempts → 15-minute lockout)
-                      └─ JwtService.GenerateToken()
-                           └─ AuthDto { Token, ... }
+POST /api/auth/register  {email, password, role}
+  → RegisterHandler
+    → StaffEmailPolicy.Validate(email, role)    [@nexapay.com krävs för personal]
+      → IAuthService.RegisterAsync()
+        → UserManager.CreateAsync()
+        → AddToRoleAsync()
+        → SendEmailConfirmationAsync()           [mailar bekräftelselänk]
+  → AuthDto { RequiresEmailConfirmation: true }
 ```
 
-### Logout Flow
+Användaren måste klicka i mejlet (`POST /api/auth/confirm-email`) innan första inloggning.
+
+### Inloggningsflöde
+
+```
+POST /api/auth/login  {email, password}
+  → LoginHandler → IAuthService.LoginAsync()
+    → UserManager.FindByEmailAsync + CheckPasswordAsync
+    → Lockout-check (5 misslyckade försök → 15 min låst)
+    → EmailConfirmed-check
+    → JwtService.GenerateToken(userId, email, role)
+  → AuthDto { Token, Email, Role, ExpiresAt }
+```
+
+### Logout-flöde
 
 ```
 POST /api/auth/logout  [Authorize]
-  └─ AuthController reads "jti" + "exp" from ClaimsPrincipal
-       └─ ITokenDenylist.Revoke(jti, expiry)
-            └─ Token added to denylist (in-memory or Redis)
-                 └─ All future requests with this token: OnTokenValidated → 401
+  → Läser jti + exp från ClaimsPrincipal
+  → ITokenDenylist.Revoke(jti, exp)
 ```
+
+Alla framtida requests med samma token avvisas av `OnTokenValidated`.
+
+### Lösenordsregler
+
+Konfigurerade i `AddIdentity`:
+- Minst 8 tecken
+- Måste innehålla siffra, gemen, versal och specialtecken
+- Unik e-postadress per användare
+- 5 misslyckade inloggningar → 15 minuter låst konto
 
 ---
 
-## Request Pipeline
+## Request-pipeline
 
-A complete example — `POST /api/transactions/deposit`:
+Komplett exempel – `POST /api/transactions/deposit`:
 
 ```
 HTTP Request
-  │
-  ├─ ExceptionMiddleware (wraps everything)
-  ├─ UseRateLimiter → checks "financial" bucket (20/min/IP)
-  ├─ UseAuthentication → validates JWT, checks denylist (OnTokenValidated)
-  ├─ UseAuthorization → checks [Authorize(Roles = Roles.CanWrite)]
-  │
-  └─ TransactionsController.Deposit()
-       │   reads AccountId, Amount, Description from body
-       │   reads Idempotency-Key from header
-       │   calls GetUserId() + IsStaff() from ClaimsPrincipal
-       │
-       └─ IMediator.Send(DepositCommand)
-            │
-            ├─ LoggingBehavior → logs "Handling DepositCommand" + request data
-            ├─ ValidationBehavior → runs DepositCommandValidator (amount > 0, accountId valid)
-            ├─ ConcurrencyRetryBehavior → wraps next, ready to retry on ConcurrencyException
-            ├─ AuditBehavior → waits for handler result, then writes audit
-            │
-            └─ DepositHandler
-                 ├─ Check idempotency key → if already exists, return existing transaction
-                 ├─ Load Account from IAccountRepository
-                 ├─ Verify ownership (or IsStaff)
-                 ├─ account.Deposit(Money(amount, currency), description, idempotencyKey)
-                 │    ├─ Guards: Status == Open
-                 │    ├─ Balance += amount
-                 │    └─ Raises MoneyDeposited event
-                 ├─ IUnitOfWork.SaveChangesAsync()
-                 │    ├─ DbContext.SaveChangesAsync() → SQL INSERT/UPDATE
-                 │    └─ Dispatches MoneyDeposited → MoneyDepositedHandler (logs, notifications)
-                 └─ Returns Result<TransactionDto>.Success(...)
-            │
-            └─ AuditBehavior writes audit record
-       │
-       └─ Controller: return Ok(ApiResponse.Ok(result.Value, "..."))
+ │
+ ├─ Security headers
+ ├─ ExceptionMiddleware (wraps everything)
+ ├─ UseCors
+ ├─ UseRateLimiter → "financial"-policy (20/min/IP)
+ ├─ UseAuthentication → validerar JWT + kollar denylist
+ ├─ UseAuthorization → kollar [Authorize(Roles = CanWrite)]
+ │
+ └─ TransactionsController.Deposit()
+     │  läser Idempotency-Key från header
+     │  läser AccountId, Amount, Description från body
+     │  läser userId + IsStaff från ClaimsPrincipal
+     │
+     └─ IMediator.Send(DepositCommand)
+         │
+         ├─ LoggingBehavior   (loggar request + tid)
+         ├─ ValidationBehavior (kör DepositValidator)
+         ├─ ConcurrencyRetryBehavior (wraps, redo att försöka igen)
+         ├─ AuditBehavior      (väntar på handler, skriver audit)
+         │
+         └─ DepositHandler
+             ├─ Idempotency-check (om key finns → returnera befintlig transaktion)
+             ├─ Ladda Account
+             ├─ Verifiera ägarskap (eller IsStaff)
+             ├─ account.Deposit(Money, description, idempotencyKey)
+             │   ├─ Status == Open?
+             │   ├─ Balance += amount
+             │   └─ RaiseDomainEvent(MoneyDeposited)
+             ├─ Transactions.AddAsync(transaction)
+             └─ UnitOfWork.SaveChangesAsync()
+                 ├─ DbContext.SaveChangesAsync()  ← SQL-skrivning
+                 └─ Publicera MoneyDeposited → MoneyDepositedHandler (mail)
+         │
+         └─ AuditBehavior skriver audit-rad
+     │
+     └─ Controller: return Ok(ApiResponse.Ok(result.Value))
 ```
 
 ---
 
-## Domain Events
+## API-endpoints
 
-Domain events are dispatched **after** the database save — they can never be published if the transaction fails.
+Komplett lista (29 endpoints). Se Swagger eller `docs/NexaPay.postman_collection.json` för full dokumentation.
 
-```
-UnitOfWork.SaveChangesAsync()
-  1. DbContext.SaveChangesAsync()  ← database write commits
-  2. foreach entity in ChangeTracker:
-       foreach event in entity.DomainEvents:
-         IPublisher.Publish(event)    ← MediatR dispatches to handler
-  3. entity.ClearDomainEvents()
-```
+### Auth — `[EnableRateLimiting("auth")]`
 
-Each event has a corresponding handler in `NexaPay.Application/Common/EventHandlers/`. These handlers are the place to add notifications, webhook calls, email sending, or any side effects that should happen after a domain action.
-
----
-
-## API Endpoints
-
-### Auth — `[EnableRateLimiting("auth")]`  (5 req/min/IP)
-
-| Method | Path | Auth | Description |
+| Metod | Path | Auth | Beskrivning |
 |---|---|---|---|
-| POST | `/api/auth/register` | — | Register as User |
-| POST | `/api/auth/login` | — | Login, receive JWT |
-| POST | `/api/auth/logout` | Bearer | Revoke current token |
+| POST | `/api/auth/register` | – | Registrera User-konto |
+| POST | `/api/auth/login` | – | Logga in, få JWT |
+| POST | `/api/auth/logout` | Bearer | Revoka aktuell token |
+| GET  | `/api/auth/me` | Bearer | Hämta inloggad användares profil |
+| POST | `/api/auth/confirm-email` | – | Bekräfta e-post via mejllänk |
+| POST | `/api/auth/forgot-password` | – | Begär lösenordsåterställning |
+| POST | `/api/auth/reset-password` | – | Sätt nytt lösenord med token |
+| POST | `/api/auth/change-password` | Bearer | Byt lösenord (inloggad) |
 
-### Accounts — `[EnableRateLimiting("financial")]`  (20 req/min/IP)
+### Accounts — `[EnableRateLimiting("financial")]`
 
-| Method | Path | Roles | Description |
+| Metod | Path | Roller | Beskrivning |
 |---|---|---|---|
-| GET | `/api/accounts` | All authenticated | Staff: all accounts. User: own accounts |
-| GET | `/api/accounts/{id}` | All authenticated | Staff: any. User: own only |
-| POST | `/api/accounts` | CanWrite (not Auditor) | Create account |
-| DELETE | `/api/accounts/{id}` | Admin, BankManager, User | Close account (must have zero balance) |
+| GET | `/api/accounts` | Alla | Staff: alla konton, User: egna |
+| GET | `/api/accounts/{id}` | Alla | Staff: alla, User: egna |
+| GET | `/api/accounts/lookup?number={n}` | Alla | Slå upp konto via kontonummer |
+| POST | `/api/accounts` | Admin, BankManager, Teller, User | Skapa konto |
+| PUT | `/api/accounts/{id}/freeze` | Admin, BankManager, Teller, User | Frys konto |
+| PUT | `/api/accounts/{id}/unfreeze` | Admin, BankManager, Teller, User | Avfrys konto |
+| DELETE | `/api/accounts/{id}` | Admin, BankManager, User | Stäng konto (saldo måste vara 0) |
 
 ### Cards — `[EnableRateLimiting("financial")]`
 
-| Method | Path | Roles | Description |
+| Metod | Path | Roller | Beskrivning |
 |---|---|---|---|
-| GET | `/api/cards/account/{accountId}` | All authenticated | Get cards for account |
-| POST | `/api/cards` | CanWrite (not Auditor) | Issue new card |
-| PUT | `/api/cards/{id}/activate` | CanWrite (not Auditor) | Activate inactive card |
-| PUT | `/api/cards/{id}/block` | Admin, BankManager | Block card with reason |
+| GET | `/api/cards/account/{accountId}` | Alla | Lista kort för konto |
+| POST | `/api/cards` | Admin, BankManager, Teller, User | Skapa nytt kort |
+| PUT | `/api/cards/{id}/activate` | Admin, BankManager, Teller, User | Aktivera kort |
+| PUT | `/api/cards/{id}/block` | Admin, BankManager | Blockera kort |
+| PUT | `/api/cards/{id}/unblock` | Admin, BankManager | Avblockera kort |
 
 ### Transactions — `[EnableRateLimiting("financial")]`
 
-| Method | Path | Roles | Description |
+| Metod | Path | Roller | Beskrivning |
 |---|---|---|---|
-| GET | `/api/transactions/account/{accountId}` | All authenticated | Paginated transaction list |
-| POST | `/api/transactions/deposit` | CanWrite (not Auditor) | Deposit money |
-| POST | `/api/transactions/withdraw` | CanWrite (not Auditor) | Withdraw money |
-| POST | `/api/transactions/transfer` | Admin, BankManager, User | Transfer between accounts |
-| POST | `/api/transactions/invoice-payment` | CanWrite (not Auditor) | Pay an invoice to a bankgiro/plusgiro with mod-10 validated OCR |
-
-Query parameters for GET transactions: `?page=1&pageSize=20`
+| GET | `/api/transactions/account/{id}?page=1&pageSize=20` | Alla | Paginerad historik |
+| POST | `/api/transactions/deposit` | Admin, BankManager, Teller, User | Insättning |
+| POST | `/api/transactions/withdraw` | Admin, BankManager, Teller, User | Uttag |
+| POST | `/api/transactions/transfer` | Admin, BankManager, User | Överföring |
+| POST | `/api/transactions/invoice-payment` | Admin, BankManager, Teller, User | Fakturabetalning |
 
 ### Admin — `[Authorize(Roles = "Admin")]`
 
-| Method | Path | Roles | Description |
+| Metod | Path | Beskrivning |
+|---|---|---|
+| POST | `/api/admin/users` | Skapa användare med valfri roll |
+| GET | `/api/admin/users` | Lista alla användare |
+| DELETE | `/api/admin/users/{id}` | Ta bort användare |
+
+### Health
+
+| Metod | Path | Auth | Beskrivning |
 |---|---|---|---|
-| POST | `/api/admin/users` | Admin | Create user with any role |
+| GET | `/health` | – | Status för database + Redis |
 
 ---
 
-## Role-Based Access Control
+## Rollbaserad behörighet (RBAC)
 
-```
-Role         Read All  Write  Transfer  Block Card  Admin
-──────────────────────────────────────────────────────────
-Admin          ✓        ✓        ✓          ✓         ✓
-BankManager    ✓        ✓        ✓          ✓         ✗
-Teller         ✓        ✓        ✗          ✗         ✗
-Auditor        ✓        ✗        ✗          ✗         ✗
-User           own      own      own        ✗         ✗
-```
+| Roll | Se alla konton | Skapa konto | Skriv | Överför | Blockera kort | Admin-panel |
+|---|---|---|---|---|---|---|
+| **Admin** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| **BankManager** | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ |
+| **Teller** | ✓ | ✓ | ✓ | ✗ | ✗ | ✗ |
+| **Auditor** | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ |
+| **User** | bara egna | ✓ | egna | egna | ✗ | ✗ |
 
-Role string constants with combined sets (used in `[Authorize(Roles = ...)]`):
+Rollkonstanter i `NexaPay.Application/Common/Constants/Roles.cs`:
 
 ```csharp
-Roles.Admin           = "Admin"
-Roles.BankManager     = "BankManager"
-Roles.Teller          = "Teller"
-Roles.Auditor         = "Auditor"
-Roles.User            = "User"
+Roles.Admin            = "Admin"
+Roles.BankManager      = "BankManager"
+Roles.Teller           = "Teller"
+Roles.Auditor          = "Auditor"
+Roles.User             = "User"
 
-Roles.CanWrite        = "Admin,BankManager,Teller,User"
-Roles.CanTransfer     = "Admin,BankManager,User"
-Roles.CanDelete       = "Admin,BankManager,User"
-Roles.CanBlockCard    = "Admin,BankManager"
+Roles.AllStaff         = "Admin,BankManager,Teller,Auditor"
+Roles.CanWrite         = "Admin,BankManager,Teller,User"
+Roles.CanTransfer      = "Admin,BankManager,User"
+Roles.CanDelete        = "Admin,BankManager,User"
+Roles.CanBlockCard     = "Admin,BankManager"
 Roles.CanViewAllAccounts = "Admin,BankManager,Teller,Auditor"
-Roles.AllStaff        = "Admin,BankManager,Teller,Auditor"
 ```
 
-Staff roles (`Admin`, `BankManager`, `Teller`, `Auditor`) require a `@nexapay.com` email address and can only be created via `POST /api/admin/users`.
+**Personalroller** (`Admin`, `BankManager`, `Teller`, `Auditor`) kräver en e-postadress som matchar `StaffDomain` (default `nexapay.com`). Kontrolleras av `StaffEmailPolicy` vid registrering.
 
 ---
 
-## Idempotency
+## Idempotens
 
-Financial commands (Deposit, Withdraw, Transfer) accept an optional `Idempotency-Key` header:
+Finansiella commands (Deposit, Withdraw, Transfer, PayInvoice) accepterar header:
 
 ```
 Idempotency-Key: 550e8400-e29b-41d4-a716-446655440000
 ```
 
-If a request with the same key has already been processed for the same account, the handler returns the **original transaction result** without executing again. The key is stored as a filtered unique index in the `Transactions` table (only non-null values are indexed).
+Om en transaktion med samma key redan finns returnerar handlern den **ursprungliga** transaktionen utan att skapa en ny. Skyddet bygger på:
 
-This means clients can safely retry failed requests without double-charging.
+1. **Klientens UUID** i headern
+2. **Filtrerat unikt index** i SQL: `WHERE IdempotencyKey IS NOT NULL`
+3. **Handler-koll**: `await Transactions.GetByIdempotencyKeyAsync(key)` innan vi kallar aggregatet
 
----
-
-## Testing
-
-**159 tests** across 4 categories:
-
-### Unit Tests — Application
-
-- **`RegisterHandlerTests`** (5 tests) — staff email policy enforced: external email + staff role denied, external email + User role allowed, all 4 staff roles require `@nexapay.com`
-- **`ConcurrencyRetryBehaviorTests`** (5 tests) — retry once, retry twice, exceed MaxRetries throws, other exceptions not retried, success on first try
-- Handler tests for all features (Deposit, Withdraw, Transfer, CreateAccount, DeleteAccount, CreateCard, BlockCard, ActivateCard)
-- Validator tests
-
-### Unit Tests — Domain
-
-- `MoneyTests` — arithmetic, currency enforcement, equality, negative amounts rejected
-- `AccountTests` — all domain method guard conditions
-- `CardTests` — state machine transitions
-
-### Integration Tests — Infrastructure
-
-- Repository tests with real EF Core (in-memory provider)
-- UnitOfWork event dispatch
-
-### Integration Tests — API
-
-`NexaPayWebApplicationFactory` creates a test host with:
-- EF Core in-memory database
-- All 5 roles seeded on startup
-- Real middleware pipeline
-
-`ApiIntegrationTestBase` provides `LoginAsync(role)` → `HttpClient` with `Authorization: Bearer ...` header set.
-
-**RateLimitingIntegrationTests** — `RateLimitingWebApplicationFactory` overrides financial `PermitLimit` to 1. Each test gets a fresh factory via `[SetUp]`/`[TearDown]` so rate limit buckets don't bleed between tests.
+Detta gör att klienten tryggt kan göra `retry` på nätverksfel utan att riskera dubbla insättningar.
 
 ---
 
-## Getting Started
+## Databas och migrationer
 
-### Prerequisites
+### Tabeller
 
-- .NET 8 SDK
-- SQL Server (local or Docker)
-- Redis (optional — in-memory fallback used if not configured)
+EF Core skapar:
 
-### 1. Clone and restore
+| Tabell | Innehåll |
+|---|---|
+| `Accounts` | Bankkonton med RowVersion + ägar-FK |
+| `Cards` | Kort knutna till Accounts |
+| `Transactions` | Immutable transaktionslogg |
+| `AuditLogs` | Audit-spår från AuditBehavior |
+| `AspNet*` | ASP.NET Identity-tabeller (Users, Roles, UserRoles, etc.) |
+
+11 migrationer finns i `NexaPay.Infrastructure/Migrations/`.
+
+### Kör migrationer manuellt
 
 ```bash
-git clone <repo>
+# Skapa ny migration
+dotnet ef migrations add MinMigration -p NexaPay.Infrastructure -s NexaPay.API
+
+# Tillämpa
+dotnet ef database update -p NexaPay.Infrastructure -s NexaPay.API
+
+# Rulla tillbaka
+dotnet ef database update FöregåendeMigration -p NexaPay.Infrastructure -s NexaPay.API
+```
+
+I `Development` körs migrationer automatiskt vid uppstart. I `Production` loggas en varning – migrationer bör då köras separat i deploy-pipelinen.
+
+### Seedade data
+
+Vid uppstart skapas:
+
+- **5 roller**: Admin, BankManager, Teller, Auditor, User
+- **5 dev-användare** (alla med lösenord `NexaPay1!` och `EmailConfirmed = true`):
+  - `admin@nexapay.com` (Admin)
+  - `bankmanager@nexapay.com` (BankManager)
+  - `teller@nexapay.com` (Teller)
+  - `auditor@nexapay.com` (Auditor)
+  - `user@test.com` (User)
+
+---
+
+## Tester
+
+**218 tester** över fyra kategorier (`dotnet test` – körs på cirka 10 sekunder):
+
+### Enhetstester – Application (Handlers + Validators)
+
+- Alla handlers för CRUD i Accounts, Cards, Transactions, Auth
+- Validator-tester för alla commands
+- Pipeline behavior-tester (ConcurrencyRetry)
+
+### Enhetstester – Domain
+
+- `AccountTests` – domäninvarianter (negativt saldo, fryst konto, stängt konto)
+- `OcrPolicyTests` – mod-10/Luhn-validering
+
+### Enhetstester – Infrastructure
+
+- `AuthServiceTests` – Identity-flöden med mockade UserManager/RoleManager
+
+### Integrationstester
+
+- `AccountsIntegrationTests` – HTTP-CRUD via real test-host
+- `AuthIntegrationTests` – Register/Login/Logout end-to-end
+- `TransactionsIntegrationTests` – Deposit/Withdraw/Transfer/PayInvoice + idempotency
+- `RateLimitingIntegrationTests` – verifierar 429-svar
+
+```bash
+# Kör alla tester
+dotnet test
+
+# Kör en specifik kategori
+dotnet test --filter "Category=Domain"
+dotnet test --filter "Category=Integration"
+```
+
+---
+
+## Installation
+
+### Förutsättningar
+
+- **.NET 8 SDK** ([nedladdning](https://dotnet.microsoft.com/download/dotnet/8.0))
+- **SQL Server** (lokal eller via Docker) — eller **SQL Server LocalDB** (Windows)
+- **Redis** (valfritt — in-memory fallback om inte konfigurerat)
+
+### 1. Klona och återställ
+
+```bash
+git clone https://github.com/b1-loop/NexaPay.git
 cd NexaPay
 dotnet restore
 ```
 
-### 2. Configure appsettings
-
-Copy `appsettings.Development.json` and set:
+### 2. Konfigurera `appsettings.Development.json`
 
 ```json
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Server=localhost;Database=NexaPay;Trusted_Connection=True;",
+    "DefaultConnection": "Server=localhost;Database=NexaPay;Trusted_Connection=True;TrustServerCertificate=True",
     "Redis": ""
   },
   "Jwt": {
-    "Key": "your-secret-key-minimum-32-characters-long",
+    "Key": "din-superhemliga-nyckel-minst-32-tecken-lång",
     "Issuer": "NexaPay",
     "Audience": "NexaPay",
-    "ExpiresInHours": 24
+    "ExpiryHours": 24
   },
   "StaffDomain": "nexapay.com",
+  "FrontendUrl": "http://localhost:5173",
   "Cors": {
-    "AllowedOrigins": ["http://localhost:3000"]
+    "AllowedOrigins": ["http://localhost:5173"]
   }
 }
 ```
 
-`Jwt:Key` must be at least 32 bytes (256 bits). The application throws at startup if the key is too short.
+**Viktigt:** `Jwt:Key` MÅSTE vara minst 32 byte (256 bitar). Appen kraschar vid uppstart om den är för kort.
 
-### 3. Run
+### 3. Kör API:et
 
 ```bash
 cd NexaPay.API
 dotnet run
 ```
 
-Database migrations run automatically on startup. The application seeds the 5 roles (`Admin`, `BankManager`, `Teller`, `Auditor`, `User`).
+Migrationer + roller + dev-användare seedas automatiskt. API:et startar på:
 
-Swagger UI: `https://localhost:{port}/swagger`  
-Health check: `https://localhost:{port}/health`
+- **HTTP:** `http://localhost:5190`
+- **HTTPS:** `https://localhost:7206`
+- **Swagger:** `http://localhost:5190/swagger`
+- **Health:** `http://localhost:5190/health`
 
-### 4. Test
+### 4. Testa via Swagger
+
+1. `POST /api/auth/login` med `{ "email": "admin@nexapay.com", "password": "NexaPay1!" }`
+2. Kopiera `token` från svaret
+3. Klicka 🔒 **Authorize** överst i Swagger-UI:t
+4. Skriv `Bearer <din-token>` och klicka Authorize
+5. Testa nu valfri skyddad endpoint!
+
+### 5. Testa via Postman
+
+Importera `docs/NexaPay.postman_collection.json`. Inställningar:
+- Collection-variabler `baseUrl`, `token`, `accountId` etc.
+- Login-anropet auto-sparar tokenen via test-script
+- `Idempotency-Key` genereras automatiskt med `{{$guid}}`
+
+### 6. Kör testerna
 
 ```bash
 dotnet test
 ```
 
-### Quick start with Swagger
-
-1. `POST /api/auth/register` with `{ "email": "user@gmail.com", "password": "Password1!", "role": "User" }`
-2. `POST /api/auth/login` to get a JWT token
-3. Click **Authorize** in Swagger UI, enter `Bearer {token}`
-4. `POST /api/accounts` to create a bank account
-5. `POST /api/transactions/deposit` to add money
-
-To create a staff account: first create an Admin user directly in the database, then use `POST /api/admin/users`.
+Förväntat: **218 passed, 0 failed**.
 
 ---
 
-## Configuration Reference
+## Konfiguration
 
-| Key | Description | Required |
+| Nyckel | Beskrivning | Krävs |
 |---|---|---|
-| `ConnectionStrings:DefaultConnection` | SQL Server connection string | Yes |
-| `ConnectionStrings:Redis` | Redis connection string (empty = in-memory denylist) | No |
-| `Jwt:Key` | HS256 signing key, min 32 bytes | Yes |
-| `Jwt:Issuer` | JWT issuer claim | Yes |
-| `Jwt:Audience` | JWT audience claim | Yes |
-| `Jwt:ExpiresInHours` | Token lifetime in hours | Yes |
-| `StaffDomain` | Domain required for staff roles (e.g. `nexapay.com`) | Yes |
-| `Cors:AllowedOrigins` | Array of allowed CORS origins | No (all denied if empty) |
-| `AllowedHosts` | ASP.NET Core host filtering | Set in production |
+| `ConnectionStrings:DefaultConnection` | SQL Server connection string | Ja |
+| `ConnectionStrings:Redis` | Redis connection (tom = in-memory) | Nej |
+| `Jwt:Key` | HS256-nyckel, minst 32 byte | Ja |
+| `Jwt:Issuer` | JWT issuer-claim | Ja |
+| `Jwt:Audience` | JWT audience-claim | Ja |
+| `Jwt:ExpiryHours` | Token-livstid i timmar (default 24) | Nej |
+| `StaffDomain` | E-postdomän för personalroller (default `nexapay.com`) | Nej |
+| `FrontendUrl` | URL till frontend (för konfirmations/reset-länkar) | Nej |
+| `Cors:AllowedOrigins` | Lista över tillåtna CORS-origins | Nej (alla nekas om tom) |
+| `RateLimiting:Auth:PermitLimit` | Auth-rate-limit per minut | Nej (default 5) |
+| `RateLimiting:Financial:PermitLimit` | Financial-rate-limit per minut | Nej (default 20) |
+| `Smtp:Host` | SMTP-server (default Gmail) | Nej |
+| `Smtp:Port` | SMTP-port (default 587) | Nej |
+| `Smtp:Username` | SMTP-användarnamn (e-postadress) | Nej |
+| `Smtp:Password` | SMTP-app-lösenord | Nej |
+| `Smtp:FromName` | Avsändarens visningsnamn | Nej |
+| `AllowedHosts` | ASP.NET Core host-filtrering | Sätt i produktion |
 
-### Production notes
+### Produktionsnoteringar
 
-- **Redis**: Set `ConnectionStrings:Redis` in environment variables or secrets. Without it, token revocation (logout) does not survive restarts and does not work across multiple API instances.
-- **`AllowedHosts`**: Set to your actual domain (e.g. `api.nexapay.com`) to prevent host header injection.
-- **Database migrations**: The application runs `MigrateAsync()` on startup and logs a warning in Production. For horizontal scaling, replace with `dotnet ef database update` as a separate deploy step before starting instances.
+- **Redis:** Sätt `ConnectionStrings:Redis` i miljövariabler eller secrets. Utan Redis fungerar inte tokenrevokering över flera serverinstanser.
+- **AllowedHosts:** Sätt till din domän (t.ex. `api.nexapay.com`) för att förhindra host header-injection.
+- **Migrationer:** Appen kör `MigrateAsync()` vid uppstart och loggar varning i Production. För horisontell skalning – ersätt med separat `dotnet ef database update` i deploy-pipelinen.
+- **HSTS** aktiveras automatiskt utanför Development.
+
+---
+
+## Säkerhet
+
+Sammanfattning av säkerhetsfunktioner som är inbyggda:
+
+| Område | Skydd |
+|---|---|
+| Autentisering | JWT HS256, jti-revokering via denylist |
+| Lösenord | Identity-hash, krav: 8+ tecken, gemen/versal/siffra/specialtecken |
+| Brute force | Kontolåsning efter 5 misslyckade försök i 15 min |
+| Rate limiting | 5/min på auth, 20/min på financial (per IP) |
+| Användarnumeration | `ForgotPasswordAsync` returnerar alltid 200 OK |
+| Behörighet | RBAC via `[Authorize(Roles=…)]` per endpoint + ägarskaps-check i handlers |
+| Personalregistrering | StaffEmailPolicy (kräver `@nexapay.com` för personalroller) |
+| HTTPS | UseHttpsRedirection + HSTS i Production |
+| Säkerhetsheaders | X-Content-Type-Options, X-Frame-Options, Referrer-Policy |
+| SQL injection | EF Core parametriserar alla queries |
+| XSS | ASP.NET Core kodar JSON-output |
+| CORS | Whitelist via `Cors:AllowedOrigins` |
+| PAN/CVV | Lagras ALDRIG – endast Last4Digits + opaque CardToken |
+| Validering | FluentValidation kortsluter ogiltiga requests innan handlern körs |
+| Concurrency | Optimistisk via RowVersion + retry behavior |
+| Audit | Alla kommandon loggas till AuditLogs-tabellen |
+| Idempotency | Filtrerat unikt index på IdempotencyKey i Transactions |
+
+---
+
+## Bidra till projektet
+
+Vi följer ett enkelt GitHub-flöde:
+
+1. **Branch-namn:** `feature/<kort-beskrivning>` eller `fix/<kort-beskrivning>` eller `docs/<kort-beskrivning>`.
+2. **Commit-meddelanden:** korta och i imperativ form (`Add Transfer endpoint`, inte `Added`).
+3. **Pull request:** skapas mot `master`. Branch protection är aktivt – inga direkta push:ar tillåtna.
+4. **CI-krav:** kör `dotnet build` och `dotnet test` lokalt före PR. Båda måste passera.
+5. **GitHub Project Board:** https://github.com/users/b1-loop/projects/12 – knyt din PR till en issue.
+
+### Kodstandard
+
+- Public klasser/metoder har XML-/blockkommentarer eller filheader på svenska.
+- En klass per fil.
+- Nullable enabled i `.csproj` – inga onödiga null-warnings.
+- `record`-typer för commands och requests (immutability).
+- Inga magiska strängar – använd `Roles.*`-konstanter.
+- Inga `throw new Exception(...)` – använd specifika typer eller Result-mönstret.
+
+---
+
+## Diagram och dokumentation
+
+| Fil | Innehåll |
+|---|---|
+| `README.md` (denna fil) | Översikt + setup |
+| `DOMAIN_DIAGRAM.md` | Mermaid UML-klassdiagram över domänen |
+| `USER_FLOW.md` | Mermaid sekvens- och dataflödesdiagram |
+| `APPLICATION_GUIDE.md` | Fördjupad guide till Application-lagret |
+| `ARCHITECTURE_REVIEW.md` | Arkitektur-genomgång och beslutsmotiveringar |
+| `CODEBASE_GUIDE.md` | Detaljerad mapp- och filgenomgång |
+| `docs/NexaPay.postman_collection.json` | Postman-collection med 29 endpoints |
+
+---
+
+## Licens och författare
+
+Skoluppgift – inte avsedd för produktionsbruk.
+
+**Författare:**
+- [@Haval-Jalal](https://github.com/Haval-Jalal)
+- [@b1-loop](https://github.com/b1-loop) (Bozhidar N. Ivanov)
+
+**Relaterade repos:**
+- Frontend (React): https://github.com/Haval-Jalal/NexaPay-FE

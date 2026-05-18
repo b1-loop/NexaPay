@@ -1,3 +1,17 @@
+// ============================================================
+// DepositHandler.cs
+// NexaPay.Application/Features/Transactions/Commands/Deposit
+// ============================================================
+// Sätter in pengar via Account.Deposit(). Före själva insättningen:
+//   1. Vi laddar kontot och verifierar ägarskap (eller staff-roll).
+//   2. Vi kollar Idempotency-Key – om samma key redan finns
+//      returnerar vi den existerande transaktionen istället
+//      för att skapa en dubblett.
+//
+// Domän-eventet MoneyDeposited publiceras automatiskt efter
+// SaveChanges (via UnitOfWork) och triggar notifikation till ägaren.
+// ============================================================
+
 using AutoMapper;
 using MediatR;
 using NexaPay.Application.Common.Models;

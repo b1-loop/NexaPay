@@ -1,3 +1,16 @@
+// ============================================================
+// TransferHandler.cs
+// NexaPay.Application/Features/Transactions/Commands/Transfer
+// ============================================================
+// Genomför en kontoöverföring via Account.TransferTo(). Skapar
+// TVÅ transaktionsrader (en på varje konto) som sparas atomärt
+// i samma SaveChanges → antingen sker hela överföringen eller
+// rullas allt tillbaka. Pengar kan därför aldrig "tappa bort sig".
+//
+// Olika valutor avvisas direkt – vi gör ingen valutaväxling.
+// Idempotency-Key kortsluter dubbla POSTs.
+// ============================================================
+
 using AutoMapper;
 using MediatR;
 using NexaPay.Application.Common.Models;

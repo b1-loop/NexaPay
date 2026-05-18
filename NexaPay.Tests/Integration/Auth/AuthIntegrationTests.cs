@@ -1,3 +1,12 @@
+// ============================================================
+// AuthIntegrationTests.cs – NexaPay.Tests/Integration/Auth
+// ============================================================
+// End-to-end-tester för /api/auth/*-endpoints mot den in-memory
+// test-servern (NexaPayWebApplicationFactory). Verifierar hela
+// stacken: middleware, controller, MediatR-pipeline, validators,
+// AuthService och Identity tillsammans.
+// ============================================================
+
 using FluentAssertions;
 using NUnit.Framework;
 using System.Net;

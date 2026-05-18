@@ -1,3 +1,12 @@
+// ============================================================
+// AuthServiceTests.cs – NexaPay.Tests/Infrastructure/Identity
+// ============================================================
+// Enhetstester för AuthService med mockade UserManager,
+// RoleManager och JwtService. Täcker registrering, inloggning
+// och felscenarier (felaktigt lösenord, obekräftad e-post,
+// låst konto).
+// ============================================================
+
 using FluentAssertions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;

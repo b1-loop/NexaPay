@@ -1,9 +1,20 @@
+// ============================================================
+// IAccountRepository.cs – NexaPay.Domain/Interfaces
+// ============================================================
+// Domänen definierar VAD som ska gå att fråga om konton, men inte
+// HUR det implementeras. Infrastructure-lagret implementerar
+// metoderna mot EF Core. På så sätt kan Application-handlers
+// testas mot ett in-memory-fake utan att starta SQL Server.
+//
+// Den här interfacen ärver grundläggande CRUD från IGenericRepository
+// (GetByIdAsync, GetAllAsync, AddAsync) och lägger till queries
+// som är specifika för konto-aggregatet.
+// ============================================================
+
 using NexaPay.Domain.Entities;
 
 namespace NexaPay.Domain.Interfaces
 {
-    // Ärver GetByIdAsync, GetAllAsync, AddAsync från IGenericRepository<Account>.
-    // Lägger till entitet-specifika queries nedan.
     public interface IAccountRepository : IGenericRepository<Account>
     {
         Task<IEnumerable<Account>> GetAllAccountsAsync(CancellationToken cancellationToken = default);

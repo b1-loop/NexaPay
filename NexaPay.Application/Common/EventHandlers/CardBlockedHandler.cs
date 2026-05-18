@@ -1,3 +1,12 @@
+// ============================================================
+// CardBlockedHandler.cs – NexaPay.Application/Common/EventHandlers
+// ============================================================
+// Reagerar när ett kort blockerats. Skriver en VARNING i loggen
+// (säkerhetsrelevant händelse) och skickar notifikation till
+// kortinnehavaren. CardBlocked-eventet bär inte OwnerId, så vi
+// slår upp kontot för att hitta ägaren.
+// ============================================================
+
 using MediatR;
 using Microsoft.Extensions.Logging;
 using NexaPay.Application.Common.Interfaces;

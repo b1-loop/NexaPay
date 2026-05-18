@@ -1,3 +1,15 @@
+// ============================================================
+// AdminController.cs – NexaPay.API/Controllers
+// ============================================================
+// Endpoints som endast Admin får anropa:
+//   POST   /api/admin/users           – skapa personal-/användarkonto
+//   GET    /api/admin/users           – lista alla användare
+//   DELETE /api/admin/users/{id}      – ta bort användare
+//
+// Klassen är låst med [Authorize(Roles = Roles.Admin)] på toppnivå
+// så att inte ens BankManager kommer åt dessa endpoints.
+// ============================================================
+
 using Asp.Versioning;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;

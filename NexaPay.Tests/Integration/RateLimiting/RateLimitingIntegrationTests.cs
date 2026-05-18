@@ -1,3 +1,13 @@
+// ============================================================
+// RateLimitingIntegrationTests.cs
+// NexaPay.Tests/Integration/RateLimiting
+// ============================================================
+// Verifierar att rate-limiting-policyerna ("auth" och "financial")
+// returnerar 429 Too Many Requests när gränserna överskrids.
+// Använder en separat WebApplicationFactory som ÅTERAKTIVERAR
+// rate-limiting (den ordinarie factory:n slår av det).
+// ============================================================
+
 using FluentAssertions;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.DependencyInjection;

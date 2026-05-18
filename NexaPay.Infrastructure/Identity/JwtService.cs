@@ -1,3 +1,17 @@
+// ============================================================
+// JwtService.cs – NexaPay.Infrastructure/Identity
+// ============================================================
+// Skapar JWT-tokens (HS256) för inloggade användare. Varje token
+// innehåller:
+//   * sub  – användarens id (string)
+//   * jti  – unik token-id (för revokering via ITokenDenylist)
+//   * email
+//   * role – exakt en av Roles.* – läses av [Authorize(Roles="…")]
+//
+// Nyckeln, issuer, audience och expiry tas från appsettings
+// (sektion "Jwt"). Default-expiry är 24 timmar om värdet saknas.
+// ============================================================
+
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.JsonWebTokens;

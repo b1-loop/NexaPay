@@ -1,3 +1,14 @@
+// ============================================================
+// RegisterHandler.cs
+// NexaPay.Application/Features/Auth/Commands/Register
+// ============================================================
+// Registrerar en ny användare. Före vi anropar IAuthService
+// kör vi StaffEmailPolicy – personalroller får bara registreras
+// med en e-post som matchar appsettings.StaffDomain.
+// Själva Identity-anropet (UserManager, password hash, mailtoken)
+// sker i Infrastructure/AuthService.
+// ============================================================
+
 using MediatR;
 using NexaPay.Application.Common.Interfaces;
 using NexaPay.Application.Common.Models;

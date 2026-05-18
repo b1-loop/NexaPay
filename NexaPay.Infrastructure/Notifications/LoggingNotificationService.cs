@@ -1,10 +1,19 @@
+// ============================================================
+// LoggingNotificationService.cs
+// NexaPay.Infrastructure/Notifications
+// ============================================================
+// Alternativ implementation av INotificationService som bara
+// loggar notifikationer i stället för att skicka mejl. Används
+// i tester och under lokal utveckling när SMTP inte finns.
+// Att byta till SmtpNotificationService kräver bara en ändring
+// i DependencyInjection.cs – övrig kod är oberörd.
+// ============================================================
+
 using Microsoft.Extensions.Logging;
 using NexaPay.Application.Common.Interfaces;
 
 namespace NexaPay.Infrastructure.Notifications
 {
-    // Placeholder — byt ut mot riktig e-post/SMS-provider inför produktion.
-    // Att byta implementation kräver bara en ändring i DependencyInjection.cs.
     public class LoggingNotificationService : INotificationService
     {
         private readonly ILogger<LoggingNotificationService> _logger;

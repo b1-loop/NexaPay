@@ -1,3 +1,12 @@
+// ============================================================
+// NexaPayWebApplicationFactory.cs – NexaPay.Tests/Integration
+// ============================================================
+// Bygger upp en in-memory test-server för integrationstester.
+// Bytter ut den riktiga SQL Server-databasen mot EF Core
+// InMemory-provider och slår av rate-limiting så testerna kan
+// köra många anrop i rad utan att blockeras.
+// ============================================================
+
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.RateLimiting;

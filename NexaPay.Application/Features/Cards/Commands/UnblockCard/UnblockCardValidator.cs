@@ -1,3 +1,10 @@
+// ============================================================
+// UnblockCardValidator.cs
+// NexaPay.Application/Features/Cards/Commands/UnblockCard
+// ============================================================
+// FluentValidation-regler för UnblockCardCommand.
+// ============================================================
+
 using FluentValidation;
 
 namespace NexaPay.Application.Features.Cards.Commands.UnblockCard

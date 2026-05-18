@@ -1,3 +1,11 @@
+// ============================================================
+// MoneyTransferredHandler.cs – NexaPay.Application/Common/EventHandlers
+// ============================================================
+// Reagerar när en överföring genomförts. Loggar och notifierar
+// avsändaren – mottagaren får en separat MoneyDeposited-händelse
+// från Account-aggregatet.
+// ============================================================
+
 using MediatR;
 using Microsoft.Extensions.Logging;
 using NexaPay.Application.Common.Interfaces;

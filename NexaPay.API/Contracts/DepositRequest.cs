@@ -1,3 +1,11 @@
+// ============================================================
+// DepositRequest.cs – NexaPay.API/Contracts
+// ============================================================
+// HTTP-body för POST /api/transactions/deposit. Klienten ska
+// dessutom skicka header 'Idempotency-Key: <uuid>' så att en
+// dubbel POST inte skapar två insättningar.
+// ============================================================
+
 namespace NexaPay.API.Contracts
 {
     public record DepositRequest

@@ -1,3 +1,12 @@
+// ============================================================
+// TransactionsIntegrationTests.cs
+// NexaPay.Tests/Integration/Transactions
+// ============================================================
+// E2E-tester för /api/transactions/* (deposit, withdraw,
+// transfer, pay-invoice + paginerad historik). Verifierar
+// idempotency-headern, ägar-koll och valutamatchning.
+// ============================================================
+
 using FluentAssertions;
 using NUnit.Framework;
 using System.Net;

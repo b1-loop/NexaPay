@@ -1,3 +1,23 @@
+// ============================================================
+// Account.cs – NexaPay.Domain/Entities
+// ============================================================
+// Aggregat-rot för ett bankkonto i NexaPay. Detta är hjärtat i
+// hela domänen – all pengar-rörelse går genom metoder på denna
+// klass så att domäninvarianter alltid hålls:
+//
+//   * Saldo kan aldrig bli negativt (kontrolleras före varje uttag).
+//   * Frysta/stängda konton kan inte ta emot transaktioner.
+//   * Stängda konton måste först ha 0 i saldo.
+//   * Domain Events raises på alla värdetransaktioner så att
+//     notifikations- och audit-handlers kan reagera utanför
+//     aggregatet (Open/Closed Principle).
+//
+// Alla setters är PRIVATA – ingen extern kod kan ändra saldo,
+// status eller ägare direkt. Hela "rörlig logik" sker via
+// intention-revealing metoder: Open, Deposit, Withdraw, Transfer,
+// PayInvoice, Freeze, Unfreeze, Close.
+// ============================================================
+
 using NexaPay.Domain.Enums;
 using NexaPay.Domain.Events;
 using NexaPay.Domain.ValueObjects;
@@ -6,6 +26,9 @@ namespace NexaPay.Domain.Entities
 {
     public class Account : BaseEntity
     {
+        // Parameterlös konstruktor krävs av EF Core vid materialisering
+        // från databasen. Är PRIVAT så att domänen tvingas använda
+        // fabriksmetoden Open() för att skapa nya konton.
         private Account() { }
 
         public string AccountNumber { get; private set; } = string.Empty;
@@ -15,10 +38,19 @@ namespace NexaPay.Domain.Entities
         public AccountStatus Status { get; private set; } = AccountStatus.Open;
         public string OwnerId { get; private set; } = string.Empty;
 
+        // Navigation properties som EF Core fyller via include/lazy-load.
         public ICollection<Transaction> Transactions { get; set; } = new List<Transaction>();
         public ICollection<Card> Cards { get; set; } = new List<Card>();
+
+        // Optimistisk samtidighetskontroll – SQL Server uppdaterar
+        // RowVersion automatiskt vid varje UPDATE. Om två requests
+        // försöker spara samtidigt får den sista en DbUpdateConcurrencyException,
+        // som ConcurrencyRetryBehavior fångar och försöker igen.
         public byte[] RowVersion { get; set; } = [];
 
+        // Fabriksmetod för att skapa ett helt nytt konto. Ger oss en
+        // tydlig "ingång" och garanterar att Id sätts och Balance
+        // initieras till Money.Zero i rätt valuta.
         public static Account Open(
             string accountNumber,
             string accountName,

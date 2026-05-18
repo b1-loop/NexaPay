@@ -1,3 +1,10 @@
+// ============================================================
+// GetAllAccountsValidator.cs
+// NexaPay.Application/Features/Accounts/Queries/GetAllAccounts
+// ============================================================
+// FluentValidation-regler för GetAllAccountsQuery.
+// ============================================================
+
 using FluentValidation;
 
 namespace NexaPay.Application.Features.Accounts.Queries.GetAllAccounts

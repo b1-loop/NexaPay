@@ -1,3 +1,14 @@
+// ============================================================
+// TransactionRepository.cs
+// NexaPay.Infrastructure/Persistence/Repositories
+// ============================================================
+// Konkret EF Core-implementation av ITransactionRepository.
+// Innehåller pagineringen som körs i ett enda Skip/Take-anrop
+// med separat Count för totalt antal. AsNoTracking används
+// genomgående eftersom transaktioner aldrig muteras efter att
+// de skapats – endast läses.
+// ============================================================
+
 using Microsoft.EntityFrameworkCore;
 using NexaPay.Domain.Entities;
 using NexaPay.Domain.Enums;

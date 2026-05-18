@@ -1,3 +1,16 @@
+// ============================================================
+// INotificationService.cs – NexaPay.Application/Common/Interfaces
+// ============================================================
+// Skickar notifikationer (e-post) till användare. Anropas av
+// event handlers (MoneyDeposited, CardBlocked, AccountClosed)
+// och AuthService (registrering, lösenordsåterställning).
+//
+// Två implementationer i Infrastructure:
+//   * SmtpNotificationService – riktig SMTP (Gmail)
+//   * LoggingNotificationService – skriver bara till loggen
+//     (används i tester och utveckling)
+// ============================================================
+
 namespace NexaPay.Application.Common.Interfaces
 {
     public interface INotificationService

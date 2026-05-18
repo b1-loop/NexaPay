@@ -1,3 +1,13 @@
+// ============================================================
+// LookupAccountByNumberHandler.cs
+// NexaPay.Application/Features/Accounts/Queries/LookupAccountByNumber
+// ============================================================
+// Slår upp ett konto via dess externa kontonummer. Returnerar
+// EN smal DTO (Id, namn, nummer) – vi exponerar AVSIKTLIGT inte
+// saldo eller ägare så att Transfer-sökfältet inte kan användas
+// för att kartlägga andra kunders information.
+// ============================================================
+
 using MediatR;
 using NexaPay.Application.Common.Models;
 using NexaPay.Domain.Interfaces;

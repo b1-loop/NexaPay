@@ -1,3 +1,20 @@
+// ============================================================
+// AuthController.cs – NexaPay.API/Controllers
+// ============================================================
+// Endpoint-grupp för autentisering och kontohantering:
+//   POST  /api/auth/register          – skapa konto + maila bekräftelselänk
+//   POST  /api/auth/login             – validera + utfärda JWT
+//   GET   /api/auth/me                – returnera profil för inloggad användare
+//   POST  /api/auth/logout            – revoka JWT via denylist
+//   POST  /api/auth/confirm-email     – aktivera konto via mejlad token
+//   POST  /api/auth/forgot-password   – maila reset-token
+//   POST  /api/auth/reset-password    – sätt nytt lösenord via token
+//   POST  /api/auth/change-password   – byt lösenord (inloggad)
+//
+// Hela controllern är rate-limitad med "auth"-policy (5 req/min
+// per IP som standard) för att försvåra brute force-attacker.
+// ============================================================
+
 using Asp.Versioning;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;

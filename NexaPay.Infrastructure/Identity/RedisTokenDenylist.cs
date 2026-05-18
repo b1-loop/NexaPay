@@ -1,3 +1,17 @@
+// ============================================================
+// RedisTokenDenylist.cs – NexaPay.Infrastructure/Identity
+// ============================================================
+// Produktionsklar token-revokering som delas mellan flera
+// serverinstanser via Redis. Nyckel-prefix "nexapay:token:revoked:"
+// + jti, värdet är 1, TTL = återstående token-livstid (då rensas
+// posten automatiskt av Redis).
+//
+// Fail-open: om Redis är otillgängligt loggar vi varning och
+// släpper igenom request. Att blockera alla autentiserade
+// användare vid Redis-fel skulle ge större skada än enstaka
+// revokerade tokens som råkar leva ut sin naturliga exp-tid.
+// ============================================================
+
 using Microsoft.Extensions.Logging;
 using NexaPay.Application.Common.Interfaces;
 using StackExchange.Redis;

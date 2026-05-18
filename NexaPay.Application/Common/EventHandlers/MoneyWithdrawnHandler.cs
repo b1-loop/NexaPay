@@ -1,3 +1,10 @@
+// ============================================================
+// MoneyWithdrawnHandler.cs – NexaPay.Application/Common/EventHandlers
+// ============================================================
+// Reagerar när pengar tagits ut (uttag eller fakturabetalning).
+// Loggar händelsen och skickar notifiering till ägaren.
+// ============================================================
+
 using MediatR;
 using Microsoft.Extensions.Logging;
 using NexaPay.Application.Common.Interfaces;
