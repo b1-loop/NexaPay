@@ -1,3 +1,11 @@
+// ============================================================
+// AccountClosedHandler.cs – NexaPay.Application/Common/EventHandlers
+// ============================================================
+// MediatR notification-handler som reagerar när Account.Close()
+// publicerar ett AccountClosed-event. Loggar händelsen och
+// skickar avslutningsmejl till kontoägaren.
+// ============================================================
+
 using MediatR;
 using Microsoft.Extensions.Logging;
 using NexaPay.Application.Common.Interfaces;

@@ -1,3 +1,11 @@
+// ============================================================
+// UnblockCardHandler.cs
+// NexaPay.Application/Features/Cards/Commands/UnblockCard
+// ============================================================
+// Avblockerar ett kort via Card.Unblock() (endast tillåtet om
+// nuvarande status är Blocked). Endast Admin/BankManager.
+// ============================================================
+
 using MediatR;
 using NexaPay.Application.Common.Models;
 using NexaPay.Domain.Interfaces;

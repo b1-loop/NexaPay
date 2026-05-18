@@ -1,3 +1,11 @@
+// ============================================================
+// PayInvoiceRequest.cs – NexaPay.API/Contracts
+// ============================================================
+// HTTP-body för POST /api/transactions/pay-invoice. Bankgiro
+// och OCR är obligatoriska – OCR valideras med mod-10/Luhn
+// både i frontend och i Domain/OcrPolicy.
+// ============================================================
+
 namespace NexaPay.API.Contracts
 {
     public record PayInvoiceRequest

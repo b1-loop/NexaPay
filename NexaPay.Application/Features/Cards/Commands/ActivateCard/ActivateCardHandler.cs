@@ -1,3 +1,12 @@
+// ============================================================
+// ActivateCardHandler.cs
+// NexaPay.Application/Features/Cards/Commands/ActivateCard
+// ============================================================
+// Aktiverar ett kort via Card.Activate(). Personal får aktivera
+// vilket kort som helst, vanliga användare bara sina egna.
+// Vi slår upp ägar-kontot för behörighetskoll först.
+// ============================================================
+
 using MediatR;
 using NexaPay.Application.Common.Models;
 using NexaPay.Domain.Interfaces;

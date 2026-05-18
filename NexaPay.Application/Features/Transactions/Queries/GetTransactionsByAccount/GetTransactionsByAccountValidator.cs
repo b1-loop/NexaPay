@@ -1,3 +1,12 @@
+// ============================================================
+// GetTransactionsByAccountValidator.cs
+// NexaPay.Application/Features/Transactions/Queries/GetTransactionsByAccount
+// ============================================================
+// FluentValidation-regler för transaktionspagineringen. Page
+// måste vara minst 1 och PageSize 1..100 – samma gränser som
+// handlern klampar till, men här returneras ett tydligt 400-fel.
+// ============================================================
+
 using FluentValidation;
 using NexaPay.Application.Features.Transactions.Queries.GetTransactionsByAccount;
 

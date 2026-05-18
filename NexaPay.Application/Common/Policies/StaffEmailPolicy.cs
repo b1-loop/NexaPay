@@ -1,3 +1,17 @@
+// ============================================================
+// StaffEmailPolicy.cs – NexaPay.Application/Common/Policies
+// ============================================================
+// Säkerhetsregel: personalroller (Admin, BankManager, Teller,
+// Auditor) MÅSTE registreras med en e-post som slutar på
+// konfigurerad personal-domän (t.ex. "@nexapay.com"). Detta
+// hindrar att vem som helst registrerar sig som personal med
+// en privat e-postadress.
+//
+// Returnerar null när regeln är uppfylld (eller rollen är User),
+// annars ett felmeddelande som validators/handlers kan skicka
+// vidare till klienten.
+// ============================================================
+
 using NexaPay.Application.Common.Constants;
 using NexaPay.Application.Common.Interfaces;
 
@@ -5,8 +19,8 @@ namespace NexaPay.Application.Common.Policies
 {
     public interface IStaffEmailPolicy
     {
-        // Returns null when the email/role combination is valid,
-        // or an error message when the staff-domain constraint is violated.
+        // Returnerar null när email/roll-kombinationen är giltig,
+        // annars ett felmeddelande om personal-domänregeln brutits.
         string? Validate(string email, string role);
     }
 

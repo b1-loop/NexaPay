@@ -1,3 +1,10 @@
+// ============================================================
+// MoneyDepositedHandler.cs – NexaPay.Application/Common/EventHandlers
+// ============================================================
+// Reagerar när pengar satts in på ett konto. Loggar händelsen
+// och skickar en notifiering ("Insättning genomförd") till ägaren.
+// ============================================================
+
 using MediatR;
 using Microsoft.Extensions.Logging;
 using NexaPay.Application.Common.Interfaces;

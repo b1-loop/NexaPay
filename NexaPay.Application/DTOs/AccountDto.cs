@@ -1,3 +1,12 @@
+// ============================================================
+// AccountDto.cs – NexaPay.Application/DTOs
+// ============================================================
+// API-vänlig representation av Account-aggregatet. AutoMapper
+// (MappingProfile) plattar ut Money till Balance + Currency och
+// konverterar enums till strängar ("Open" istället för 0) för
+// JSON-läsbarhet i frontend.
+// ============================================================
+
 namespace NexaPay.Application.DTOs
 {
     public class AccountDto

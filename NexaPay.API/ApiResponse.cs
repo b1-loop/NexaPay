@@ -1,3 +1,15 @@
+// ============================================================
+// ApiResponse.cs – NexaPay.API
+// ============================================================
+// Standardiserat svar-omslag som alla controllers returnerar:
+//   { success: bool, message: string, data?: T, timestamp: DateTime }
+//
+// Konsekvent format gör att frontend kan ha EN felhantering
+// (axios response-interceptor) som fungerar för alla anrop.
+// Fabriksmetoderna Ok/Fail garanterar att success-flaggan
+// alltid är rätt i förhållande till om vi har data eller fel.
+// ============================================================
+
 namespace NexaPay.API
 {
     public class ApiResponse

@@ -1,3 +1,12 @@
+// ============================================================
+// FreezeAccountValidator.cs
+// NexaPay.Application/Features/Accounts/Commands/FreezeAccount
+// ============================================================
+// FluentValidation-regler för FreezeAccountCommand.
+// Kontrollerar att obligatoriska id:n är satta innan
+// handlern körs (skyddar mot tomma/Guid.Empty-värden).
+// ============================================================
+
 using FluentValidation;
 
 namespace NexaPay.Application.Features.Accounts.Commands.FreezeAccount

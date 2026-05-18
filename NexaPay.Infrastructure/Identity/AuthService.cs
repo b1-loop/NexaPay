@@ -1,3 +1,20 @@
+// ============================================================
+// AuthService.cs – NexaPay.Infrastructure/Identity
+// ============================================================
+// Konkret implementation av IAuthService. All Identity-logik
+// bor här – UserManager, RoleManager, e-postbekräftelse, lösen-
+// ordsåterställning. Application-lagret känner bara till
+// interfacet och behöver aldrig referera Microsoft.AspNetCore.Identity.
+//
+// Säkerhetsdetaljer:
+//   * AccessFailedAsync räknar misslyckade inloggningar – kontot
+//     låses temporärt efter N försök (konfigurerat i Program.cs).
+//   * ForgotPasswordAsync avslöjar AVSIKTLIGT inte om e-posten
+//     finns – returnerar alltid Success för att inte ge
+//     användarnumeringsmöjligheter till angripare.
+//   * Lösenord/tokens loggas aldrig.
+// ============================================================
+
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;
 using NexaPay.Application.Common.Constants;

@@ -1,3 +1,10 @@
+// ============================================================
+// GetAccountByIdValidator.cs
+// NexaPay.Application/Features/Accounts/Queries/GetAccountById
+// ============================================================
+// FluentValidation-regler för GetAccountByIdQuery.
+// ============================================================
+
 using FluentValidation;
 
 namespace NexaPay.Application.Features.Accounts.Queries.GetAccountById

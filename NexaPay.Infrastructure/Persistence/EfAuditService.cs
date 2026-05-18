@@ -1,3 +1,12 @@
+// ============================================================
+// EfAuditService.cs – NexaPay.Infrastructure/Persistence
+// ============================================================
+// EF Core-implementation av IAuditService. Skriver en ny
+// AuditLog-rad och kör en omedelbar SaveChanges – auditeringen
+// måste persisteras SEPARAT från det egentliga kommandot för
+// att inte rullas tillbaka om kommandot misslyckas senare.
+// ============================================================
+
 using NexaPay.Application.Common.Interfaces;
 
 namespace NexaPay.Infrastructure.Persistence

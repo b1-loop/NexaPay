@@ -1,3 +1,11 @@
+// ============================================================
+// AccountTests.cs – NexaPay.Tests/Domain/Entities
+// ============================================================
+// Domän-tester för Account-aggregatet. Verifierar invarianter
+// (negativt saldo, fryst konto, etc.) direkt mot aggregatet
+// utan något ramverk – inga mocks, inga repositories.
+// ============================================================
+
 using FluentAssertions;
 using NexaPay.Domain.Entities;
 using NexaPay.Domain.Enums;

@@ -1,3 +1,24 @@
+// ============================================================
+// UnitOfWork.cs – NexaPay.Infrastructure/Persistence/Repositories
+// ============================================================
+// Konkret implementation av IUnitOfWork. Två viktiga ansvar:
+//
+//   1. EXPONERA REPOSITORIES – Accounts/Cards/Transactions skapas
+//      lazy vid första anropet och delar samma DbContext-instans
+//      så att alla ändringar deltar i samma transaktion.
+//
+//   2. SAVECHANGES + DOMAIN EVENTS – när SaveChangesAsync anropas:
+//        a) Samla in alla väntande domain events FÖRE SaveChanges.
+//        b) Kör SaveChanges. Om DB-skrivningen misslyckas
+//           publiceras INGA events (kastas vidare som exception).
+//        c) Efter lyckad save publicera alla insamlade events
+//           via MediatRs IPublisher – då anropas alla handlers.
+//        d) DbUpdateConcurrencyException översätts till vår egen
+//           ConcurrencyException som ConcurrencyRetryBehavior kan
+//           fånga och försöka igen. Innan vi kastar rensar vi
+//           change-trackern så nästa försök läser fräsch data.
+// ============================================================
+
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using NexaPay.Domain.Entities;

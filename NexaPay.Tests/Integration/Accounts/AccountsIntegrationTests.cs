@@ -1,3 +1,11 @@
+// ============================================================
+// AccountsIntegrationTests.cs
+// NexaPay.Tests/Integration/Accounts
+// ============================================================
+// E2E-tester för /api/accounts (CRUD + freeze/unfreeze + lookup).
+// Verifierar både happy path och behörighetslogik (User vs Staff).
+// ============================================================
+
 using FluentAssertions;
 using NUnit.Framework;
 using System.Net;

@@ -1,3 +1,11 @@
+// ============================================================
+// OcrPolicyTests.cs – NexaPay.Tests/Domain/Policy
+// ============================================================
+// Verifierar mod-10/Luhn-kontrollen för fakturabetalnings-OCR.
+// Inkluderar både kända giltiga och ogiltiga OCR-nummer samt
+// gränsfall (för kort, för långt, icke-siffror).
+// ============================================================
+
 using FluentAssertions;
 using NexaPay.Domain.Policy;
 using NUnit.Framework;

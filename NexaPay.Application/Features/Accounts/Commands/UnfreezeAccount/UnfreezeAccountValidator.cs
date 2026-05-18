@@ -1,3 +1,10 @@
+// ============================================================
+// UnfreezeAccountValidator.cs
+// NexaPay.Application/Features/Accounts/Commands/UnfreezeAccount
+// ============================================================
+// FluentValidation-regler för UnfreezeAccountCommand.
+// ============================================================
+
 using FluentValidation;
 
 namespace NexaPay.Application.Features.Accounts.Commands.UnfreezeAccount

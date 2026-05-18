@@ -1,3 +1,13 @@
+// ============================================================
+// AuditLog.cs – NexaPay.Infrastructure/Persistence
+// ============================================================
+// Persistent audit-rad som skrivs av EfAuditService för varje
+// kommando som passerat AuditBehavior eller misslyckats i
+// ValidationBehavior. Lever i Infrastructure (inte Domain)
+// eftersom den är ett rent infrastruktur-koncept utan business-
+// regler. Tabellen är append-only.
+// ============================================================
+
 namespace NexaPay.Infrastructure.Persistence
 {
     public class AuditLog

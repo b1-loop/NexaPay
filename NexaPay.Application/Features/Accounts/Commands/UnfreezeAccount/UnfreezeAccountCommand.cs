@@ -1,3 +1,11 @@
+// ============================================================
+// UnfreezeAccountCommand.cs
+// NexaPay.Application/Features/Accounts/Commands/UnfreezeAccount
+// ============================================================
+// MediatR-kommando för att avfrysa ett konto. Spegelbild av
+// FreezeAccountCommand – samma behörighetsmodell.
+// ============================================================
+
 using MediatR;
 using NexaPay.Application.Common.Models;
 

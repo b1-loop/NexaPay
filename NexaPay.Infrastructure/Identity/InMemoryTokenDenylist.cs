@@ -1,3 +1,12 @@
+// ============================================================
+// InMemoryTokenDenylist.cs – NexaPay.Infrastructure/Identity
+// ============================================================
+// Single-instance fallback för token-revokering. Bra för
+// lokal utveckling och tester men SKALAR INTE horisontellt
+// – varje serverinstans har sin egen lista. Vid flera servrar
+// måste RedisTokenDenylist användas.
+// ============================================================
+
 using NexaPay.Application.Common.Interfaces;
 using System.Collections.Concurrent;
 

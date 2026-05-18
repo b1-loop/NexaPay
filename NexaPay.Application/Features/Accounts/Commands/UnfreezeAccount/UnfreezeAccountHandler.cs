@@ -1,3 +1,11 @@
+// ============================================================
+// UnfreezeAccountHandler.cs
+// NexaPay.Application/Features/Accounts/Commands/UnfreezeAccount
+// ============================================================
+// Avfryser ett konto via Account.Unfreeze(). Samma säkerhets-
+// pattern som FreezeAccountHandler.
+// ============================================================
+
 using MediatR;
 using NexaPay.Application.Common.Models;
 using NexaPay.Domain.Interfaces;

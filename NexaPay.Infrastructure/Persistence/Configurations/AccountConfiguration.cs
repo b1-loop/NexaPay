@@ -1,3 +1,21 @@
+// ============================================================
+// AccountConfiguration.cs
+// NexaPay.Infrastructure/Persistence/Configurations
+// ============================================================
+// Fluent API-konfiguration för Account-tabellen. Vi gör det HÄR
+// (inte med data-annotations på entiteten) för att hålla
+// domänen ren från ramverks-attribut.
+//
+// Viktiga val:
+//   * Balance lagras som "owned type" → två kolumner på samma
+//     rad (Balance + AccountCurrency) utan separat tabell.
+//   * AccountNumber har unikt index – garanterar att två konton
+//     aldrig kan dela samma externa nummer.
+//   * RowVersion → optimistisk samtidighetskontroll.
+//   * Transaktioner deletar INTE när kontot stängs (audit-krav).
+//   * Kort cascade-deletar däremot med kontot.
+// ============================================================
+
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using NexaPay.Domain.Entities;

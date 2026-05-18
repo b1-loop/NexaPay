@@ -1,3 +1,12 @@
+// ============================================================
+// ConcurrencyRetryBehaviorTests.cs
+// NexaPay.Tests/Application/Behaviors
+// ============================================================
+// Verifierar att ConcurrencyRetryBehavior försöker igen vid
+// ConcurrencyException upp till MaxRetries och därefter
+// låter undantaget propagera.
+// ============================================================
+
 using FluentAssertions;
 using MediatR;
 using NexaPay.Application.Common.Behaviors;

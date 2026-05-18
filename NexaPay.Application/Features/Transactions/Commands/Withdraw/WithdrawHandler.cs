@@ -1,3 +1,13 @@
+// ============================================================
+// WithdrawHandler.cs
+// NexaPay.Application/Features/Transactions/Commands/Withdraw
+// ============================================================
+// Tar ut pengar via Account.Withdraw(). Behörighet, idempotency
+// och felhantering identiskt med DepositHandler. Aggregatet
+// kastar InvalidOperationException om saldot är otillräckligt
+// – det fångas och returneras som Failure med klar text.
+// ============================================================
+
 using AutoMapper;
 using MediatR;
 using NexaPay.Application.Common.Models;

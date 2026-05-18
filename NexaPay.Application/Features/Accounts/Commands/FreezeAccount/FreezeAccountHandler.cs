@@ -1,3 +1,12 @@
+// ============================================================
+// FreezeAccountHandler.cs
+// NexaPay.Application/Features/Accounts/Commands/FreezeAccount
+// ============================================================
+// Fryser ett konto via Account.Freeze(). NotFound returneras
+// både när kontot inte finns OCH när användaren saknar behörighet
+// (samma respons skyddar mot att man kan kartlägga andras konto-id).
+// ============================================================
+
 using MediatR;
 using NexaPay.Application.Common.Models;
 using NexaPay.Domain.Interfaces;

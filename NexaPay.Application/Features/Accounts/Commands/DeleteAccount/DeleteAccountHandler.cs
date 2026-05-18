@@ -1,3 +1,14 @@
+// ============================================================
+// DeleteAccountHandler.cs
+// NexaPay.Application/Features/Accounts/Commands/DeleteAccount
+// ============================================================
+// "Tar bort" ett konto genom att kalla Account.Close() –
+// vi raderar aldrig fysiskt (audit-krav), bara markerar
+// kontot som stängt. Returnerar NotFound för konton som
+// inte ägs av användaren (säkerhet: avslöjar inte att kontot
+// finns för fel ägare). Domän-undantag översätts till Failure.
+// ============================================================
+
 using MediatR;
 using NexaPay.Application.Common.Models;
 using NexaPay.Domain.Interfaces;

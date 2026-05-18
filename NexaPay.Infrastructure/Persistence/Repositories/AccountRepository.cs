@@ -1,3 +1,16 @@
+// ============================================================
+// AccountRepository.cs
+// NexaPay.Infrastructure/Persistence/Repositories
+// ============================================================
+// Konkret EF Core-implementation av IAccountRepository. Ärver
+// GetByIdAsync/GetAllAsync/AddAsync från Repository<T> och
+// lägger till konto-specifika queries.
+//
+// Personalrelevanta varianter (IncludingClosed) använder
+// IgnoreQueryFilters() för att komma förbi det globala filter
+// som annars döljer stängda konton.
+// ============================================================
+
 using Microsoft.EntityFrameworkCore;
 using NexaPay.Domain.Entities;
 using NexaPay.Domain.Interfaces;

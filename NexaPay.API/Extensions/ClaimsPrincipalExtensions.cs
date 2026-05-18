@@ -1,3 +1,12 @@
+// ============================================================
+// ClaimsPrincipalExtensions.cs – NexaPay.API/Extensions
+// ============================================================
+// Förkortar User.FindFirstValue(ClaimTypes.NameIdentifier) till
+// User.GetUserId() i controllers. Encapsulerar också test för
+// staff-roller på ETT ställe så att controllers kan skriva
+// 'User.IsStaff()' istället för att räkna upp varje roll.
+// ============================================================
+
 using NexaPay.Application.Common.Constants;
 using System.Security.Claims;
 

@@ -1,3 +1,14 @@
+// ============================================================
+// IAuthService.cs – NexaPay.Application/Common/Interfaces
+// ============================================================
+// Abstraktion över ASP.NET Identity + JWT. Application-handlers
+// (RegisterHandler, LoginHandler, ResetPasswordHandler m.fl.)
+// vet inget om Identity – de kallar IAuthService.
+//
+// Implementeras av AuthService i Infrastructure-lagret som
+// internt använder UserManager, SignInManager och JwtService.
+// ============================================================
+
 using NexaPay.Application.Common.Models;
 using NexaPay.Application.DTOs;
 

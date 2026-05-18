@@ -1,3 +1,11 @@
+// ============================================================
+// CardRepository.cs
+// NexaPay.Infrastructure/Persistence/Repositories
+// ============================================================
+// Konkret EF Core-implementation av ICardRepository. Ärver
+// grundläggande CRUD från Repository<T>.
+// ============================================================
+
 using Microsoft.EntityFrameworkCore;
 using NexaPay.Domain.Entities;
 using NexaPay.Domain.Interfaces;

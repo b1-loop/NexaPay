@@ -1,3 +1,18 @@
+// ============================================================
+// TransactionConfiguration.cs
+// NexaPay.Infrastructure/Persistence/Configurations
+// ============================================================
+// Fluent API-konfiguration för Transaction-tabellen.
+//
+// Viktiga val:
+//   * Amount och BalanceAfterTransaction är owned types (Money)
+//     → 4 kolumner totalt (beloppen + valutorna).
+//   * IdempotencyKey har FILTRERAT unikt index – endast non-NULL
+//     värden tvingas unika. NULL-rader (gamla transaktioner utan
+//     key) påverkas inte. Detta är hjärtat i dubbla-POST-skyddet.
+//   * AccountId + CreatedAt indexeras för snabb historik-query.
+// ============================================================
+
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using NexaPay.Domain.Entities;

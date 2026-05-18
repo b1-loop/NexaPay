@@ -1,3 +1,18 @@
+// ============================================================
+// CreateAccountHandler.cs
+// NexaPay.Application/Features/Accounts/Commands/CreateAccount
+// ============================================================
+// Skapar ett nytt bankkonto. Genererar ett kryptografiskt säkert
+// 20-tecknigt kontonummer ("SE" + 18 siffror) och kontrollerar
+// att numret är ledigt innan vi skapar aggregatet. Vi gör upp
+// till 5 försök ifall en kollision skulle uppstå (extremt
+// osannolikt, men en kollision skulle annars ge ett DB-fel
+// från det unika indexet på AccountNumber).
+//
+// Anropas indirekt – ValidationBehavior + ConcurrencyRetryBehavior
+// + AuditBehavior wrappas runt handlern av MediatR.
+// ============================================================
+
 using AutoMapper;
 using MediatR;
 using NexaPay.Application.Common.Models;
