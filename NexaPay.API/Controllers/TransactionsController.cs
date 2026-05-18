@@ -49,12 +49,6 @@ namespace NexaPay.API.Controllers
             _mediator = mediator;
         }
 
-        // Parses the Idempotency-Key request header. Returns null if absent or not a valid GUID.
-        private Guid? GetIdempotencyKey()
-        {
-            Request.Headers.TryGetValue("Idempotency-Key", out var value);
-            return Guid.TryParse(value, out var parsed) ? parsed : null;
-        }
 
         // --------------------------------------------------------
         // GET api/transactions/account/{accountId}
@@ -110,7 +104,8 @@ namespace NexaPay.API.Controllers
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(StatusCodes.Status403Forbidden)]
         public async Task<IActionResult> Deposit(
-            [FromBody] DepositRequest request)
+            [FromBody] DepositRequest request,
+            [FromHeader(Name = "Idempotency-Key")] Guid? idempotencyKey = null)
         {
             var result = await _mediator.Send(
                 new DepositCommand
@@ -120,7 +115,7 @@ namespace NexaPay.API.Controllers
                     Description = request.Description,
                     UserId = User.GetUserId(),
                     IsStaff = User.IsStaff(),
-                    IdempotencyKey = GetIdempotencyKey()
+                    IdempotencyKey = idempotencyKey
                 });
 
             if (result.IsSuccess)
@@ -142,7 +137,8 @@ namespace NexaPay.API.Controllers
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(StatusCodes.Status403Forbidden)]
         public async Task<IActionResult> Withdraw(
-            [FromBody] WithdrawRequest request)
+            [FromBody] WithdrawRequest request,
+            [FromHeader(Name = "Idempotency-Key")] Guid? idempotencyKey = null)
         {
             var result = await _mediator.Send(
                 new WithdrawCommand
@@ -152,7 +148,7 @@ namespace NexaPay.API.Controllers
                     Description = request.Description,
                     UserId = User.GetUserId(),
                     IsStaff = User.IsStaff(),
-                    IdempotencyKey = GetIdempotencyKey()
+                    IdempotencyKey = idempotencyKey
                 });
 
             if (result.IsSuccess)
@@ -175,7 +171,8 @@ namespace NexaPay.API.Controllers
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(StatusCodes.Status403Forbidden)]
         public async Task<IActionResult> PayInvoice(
-            [FromBody] PayInvoiceRequest request)
+            [FromBody] PayInvoiceRequest request,
+            [FromHeader(Name = "Idempotency-Key")] Guid? idempotencyKey = null)
         {
             var result = await _mediator.Send(
                 new PayInvoiceCommand
@@ -187,7 +184,7 @@ namespace NexaPay.API.Controllers
                     Description = request.Description,
                     UserId = User.GetUserId(),
                     IsStaff = User.IsStaff(),
-                    IdempotencyKey = GetIdempotencyKey()
+                    IdempotencyKey = idempotencyKey
                 });
 
             if (result.IsSuccess)
@@ -210,7 +207,8 @@ namespace NexaPay.API.Controllers
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(StatusCodes.Status403Forbidden)]
         public async Task<IActionResult> Transfer(
-            [FromBody] TransferRequest request)
+            [FromBody] TransferRequest request,
+            [FromHeader(Name = "Idempotency-Key")] Guid? idempotencyKey = null)
         {
             var result = await _mediator.Send(
                 new TransferCommand
@@ -221,7 +219,7 @@ namespace NexaPay.API.Controllers
                     Description = request.Description,
                     UserId = User.GetUserId(),
                     IsStaff = User.IsStaff(),
-                    IdempotencyKey = GetIdempotencyKey()
+                    IdempotencyKey = idempotencyKey
                 });
 
             if (result.IsSuccess)

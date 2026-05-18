@@ -15,7 +15,7 @@ namespace NexaPay.Application.Common.Interfaces
 {
     public interface ITokenDenylist
     {
-        void Revoke(string jti, DateTime expiry);
-        bool IsRevoked(string jti);
+        Task RevokeAsync(string jti, DateTime expiry, CancellationToken cancellationToken = default);
+        Task<bool> IsRevokedAsync(string jti, CancellationToken cancellationToken = default);
     }
 }

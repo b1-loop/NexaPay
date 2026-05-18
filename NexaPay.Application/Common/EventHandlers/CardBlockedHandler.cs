@@ -9,13 +9,14 @@
 
 using MediatR;
 using Microsoft.Extensions.Logging;
+using NexaPay.Application.Common.Events;
 using NexaPay.Application.Common.Interfaces;
 using NexaPay.Domain.Events;
 using NexaPay.Domain.Interfaces;
 
 namespace NexaPay.Application.Common.EventHandlers
 {
-    public class CardBlockedHandler : INotificationHandler<CardBlocked>
+    public class CardBlockedHandler : INotificationHandler<DomainEventNotification<CardBlocked>>
     {
         private readonly ILogger<CardBlockedHandler> _logger;
         private readonly INotificationService _notifications;
@@ -31,8 +32,9 @@ namespace NexaPay.Application.Common.EventHandlers
             _unitOfWork = unitOfWork;
         }
 
-        public async Task Handle(CardBlocked notification, CancellationToken cancellationToken)
+        public async Task Handle(DomainEventNotification<CardBlocked> wrapper, CancellationToken cancellationToken)
         {
+            var notification = wrapper.Event;
             _logger.LogWarning(
                 "CardBlocked: CardId={CardId} AccountId={AccountId} At={OccurredAt}",
                 notification.CardId,

@@ -118,15 +118,12 @@ namespace NexaPay.Tests.Domain.Entities
         {
             var account = Account.Open("SE8", "Konto", AccountType.Checking, "user-1");
 
-            var card = new Card
-            {
-                Id = Guid.NewGuid(),
-                CardToken = Guid.NewGuid().ToString(),
-                Last4Digits = "9010",
-                CardHolderName = "ANNA SVENSSON",
-                AccountId = account.Id,
-                CreatedAt = DateTime.UtcNow
-            };
+            var card = Card.Issue(
+                cardToken: Guid.NewGuid().ToString(),
+                last4Digits: "9010",
+                cardHolderName: "ANNA SVENSSON",
+                expiryDate: DateOnly.FromDateTime(DateTime.UtcNow.AddYears(3)),
+                accountId: account.Id);
             card.Activate();
             account.Cards.Add(card);
 

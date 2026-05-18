@@ -266,7 +266,9 @@ namespace NexaPay.Tests.Infrastructure.Identity
             var result = await _authService.LoginAsync(email, "Test123!");
 
             result.IsFailure.Should().BeTrue("obekräftad e-post ska blockera inloggning");
-            result.Error.Should().Contain("bekräftad");
+            // Felmeddelandet ska vara generiskt – får inte avslöja att kontot finns
+            // men är obekräftat (account enumeration).
+            result.Error.Should().NotContain("bekräftad");
             _mockJwtService.Verify(j => j.GenerateToken(
                 It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
         }
@@ -332,7 +334,9 @@ namespace NexaPay.Tests.Infrastructure.Identity
             var result = await _authService.LoginAsync(email, "Test123!");
 
             result.IsFailure.Should().BeTrue();
-            result.Error.Should().Contain("låst");
+            // Felmeddelandet ska vara generiskt – får inte avslöja att kontot finns
+            // men är låst (account enumeration).
+            result.Error.Should().NotContain("låst");
             _mockUserManager.Verify(u => u.CheckPasswordAsync(
                 It.IsAny<IdentityUser>(), It.IsAny<string>()), Times.Never);
             _mockUserManager.Verify(u => u.AccessFailedAsync(It.IsAny<IdentityUser>()), Times.Never);

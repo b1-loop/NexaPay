@@ -6,8 +6,6 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="MediatR" Version="14.1.0" />
-  </ItemGroup>
+  <!-- Domain har inga externa NuGet-beroenden -->
 
 </Project>

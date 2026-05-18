@@ -15,6 +15,7 @@
 // (Amount + Currency) på samma rad som ägar-entiteten.
 // ============================================================
 
+using System.Text.Json.Serialization;
 using NexaPay.Domain.Enums;
 
 namespace NexaPay.Domain.ValueObjects
@@ -28,6 +29,9 @@ namespace NexaPay.Domain.ValueObjects
         public decimal Amount { get; private set; }
         public Currency Currency { get; private set; }
 
+        // [JsonConstructor] så outbox-dispatchern kan rekonstruera
+        // Money-instanser från serialiserad payload.
+        [JsonConstructor]
         public Money(decimal amount, Currency currency)
         {
             // Domäninvariant: ett konto kan ha 0 men aldrig negativt belopp.

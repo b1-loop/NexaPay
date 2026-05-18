@@ -21,28 +21,65 @@ namespace NexaPay.Domain.Entities
 {
     public class Card : BaseEntity
     {
-        // Tokeniserat kortnummer – ersätter PAN. Genereras av infrastrukturen
-        // (CreateCardHandler) och används som intern referens.
-        public string CardToken { get; set; } = string.Empty;
+        // EF Core kräver en privat parameterlös konstruktor för att
+        // kunna materialisera entiteten från databasen.
+        private Card() { }
+
+        // Tokeniserat kortnummer – ersätter PAN. Endast Domain kan
+        // sätta värdet via fabriksmetoden Issue().
+        public string CardToken { get; private set; } = string.Empty;
 
         // De fyra sista siffrorna – visas i UI för att kortet ska kunna
         // kännas igen, men exponerar inte hela kortnumret.
-        public string Last4Digits { get; set; } = string.Empty;
+        public string Last4Digits { get; private set; } = string.Empty;
 
         // Kortinnehavarens namn (visas på kortet).
-        public string CardHolderName { get; set; } = string.Empty;
+        public string CardHolderName { get; private set; } = string.Empty;
 
         // Endast år och månad har bankmässig betydelse, men vi lagrar en
         // exakt DateOnly för enkelhet (typiskt sista dagen i utgångsmånaden).
-        public DateOnly ExpiryDate { get; set; }
+        public DateOnly ExpiryDate { get; private set; }
 
         // Status är privat-set: ändras endast via metoderna nedan så
         // ingen extern kod kan sätta ett ogiltigt tillstånd direkt.
         public CardStatus Status { get; private set; } = CardStatus.Inactive;
 
         // Främmande nyckel + navigationsproperty mot ägarkontot.
-        public Guid AccountId { get; set; }
+        public Guid AccountId { get; private set; }
         public Account? Account { get; set; }
+
+        // Optimistic-concurrency-token: EF jämför vid SaveChanges och
+        // kastar DbUpdateConcurrencyException om någon annan ändrat raden
+        // sedan vi läste in den. Hindrar två samtidiga Block/Unblock
+        // från att tyst skriva över varandra.
+        public byte[] RowVersion { get; set; } = [];
+
+        // ----------------------------------------------------
+        // Fabriksmetod
+        // ----------------------------------------------------
+
+        // Skapar ett nytt kort i Inactive-tillstånd. Domänen har inget
+        // ansvar för att generera PAN/CVV – det görs av Infrastructure
+        // (CreateCardHandler) och passas in som färdiga värden.
+        public static Card Issue(
+            string cardToken,
+            string last4Digits,
+            string cardHolderName,
+            DateOnly expiryDate,
+            Guid accountId)
+        {
+            return new Card
+            {
+                Id = Guid.NewGuid(),
+                CardToken = cardToken,
+                Last4Digits = last4Digits,
+                CardHolderName = cardHolderName,
+                ExpiryDate = expiryDate,
+                AccountId = accountId,
+                Status = CardStatus.Inactive,
+                CreatedAt = DateTime.UtcNow
+            };
+        }
 
         // ----------------------------------------------------
         // Tillståndsövergångar

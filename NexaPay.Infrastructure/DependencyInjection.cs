@@ -23,6 +23,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.Extensions.Primitives;
 using NexaPay.Application.Common.Interfaces;
 using NexaPay.Domain.Interfaces;
+using NexaPay.Infrastructure.Events;
 using NexaPay.Infrastructure.Identity;
 using NexaPay.Infrastructure.Notifications;
 using NexaPay.Infrastructure.Persistence;
@@ -71,6 +72,17 @@ namespace NexaPay.Infrastructure
 
             // Registrera UnitOfWork – används av alla handlers
             services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+            // Domain-event dispatcher (MediatR-baserad) – exponeras för andra
+            // konsumenter som vill dispatcha events direkt (t.ex. tester).
+            // OutboxDispatcher (BackgroundService) använder IPublisher direkt.
+            services.AddScoped<IDomainEventDispatcher, MediatRDomainEventDispatcher>();
+
+            // Outbox-dispatcher: BackgroundService som plockar oprocessade
+            // domän-events ur OutboxEvents-tabellen och publicerar dem via
+            // MediatR. Detta säkerställer att SMTP/Redis aldrig blockerar
+            // request-tråden och att save+dispatch är atomära.
+            services.AddHostedService<OutboxDispatcher>();
 
             // --------------------------------------------------------
             // App Settings
@@ -190,18 +202,18 @@ namespace NexaPay.Infrastructure
                     ValidAlgorithms = new[] { SecurityAlgorithms.HmacSha256 }
                 };
 
-                // Kontrollera denylist vid varje validerad token
+                // Kontrollera denylist vid varje validerad token.
+                // Asynkron I/O – blockerar inte trådpoolen vid Redis-anrop.
                 options.Events = new JwtBearerEvents
                 {
-                    OnTokenValidated = context =>
+                    OnTokenValidated = async context =>
                     {
                         var denylist = context.HttpContext.RequestServices
                             .GetRequiredService<ITokenDenylist>();
                         var jti = context.Principal?
                             .FindFirst(JwtRegisteredClaimNames.Jti)?.Value;
-                        if (jti != null && denylist.IsRevoked(jti))
+                        if (jti != null && await denylist.IsRevokedAsync(jti, context.HttpContext.RequestAborted))
                             context.Fail("Token har återkallats.");
-                        return Task.CompletedTask;
                     },
                     OnChallenge = async context =>
                     {

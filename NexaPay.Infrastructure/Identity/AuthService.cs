@@ -103,25 +103,32 @@ namespace NexaPay.Infrastructure.Identity
 
         public async Task<Result<AuthDto>> LoginAsync(string email, string password)
         {
+            // Generiskt fel för ALLA misslyckade login-vägar. Att skilja på
+            // "okänd e-post", "låst konto" och "obekräftad e-post" skulle
+            // läcka information om vilka konton som finns (account enumeration).
+            // Användaren får istället hjälp via separata flöden (glömt lösenord,
+            // skicka om bekräftelse) som inte avslöjar kontostatus i svaret.
+            const string GenericFailure = "Felaktig e-post eller lösenord, eller så är kontot inte tillgängligt.";
+
             try
             {
                 var user = await _userManager.FindByEmailAsync(email);
                 if (user == null)
-                    return Result<AuthDto>.Failure("Felaktig e-post eller lösenord");
+                    return Result<AuthDto>.Failure(GenericFailure);
 
+                // Lockout kontrolleras före password-check för att förhindra timing-oracle.
                 if (await _userManager.IsLockedOutAsync(user))
-                    return Result<AuthDto>.Failure("Kontot är tillfälligt låst. Försök igen senare.");
+                    return Result<AuthDto>.Failure(GenericFailure);
 
                 var passwordValid = await _userManager.CheckPasswordAsync(user, password);
                 if (!passwordValid)
                 {
                     await _userManager.AccessFailedAsync(user);
-                    return Result<AuthDto>.Failure("Felaktig e-post eller lösenord");
+                    return Result<AuthDto>.Failure(GenericFailure);
                 }
 
                 if (!user.EmailConfirmed)
-                    return Result<AuthDto>.Failure(
-                        "E-postadressen är inte bekräftad. Kontrollera din inkorg och bekräfta ditt konto.");
+                    return Result<AuthDto>.Failure(GenericFailure);
 
                 await _userManager.ResetAccessFailedCountAsync(user);
 

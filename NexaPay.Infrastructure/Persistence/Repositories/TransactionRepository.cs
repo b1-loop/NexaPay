@@ -20,10 +20,10 @@ namespace NexaPay.Infrastructure.Persistence.Repositories
     {
         public TransactionRepository(ApplicationDbContext context) : base(context) { }
 
-        public async Task<Transaction?> GetByIdempotencyKeyAsync(Guid idempotencyKey, CancellationToken cancellationToken = default)
+        public async Task<Transaction?> GetByIdempotencyKeyAsync(Guid idempotencyKey, Guid accountId, CancellationToken cancellationToken = default)
             => await _dbSet
                 .AsNoTracking()
-                .FirstOrDefaultAsync(t => t.IdempotencyKey == idempotencyKey, cancellationToken);
+                .FirstOrDefaultAsync(t => t.IdempotencyKey == idempotencyKey && t.AccountId == accountId, cancellationToken);
 
         public async Task<(IEnumerable<Transaction> Transactions, int TotalCount)>
             GetTransactionsByAccountIdPagedAsync(Guid accountId, int page, int pageSize, CancellationToken cancellationToken = default)

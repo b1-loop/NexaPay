@@ -16,7 +16,9 @@ namespace NexaPay.Domain.Interfaces
 {
     public interface ITransactionRepository : IGenericRepository<Transaction>
     {
-        Task<Transaction?> GetByIdempotencyKeyAsync(Guid idempotencyKey, CancellationToken cancellationToken = default);
+        // Slår upp en transaktion via (idempotency-nyckel, konto). Nyckeln är
+        // unik per konto – så User B kan aldrig återanvända User A:s nyckel.
+        Task<Transaction?> GetByIdempotencyKeyAsync(Guid idempotencyKey, Guid accountId, CancellationToken cancellationToken = default);
         Task<(IEnumerable<Transaction> Transactions, int TotalCount)> GetTransactionsByAccountIdPagedAsync(
             Guid accountId,
             int page,

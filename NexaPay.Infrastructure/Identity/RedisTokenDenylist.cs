@@ -30,7 +30,7 @@ namespace NexaPay.Infrastructure.Identity
             _logger = logger;
         }
 
-        public void Revoke(string jti, DateTime expiry)
+        public async Task RevokeAsync(string jti, DateTime expiry, CancellationToken cancellationToken = default)
         {
             var ttl = expiry - DateTime.UtcNow;
             if (ttl <= TimeSpan.Zero)
@@ -38,8 +38,10 @@ namespace NexaPay.Infrastructure.Identity
 
             try
             {
-                // Redis rensar posten automatiskt när token ändå gått ut
-                _db.StringSet(Prefix + jti, 1, ttl);
+                // Redis rensar posten automatiskt när token ändå gått ut.
+                // StackExchange.Redis stödjer inte per-anrops CancellationToken;
+                // tokenen propagerar via det omgivande async-flödet.
+                await _db.StringSetAsync(Prefix + jti, 1, ttl);
             }
             catch (RedisException ex)
             {
@@ -51,11 +53,11 @@ namespace NexaPay.Infrastructure.Identity
             }
         }
 
-        public bool IsRevoked(string jti)
+        public async Task<bool> IsRevokedAsync(string jti, CancellationToken cancellationToken = default)
         {
             try
             {
-                return _db.KeyExists(Prefix + jti);
+                return await _db.KeyExistsAsync(Prefix + jti);
             }
             catch (RedisException ex)
             {

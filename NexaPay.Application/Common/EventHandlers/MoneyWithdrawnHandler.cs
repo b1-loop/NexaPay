@@ -7,12 +7,13 @@
 
 using MediatR;
 using Microsoft.Extensions.Logging;
+using NexaPay.Application.Common.Events;
 using NexaPay.Application.Common.Interfaces;
 using NexaPay.Domain.Events;
 
 namespace NexaPay.Application.Common.EventHandlers
 {
-    public class MoneyWithdrawnHandler : INotificationHandler<MoneyWithdrawn>
+    public class MoneyWithdrawnHandler : INotificationHandler<DomainEventNotification<MoneyWithdrawn>>
     {
         private readonly ILogger<MoneyWithdrawnHandler> _logger;
         private readonly INotificationService _notifications;
@@ -25,8 +26,9 @@ namespace NexaPay.Application.Common.EventHandlers
             _notifications = notifications;
         }
 
-        public async Task Handle(MoneyWithdrawn notification, CancellationToken cancellationToken)
+        public async Task Handle(DomainEventNotification<MoneyWithdrawn> wrapper, CancellationToken cancellationToken)
         {
+            var notification = wrapper.Event;
             _logger.LogInformation(
                 "MoneyWithdrawn: AccountId={AccountId} OwnerId={OwnerId} " +
                 "Amount={Amount} NewBalance={NewBalance} At={OccurredAt}",
